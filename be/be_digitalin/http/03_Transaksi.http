@@ -1,0 +1,43 @@
+﻿@host = http://localhost:5210
+@customer_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJEaWdpdGFsaW5BZG1pbiIsImlzcyI6IkRpZ2l0YWxpbkJhY2tlbmQiLCJleHAiOjE3ODE1Mzc3NTQsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWVpZGVudGlmaWVyIjoiMSIsImh0dHA6Ly9zY2hlbWFzLm1pY3Jvc29mdC5jb20vd3MvMjAwOC8wNi9pZGVudGl0eS9jbGFpbXMvcm9sZSI6IkNVU1RPTUVSIiwiaWF0IjoxNzgxNDUxMzU0LCJuYmYiOjE3ODE0NTEzNTR9.lN4tGIAh2pjBPvBLV3BQ1VUFCU9fXqQeaScHCLUSVVI
+### ALUR TRANSAKSI CUSTOMER
+
+### ALUR MANAJEMEN ADMIN
+@admin_token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJEaWdpdGFsaW5BZG1pbiIsImlzcyI6IkRpZ2l0YWxpbkJhY2tlbmQiLCJleHAiOjE3ODE0OTQ0ODksImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWUiOiJhZG1pbiIsImh0dHA6Ly9zY2hlbWFzLm1pY3Jvc29mdC5jb20vd3MvMjAwOC8wNi9pZGVudGl0eS9jbGFpbXMvcm9sZSI6IkFETUlOIiwiaWF0IjoxNzgxNDUxMjg5LCJuYmYiOjE3ODE0NTEyODl9.lsSRDPI5Ej26BQgRCFC0jfoefx_q2HWfzdFQHXx6Yzs
+
+
+### 1. Buat Pesanan Baru (Checkout dengan Target ID dinamis)
+POST {{host}}/orders
+Content-Type: application/json
+Authorization: Bearer {{customer_token}}
+
+{
+  "productId": 23,
+  "targetId": "087800001233",
+  "zoneId": ""
+}
+
+### 2. Cek Riwayat Pesanan Saya
+GET {{host}}/orders/my-history
+Authorization: Bearer {{customer_token}}
+Accept: application/json
+
+
+
+### 3. Tembak Ulang (Retry) Pesanan yang Nyangkut (Khusus Admin)
+# Pastikan URL menggunakan OrderNo yang statusnya sedang NEEDS_ACTION
+POST {{host}}/admin/orders/INV-20260602-ABED/retry
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+### 4. Tandai Pesanan sebagai REFUNDED (Khusus Admin)
+# Pastikan URL menggunakan OrderNo yang statusnya sedang NEEDS_ACTION
+POST {{host}}/admin/orders/INV-20260601-FD64/refund
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+### 5. Lihat Semua Pesanan (Pagination & Filter Khusus Admin)
+# Coba ubah page=1, limit=5, atau tambahkan &status=NEEDS_ACTION
+GET {{host}}/admin/orders?page=1&limit=5
+Authorization: Bearer {{admin_token}}
+Accept: application/json

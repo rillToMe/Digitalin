@@ -1,0 +1,10 @@
+﻿namespace be_digitalin.Config;
+
+public class JwtSettings
+{
+    public string Issuer { get; set; } = string.Empty;
+    public string Audience { get; set; } = string.Empty;
+    public string Key { get; set; } = string.Empty;
+    public string AdminUser { get; set; } = string.Empty;
+    public string AdminPass  { get; set; } = string.Empty;
+}

@@ -1,0 +1,42 @@
+﻿@host = http://localhost:5210
+@adminToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJEaWdpdGFsaW5BZG1pbiIsImlzcyI6IkRpZ2l0YWxpbkJhY2tlbmQiLCJleHAiOjE3ODE0OTQ0ODksImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWUiOiJhZG1pbiIsImh0dHA6Ly9zY2hlbWFzLm1pY3Jvc29mdC5jb20vd3MvMjAwOC8wNi9pZGVudGl0eS9jbGFpbXMvcm9sZSI6IkFETUlOIiwiaWF0IjoxNzgxNDUxMjg5LCJuYmYiOjE3ODE0NTEyODl9.lsSRDPI5Ej26BQgRCFC0jfoefx_q2HWfzdFQHXx6Yzs
+
+### 1. ALUR PEMBELI (PUBLIC)
+
+### A. Homepage: Ambil Daftar Game & Metadata Form
+GET {{host}}/games/brands
+Accept: application/json
+
+---
+
+### B. Halaman Detail: Ambil Daftar Diamond
+GET {{host}}/games/mobile-legends
+Accept: application/json
+
+---
+
+### C. Checkout: Buat Pesanan Baru (Test Dynamic ID)
+POST {{host}}/orders
+Content-Type: application/json
+
+{
+  "productId": 23,
+  "targetId": "12345678",
+  "zoneId": "1234"
+}
+
+### 2. ALUR ADMIN (BUTUH TOKEN)
+
+### A. Login Admin (Dapatkan Token JWT)
+POST {{host}}/admin/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+### B. Cek Riwayat Pesanan (Harus pakai Token)
+GET {{host}}/admin/orders
+Authorization: Bearer {{adminToken}}
+Accept: application/json

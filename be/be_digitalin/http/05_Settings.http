@@ -1,0 +1,48 @@
+﻿@host = http://localhost:5210
+@adminToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJEaWdpdGFsaW5BZG1pbiIsImlzcyI6IkRpZ2l0YWxpbkJhY2tlbmQiLCJleHAiOjE3ODE0OTQ0ODksImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWUiOiJhZG1pbiIsImh0dHA6Ly9zY2hlbWFzLm1pY3Jvc29mdC5jb20vd3MvMjAwOC8wNi9pZGVudGl0eS9jbGFpbXMvcm9sZSI6IkFETUlOIiwiaWF0IjoxNzgxNDUxMjg5LCJuYmYiOjE3ODE0NTEyODl9.lsSRDPI5Ej26BQgRCFC0jfoefx_q2HWfzdFQHXx6Yzs
+
+
+### B. PENGATURAN MARGIN KHUSUS (PER PRODUK)
+# Digunakan untuk produk tertentu agar harganya lebih kompetitif atau lebih mahal.
+
+### 1. Set Margin Khusus untuk Produk Tertentu
+# Ganti {id} dengan ID produk asli dari database lu (contoh: ID 23)
+PUT {{host}}/admin/products/23/margin
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "margin": 1500
+}
+
+### 2. Reset Margin Khusus (Kembali ke Global)
+# Kirim nilai null untuk menghapus margin khusus pada produk tersebut.
+PUT {{host}}/admin/products/23/margin
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "margin": null
+}
+
+
+### C. SINKRONISASI ULANG
+# Setelah mengubah margin, jalankan ini untuk memperbarui harga jual di database.
+POST {{host}}/admin/system/sync-digiflazz
+Authorization: Bearer {{adminToken}}
+
+
+### D. PENGATURAN WAKTU MIDTRANS
+### 1. Lihat Waktu Kedaluwarsa Saat Ini
+GET {{host}}/admin/system/midtrans-expiry
+Authorization: Bearer {{adminToken}}
+Accept: application/json
+
+### 2. Ubah Waktu Kedaluwarsa (Misal: 15 Menit)
+PUT {{host}}/admin/system/midtrans-expiry
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "expiry": 15
+}

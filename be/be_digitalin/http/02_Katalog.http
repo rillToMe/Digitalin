@@ -1,0 +1,75 @@
+@host = http://localhost:5210
+@adminToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJEaWdpdGFsaW5BZG1pbiIsImlzcyI6IkRpZ2l0YWxpbkJhY2tlbmQiLCJleHAiOjE3ODE1NDc1MzQsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWUiOiJhZG1pbiIsImh0dHA6Ly9zY2hlbWFzLm1pY3Jvc29mdC5jb20vd3MvMjAwOC8wNi9pZGVudGl0eS9jbGFpbXMvcm9sZSI6IkFETUlOIiwiaWF0IjoxNzgxNTA0MzM0LCJuYmYiOjE3ODE1MDQzMzR9.yCxwYbeZqxtNaudIZYwt8lzDZzx6Nw9oBrpf9xsI-nk
+
+### A. MANAJEMEN ADMIN
+
+### 1. Tarik Katalog dari Digiflazz (Sync)
+POST {{host}}/admin/system/sync-digiflazz
+Authorization: Bearer {{adminToken}}
+
+### 2. Sapu Bersih Data Dummy
+DELETE {{host}}/admin/system/clean-dummy-products
+Authorization: Bearer {{adminToken}}
+Accept: application/json
+
+### 3. Lihat Semua Transaksi Masuk (View Admin)
+GET {{host}}/admin/orders
+Authorization: Bearer {{adminToken}}
+Accept: application/json
+
+### 4. Upload Gambar Item Nominal (Contoh: Karung Diamond)
+# Mengarah ke ID Produk di tabel GameProducts
+POST {{host}}/admin/products/23/upload-item-image
+Authorization: Bearer {{adminToken}}
+Content-Type: multipart/form-data; boundary=BatasMahaKarya
+
+--BatasMahaKarya
+Content-Disposition: form-data; name="file"; filename="item-diamond.png"
+Content-Type: image/png
+
+< ../Icons/ml-12.webp
+--BatasMahaKarya--
+
+
+### 5. Upload Gambar Cover Game Utama (Contoh: Banner Web)
+# Mengarah ke ID Metadata di tabel GameMetadata (Contoh: ID 11 untuk Genshin Impact)
+POST {{host}}/admin/system/metadata/1/upload-game-cover
+Authorization: Bearer {{adminToken}}
+Content-Type: multipart/form-data; boundary=BatasMahaKarya
+
+--BatasMahaKarya
+Content-Disposition: form-data; name="file"; filename="pb.webp"
+Content-Type: image/png
+
+< ../Icons/ff.webp
+--BatasMahaKarya--
+
+
+### B. SIMULASI WEBHOOK (TANPA TOKEN)
+
+### 1. Simulasi Webhook Midtrans (Status Pembayaran Sukses)
+POST {{host}}/webhooks/midtrans
+Content-Type: application/json
+
+{
+  "order_id": "INV-TEST-123",
+  "status_code": "200",
+  "gross_amount": "50000.00",
+  "transaction_status": "settlement",
+  "fraud_status": "accept",
+  "signature_key": "dummy_signature"
+}
+
+### 2. Simulasi Webhook Digiflazz (SN Masuk)
+POST {{host}}/webhooks/digiflazz
+Content-Type: application/json
+x-hub-signature: sha1=dummy_signature
+
+{
+  "data": {
+    "ref_id": "INV-TEST-123",
+    "status": "Sukses",
+    "sn": "SN-992837465521",
+    "message": "Transaksi Sukses"
+  }
+}

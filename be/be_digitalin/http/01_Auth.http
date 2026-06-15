@@ -1,0 +1,84 @@
+﻿@host = http://localhost:5210
+
+### A. ADMIN AUTHENTICATION
+
+# @name loginAdmin
+POST {{host}}/admin/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+### B. CUSTOMER AUTHENTICATION
+
+POST http://localhost:5210/auth/request-otp
+Content-Type: application/json
+
+{
+  "email": "budi@gmail.com"
+}
+
+### 1. Register Pembeli Baru
+POST {{host}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "budi@gmail.com",
+  "password": "rahasia123",
+  "fullName": "Budi Santoso",
+  "otpCode": "863813"
+}
+
+### 2. Login Pembeli 
+# @name loginCustomer
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "budi@gmail.com",
+  "password": "rahasia123"
+}
+
+> {%
+    // Skrip ini otomatis jalan setelah dapet response 200 OK
+    client.global.set("customer_token", response.body.token);
+    client.log("Token Customer berhasil disimpan ke memori global!");
+%}
+
+### C. SECURITY CHECK (TESTING ERROR)
+
+### Test Admin Login Gagal (Password Salah) -> Harusnya 401
+POST {{host}}/admin/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "salah_password_123"
+}
+
+### Test Akses Tanpa Token -> Harusnya 401
+GET {{host}}/orders/my-history
+Accept: application/json
+
+
+### 1. Minta Kode OTP (Cek Mailtrap setelah ini)
+POST {{host}}/auth/request-otp
+Content-Type: application/json
+
+{
+  "email": "testaja@gmail.com"
+}
+
+### 2. Selesaikan Pendaftaran
+# Ganti 123456 dengan 6 angka yang lu dapet dari Mailtrap!
+POST {{host}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "testaja@gmail.com",
+  "password": "pwtest123!",
+  "fullName": "Budi Santoso",
+  "otpCode": "34243"
+}
