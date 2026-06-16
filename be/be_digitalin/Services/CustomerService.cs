@@ -68,6 +68,12 @@ public class CustomerService : ICustomerService
         return new JsonWebTokenHandler().CreateToken(tokenDescriptor);
     }
     
+    //check email yang sudah di pakai
+    public async Task<bool> CheckEmailExistsAsync(string email)
+    {
+        return await _db.Customers.AnyAsync(u => u.Email == email);
+    }
+    
     public async Task<Customer?> GetProfileAsync(int id)
     {
         return await _db.Customers.FindAsync(id);

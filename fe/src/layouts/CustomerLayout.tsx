@@ -49,7 +49,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
 
             {/* Desktop Nav */}
             <div className="hidden md:flex items-center gap-4">
-              {isAuthenticated ? (
+              {isAuthenticated() ? (
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setDropdownOpen(!dropdownOpen)}
@@ -120,7 +120,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
               style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}
             >
               <div className="px-4 py-3 space-y-1" style={{ backgroundColor: "var(--color-surface, #fff)" }}>
-                {isAuthenticated ? (
+                {isAuthenticated() ? (
                   <>
                     <Link to="/profile" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg no-underline" style={{ color: "var(--color-primary, #0F1419)" }}>
                       <User size={16} /><span>Profile</span>

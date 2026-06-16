@@ -45,7 +45,7 @@ export default function GameDetailPage() {
       toast.success("Pesanan berhasil dibuat!");
       if (res.redirectUrl) {
         window.location.href = res.redirectUrl;
-      } else if (isAuthenticated) {
+      } else if (isAuthenticated()) {
         // Logged-in users can see their history
         navigate("/history");
       } else {

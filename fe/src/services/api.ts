@@ -1,4 +1,6 @@
 import axios from "axios";
+import { toast } from "sonner";
+import { useAuthStore } from "../store/authStore";
 import type {
   AuthTokenResponse,
   LoginPayload,
@@ -49,8 +51,24 @@ api.interceptors.response.use(
   (res) => res,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem("token");
-      window.location.href = "/login";
+      const store = useAuthStore.getState();
+      const requestUrl: string = error.config?.url ?? "";
+      const isAdminRequest = requestUrl.startsWith("/admin");
+
+      if (isAdminRequest) {
+        // Admin 401 → clear admin session, redirect to admin login
+        store.adminLogout();
+        if (!window.location.pathname.startsWith("/admin/login")) {
+          toast.error("Session admin telah berakhir, silakan login kembali.");
+          window.location.href = "/admin/login";
+        }
+      } else {
+        // Customer 401 → clear customer session, redirect to customer login
+        store.logout();
+        if (!window.location.pathname.includes("/login")) {
+          window.location.href = "/login";
+        }
+      }
     }
     return Promise.reject(error);
   }

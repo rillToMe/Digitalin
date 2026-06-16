@@ -4,10 +4,12 @@ import { Eye, EyeOff, Zap, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation } from "@tanstack/react-query";
 import { authService } from "../../../services/api";
+import { useAuthStore } from "../../../store/authStore";
 import type { RegisterPayload, RequestOtpPayload } from "../../../api/index";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
+  const { setToken } = useAuthStore();
   const [form, setForm] = useState({ email: "", password: "", fullName: "", otpCode: "" });
   const [showPass, setShowPass] = useState(false);
   const [step, setStep] = useState<"form" | "otp">("form");
@@ -26,9 +28,10 @@ export default function RegisterPage() {
 
   const registerMutation = useMutation({
     mutationFn: (payload: RegisterPayload) => authService.register(payload),
-    onSuccess: () => {
-      toast.success("Registrasi berhasil! Silakan login.");
-      navigate("/login");
+    onSuccess: (res) => {
+      setToken(res.token);
+      toast.success("Registrasi berhasil! Selamat datang di Digitalin");
+      navigate("/");
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {
       const msg = err?.response?.data?.message ?? "Registrasi gagal";
@@ -56,7 +59,7 @@ export default function RegisterPage() {
   };
 
   const loading = otpMutation.isPending || registerMutation.isPending;
-  const otpSent = step === "otp";
+  // const otpSent = step === "otp";
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12" style={{ backgroundColor: "var(--color-neutral,#F1F3F5)" }}>

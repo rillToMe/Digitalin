@@ -34,15 +34,61 @@ function CustomerRoute({ children }: { children: React.ReactNode }) {
 }
 
 function ProtectedCustomerRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, hasHydrated } = useAuthStore();
   const location = useLocation();
-  if (!isAuthenticated) return <Navigate to="/login" state={{ from: location }} replace />;
+  if (!hasHydrated) return null;
+  if (!isAuthenticated()) return <Navigate to="/login" state={{ from: location }} replace />;
   return <CustomerLayout>{children}</CustomerLayout>;
 }
 
+/**
+ * Smart /admin entry route.
+ * - No token / token expired → /admin/login
+ * - Valid token → /admin/dashboard
+ * Validates JWT exp claim before allowing access.
+ */
+function AdminEntryRoute() {
+  const { isAdmin, isAdminTokenValid, adminLogout, hasHydrated } = useAuthStore();
+
+  if (!hasHydrated) return null;
+
+  // No token at all → login
+  if (!isAdmin()) return <Navigate to="/admin/login" replace />;
+
+  // Token exists but expired → clear and redirect to login
+  if (!isAdminTokenValid()) {
+    adminLogout();
+    return <Navigate to="/admin/login" replace />;
+  }
+
+  // Token is present and not expired → dashboard
+  return <Navigate to="/admin/dashboard" replace />;
+}
+
+/**
+ * If admin is already logged in with a valid token,
+ * redirect /admin/login → /admin/dashboard automatically.
+ */
+function AdminLoginRoute() {
+  const { isAdmin, isAdminTokenValid, hasHydrated } = useAuthStore();
+
+  if (!hasHydrated) return null;
+
+  // Already authenticated with valid token → go to dashboard
+  if (isAdmin() && isAdminTokenValid()) {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
+  return <AdminLoginPage />;
+}
+
 function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
-  const { isAdmin } = useAuthStore();
-  if (!isAdmin) return <Navigate to="/admin/login" replace />;
+  const { isAdmin, isAdminTokenValid, adminLogout, hasHydrated } = useAuthStore();
+  if (!hasHydrated) return null;
+  if (!isAdmin() || !isAdminTokenValid()) {
+    if (isAdmin()) adminLogout(); // clear expired session
+    return <Navigate to="/admin/login" replace />;
+  }
   return <>{children}</>;
 }
 
@@ -61,7 +107,8 @@ export default function App() {
         <Route path="/history" element={<ProtectedCustomerRoute><HistoryPage /></ProtectedCustomerRoute>} />
 
         {/* Admin routes */}
-        <Route path="/admin/login" element={<AdminLoginPage />} />
+        <Route path="/admin" element={<AdminEntryRoute />} />
+        <Route path="/admin/login" element={<AdminLoginRoute />} />
         <Route path="/admin/dashboard" element={<ProtectedAdminRoute><DashboardPage /></ProtectedAdminRoute>} />
         <Route path="/admin/products" element={<ProtectedAdminRoute><ProductsPage /></ProtectedAdminRoute>} />
         <Route path="/admin/banners" element={<ProtectedAdminRoute><BannersPage /></ProtectedAdminRoute>} />

@@ -22,17 +22,19 @@ public static class AuthEndpoints
         // AREA PUBLIK (Customer Auth)
         var customerGroup = app.MapGroup("/auth").WithTags("Otentikasi (Customer)");
 
-        // ── 1. ENDPOINT MINTA OTP ──────────────────────────────────────────
-        // [C4 fix] Cryptographically secure OTP via RandomNumberGenerator.
-        // Rate-limited in Program.cs via the "OtpPolicy" policy (3 requests / 10 min per IP).
+        // 1. ENDPOINT MINTA OTP
         customerGroup.MapPost("/request-otp", async (
             [FromBody] RequestOtpRequest req, 
             [FromServices] EmailProvider emailProvider, 
+            [FromServices] ICustomerService service,
             [FromServices] IMemoryCache cache) =>
         {
-            // ── [C4] Cryptographically secure OTP generation ─────────────
-            // RandomNumberGenerator is NOT seeded by system time and produces
-            // values that are computationally infeasible to predict.
+            var emailSudahTerpakai = await service.CheckEmailExistsAsync(req.Email);
+            if (emailSudahTerpakai)
+            {
+                return Results.BadRequest(new { message = "Email sudah terdaftar. Silakan login." });
+            }
+
             int otpNumber = RandomNumberGenerator.GetInt32(100_000, 999_999);
             string otpCode = otpNumber.ToString();
 
@@ -70,6 +72,7 @@ public static class AuthEndpoints
             return token != null ? Results.Ok(new { token }) : Results.Unauthorized();
         });
         
+        
         // 4. GET PROFILE (Melihat Data Sendiri)
         customerGroup.MapGet("/profile", async (ClaimsPrincipal user, [FromServices] ICustomerService service) =>
         {
@@ -101,6 +104,25 @@ public static class AuthEndpoints
                 ? Results.Ok(new { message = "Profil berhasil diperbarui!" }) 
                 : Results.NotFound();
         }).RequireAuthorization();
+        
+        // 6. ENDPOINT CHECK EMAIL (Dipanggil saat FE cek email ke DB)
+        customerGroup.MapGet("/check-email", async (
+            [FromQuery] string email, 
+            [FromServices] ICustomerService service) =>
+        {
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return Results.BadRequest(new { message = "Email tidak boleh kosong." });
+            }
+            
+            var emailSudahTerpakai = await service.CheckEmailExistsAsync(email);
+            
+            if (emailSudahTerpakai)
+            {
+                return Results.BadRequest(new { message = "Email sudah terdaftar. Silakan login." });
+            }
+            return Results.Ok(new { message = "Email tersedia." });
+        });
         
         // ── AREA ADMIN ─────────────────────────────────────────────────────
         // [C7 fix] .RequireAuthorization("AdminOnly") enforces that the JWT
