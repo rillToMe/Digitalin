@@ -1,9 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import { Check, AlertCircle, Loader2, ShieldCheck } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { brandService, orderService } from "../../../services/api";
 import { useCheckoutStore } from "../../../store/checkoutStore";
 import { useAuthStore } from "../../../store/authStore";
@@ -16,7 +16,9 @@ function formatRp(n: number) {
 export default function GameDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { isAuthenticated } = useAuthStore();
+  const [isPaying, setIsPaying] = useState(false);
 
   const {
     selectedProduct, setSelectedProduct,
@@ -42,15 +44,43 @@ export default function GameDetailPage() {
   const createOrder = useMutation({
     mutationFn: (payload: CreateOrderPayload) => orderService.create(payload),
     onSuccess: (res) => {
-      toast.success("Pesanan berhasil dibuat!");
-      if (res.redirectUrl) {
-        window.location.href = res.redirectUrl;
-      } else if (isAuthenticated()) {
-        // Logged-in users can see their history
-        navigate("/history");
+      if (res.snapToken && window.snap) {
+        // Open Midtrans Snap popup
+        setIsPaying(true);
+        window.snap.pay(res.snapToken, {
+          onSuccess: () => {
+            setIsPaying(false);
+            toast.success("Pembayaran berhasil!");
+            queryClient.invalidateQueries({ queryKey: ["orders"] });
+            navigate("/history");
+          },
+          onPending: () => {
+            setIsPaying(false);
+            toast.info("Pembayaran sedang diproses. Silakan selesaikan pembayaran Anda.");
+            navigate("/history");
+          },
+          onError: () => {
+            setIsPaying(false);
+            toast.error("Pembayaran gagal. Silakan coba lagi.");
+          },
+          onClose: () => {
+            setIsPaying(false);
+            toast.warning("Pembayaran belum selesai. Anda dapat melanjutkan pembayaran melalui riwayat order.");
+          },
+        });
+      } else if (res.snapToken) {
+        // snapToken exists but Midtrans script failed to load
+        setIsPaying(false);
+        toast.error("Gagal memuat sistem pembayaran. Silakan refresh halaman dan coba lagi.");
       } else {
-        // Guest users go back to home
-        navigate("/");
+        // Fallback: no snapToken (should not happen if backend is configured correctly)
+        setIsPaying(false);
+        toast.success("Pesanan berhasil dibuat!");
+        if (isAuthenticated()) {
+          navigate("/history");
+        } else {
+          navigate("/");
+        }
       }
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {
@@ -108,12 +138,12 @@ export default function GameDetailPage() {
   };
 
   const total = selectedProduct?.price ?? 0;
-  const isSubmitting = createOrder.isPending;
+  const isSubmitting = createOrder.isPending || isPaying;
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Banner */}
-      <div className="rounded-2xl overflow-hidden mb-8" style={{ height: 200 }}>
+      <div className="rounded-2xl overflow-hidden mb-8 w-48 h-48 sm:w-56 sm:h-56">
         {brand.imageUrl ? (
           <img src={brand.imageUrl} alt={brand.brand} className="w-full h-full object-cover" />
         ) : (

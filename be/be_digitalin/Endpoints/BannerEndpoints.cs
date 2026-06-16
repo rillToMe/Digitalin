@@ -29,6 +29,14 @@ public static class BannerEndpoints
                             .WithTags("Manajemen Banner (Admin)")
                             .RequireAuthorization("AdminOnly"); // <-- Wajib role ADMIN
 
+        // GET /admin/banners -> Ambil semua banner (aktif + nonaktif)
+        adminGroup.MapGet("/", async (
+            [FromServices] IBannerService bannerService) =>
+        {
+            var banners = await bannerService.GetAllBannersAsync();
+            return Results.Ok(banners);
+        });
+        
         // POST /admin/banners/upload -> Upload Banner Baru
         adminGroup.MapPost("/upload", async (
             [FromForm] string title, 

@@ -22,6 +22,13 @@ public class BannerService : IBannerService
         return await _db.Banners.Where(b => b.IsActive).OrderByDescending(b => b.CreatedAt).ToListAsync();
     }
 
+    public async Task<IEnumerable<Banner>> GetAllBannersAsync()
+    {
+        return await _db.Banners
+            .OrderByDescending(b => b.CreatedAt)
+            .ToListAsync();
+    }
+    
     public async Task<Banner> CreateBannerAsync(string title, IFormFile file)
     {
         var imageUrl = await _r2Provider.UploadFileAsync(file, AppConstants.StorageFolders.Banners); // <-- Gunakan _r2Provider

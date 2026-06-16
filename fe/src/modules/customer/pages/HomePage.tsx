@@ -27,7 +27,7 @@ function HeroCarousel({ banners }: { banners: BannerItem[] }) {
   if (!banners.length) return null;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl" style={{ height: 260 }}>
+    <div className="relative overflow-hidden rounded-2xl" style={{ aspectRatio: "22/9" }}>
       <AnimatePresence mode="wait">
         <motion.div
           key={current}
@@ -60,17 +60,16 @@ function HeroCarousel({ banners }: { banners: BannerItem[] }) {
       </button>
 
       {/* Dots */}
-      <div className="absolute bottom-4 right-4 flex gap-1.5">
+      <div className="absolute bottom-4 right-4 flex gap-2">
         {banners.map((_, i) => (
           <button
             key={i}
             onClick={() => setCurrent(i)}
+            className="rounded-full transition-all duration-300"
             style={{
-              width: i === current ? 20 : 6,
-              height: 6,
-              borderRadius: 999,
-              backgroundColor: i === current ? "#fff" : "rgba(255,255,255,0.4)",
-              transition: "all 0.3s",
+              width: i === current ? 32 : 12,
+              height: 12,
+              backgroundColor: i === current ? "var(--color-tertiary, #2C5EF5)" : "rgba(255,255,255,0.5)",
             }}
           />
         ))}
@@ -151,7 +150,7 @@ export default function HomePage() {
       {/* Hero */}
       <section className="mb-8">
         {loading ? (
-          <div className="rounded-2xl animate-pulse" style={{ height: 260, backgroundColor: "var(--color-surface, #fff)" }} />
+          <div className="rounded-2xl animate-pulse" style={{ aspectRatio: "22/9", backgroundColor: "var(--color-surface, #fff)" }} />
         ) : (
           <HeroCarousel banners={banners} />
         )}

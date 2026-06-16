@@ -25,7 +25,6 @@ import HistoryPage from "../modules/customer/pages/HistoryPage";
 // Admin pages
 import AdminLoginPage from "../modules/admin/pages/AdminLoginPage";
 import DashboardPage from "../modules/admin/pages/DashboardPage";
-import ProductsPage from "../modules/admin/pages/ProductsPage";
 import BannersPage from "../modules/admin/pages/BannersPage";
 import MetadataPage from "../modules/admin/pages/MetadataPage";
 
@@ -110,7 +109,6 @@ export default function App() {
         <Route path="/admin" element={<AdminEntryRoute />} />
         <Route path="/admin/login" element={<AdminLoginRoute />} />
         <Route path="/admin/dashboard" element={<ProtectedAdminRoute><DashboardPage /></ProtectedAdminRoute>} />
-        <Route path="/admin/products" element={<ProtectedAdminRoute><ProductsPage /></ProtectedAdminRoute>} />
         <Route path="/admin/banners" element={<ProtectedAdminRoute><BannersPage /></ProtectedAdminRoute>} />
         <Route path="/admin/metadata" element={<ProtectedAdminRoute><MetadataPage /></ProtectedAdminRoute>} />
 

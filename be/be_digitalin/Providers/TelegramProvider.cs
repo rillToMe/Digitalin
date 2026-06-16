@@ -34,7 +34,7 @@ public class TelegramProvider
             {
                 chat_id = _chatId,
                 text = message,
-                parse_mode = "HTML" // Biar bisa pakai <b> untuk bold
+                parse_mode = "HTML" 
             };
 
             var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
@@ -42,7 +42,7 @@ public class TelegramProvider
         }
         catch (Exception ex)
         {
-            // Jangan sampai error notif Telegram bikin sistem webhook crash
+            // buat log kalau gagal kirim pesan di tele
             Console.WriteLine($"[TELEGRAM ERROR] Gagal mengirim pesan: {ex.Message}");
         }
     }

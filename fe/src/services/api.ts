@@ -39,9 +39,12 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-// Request interceptor - attach token
+// Request interceptor - attach appropriate token based on route
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+  const isAdminRequest = config.url?.startsWith("/admin") ?? false;
+  const token = isAdminRequest
+    ? localStorage.getItem("adminToken")
+    : localStorage.getItem("token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -160,6 +163,10 @@ export const adminService = {
     api.get<MetadataListResponse>("/admin/system/metadata").then((r) => r.data),
   updateMetadata: (id: number, payload: UpdateMetadataPayload) =>
     api.put<GameMetadataItem>(`/admin/system/metadata/${id}`, payload).then((r) => r.data),
+  uploadGameCover: (id: number, formData: FormData) =>
+    api.post<UploadImageResponse>(`/admin/system/metadata/${id}/upload-game-cover`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }).then((r) => r.data),
 
   // System
   getMidtransExpiry: () =>

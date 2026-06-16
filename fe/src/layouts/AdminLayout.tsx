@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router";
-import { LayoutDashboard, Package, Image, Settings, LogOut, Menu, X, Zap, ChevronRight } from "lucide-react";
+import { LayoutDashboard, Image, Settings, LogOut, Menu, Zap, ChevronRight } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 
 interface AdminLayoutProps {
@@ -11,7 +11,6 @@ interface AdminLayoutProps {
 
 const MENU = [
   { label: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
-  { label: "Products", path: "/admin/products", icon: Package },
   { label: "Banners", path: "/admin/banners", icon: Image },
   { label: "Metadata", path: "/admin/metadata", icon: Settings },
 ];

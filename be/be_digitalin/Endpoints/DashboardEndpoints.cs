@@ -10,11 +10,14 @@ namespace be_digitalin.Endpoints;
 
 public static class DashboardEndpoints
 {
+    // WIB = UTC+7. Convert UTC datetime to WIB by adding 7 hours in SQL.
+    private const int WibOffsetHours = 7;
+
     public static void MapDashboardEndpoints(this IEndpointRouteBuilder app)
     {
         var adminGroup = app.MapGroup("/admin/dashboard")
                             .WithTags("Dashboard Admin (High Performance Dapper)")
-                            .RequireAuthorization("AdminOnly"); // Diproteksi JWT + wajib role ADMIN
+                            .RequireAuthorization("AdminOnly");
 
         // 1. GET /admin/dashboard/stats
         adminGroup.MapGet("/stats", async ([FromServices] DigitalinDbContext db) =>
@@ -25,26 +28,23 @@ public static class DashboardEndpoints
 
             using var conn = db.Database.GetDbConnection();
 
-            // FIX BUG 1: Tambahkan ::int di akhir COUNT() agar COCOK dengan tipe data 'int' di C# DTO
             string sql = $@"
                 SELECT 
-                    COALESCE(SUM(CASE WHEN o.""Status"" = '{AppConstants.OrderStatus.Completed}' THEN p.""Price"" ELSE 0 END), 0) AS TotalRevenueToday,
-                    COALESCE(SUM(CASE WHEN o.""Status"" = '{AppConstants.OrderStatus.Completed}' THEN COALESCE(p.""CustomMargin"", 0) ELSE 0 END), 0) AS TotalProfitToday,
-                    COUNT(o.""Id"")::int AS TotalOrdersToday,
-                    COUNT(CASE WHEN o.""Status"" = '{AppConstants.OrderStatus.Completed}' THEN 1 END)::int AS SuccessOrdersToday,
-                    COUNT(CASE WHEN o.""Status"" = '{AppConstants.OrderStatus.Pending}' THEN 1 END)::int AS PendingOrdersToday,
-                    COUNT(CASE WHEN o.""Status"" IN ('{AppConstants.OrderStatus.Failed}', '{AppConstants.OrderStatus.Expired}') THEN 1 END)::int AS FailedOrdersToday
-                FROM ""TopupOrders"" o
-                LEFT JOIN ""GameProducts"" p ON o.""GameProductId"" = p.""Id""
-                WHERE o.""OrderDate"" >= @TodayStart;";
+                    COALESCE(SUM(CASE WHEN o.`Status` = '{AppConstants.OrderStatus.Completed}' THEN p.`Price` ELSE 0 END), 0) AS TotalRevenueToday,
+                    COALESCE(SUM(CASE WHEN o.`Status` = '{AppConstants.OrderStatus.Completed}' THEN COALESCE(p.`CustomMargin`, 0) ELSE 0 END), 0) AS TotalProfitToday,
+                   CAST(COUNT(o.`Id`) AS SIGNED) AS TotalOrdersToday,
+CAST(COUNT(CASE WHEN o.`Status` = 'COMPLETED' THEN 1 END) AS SIGNED) AS SuccessOrdersToday,
+CAST(COUNT(CASE WHEN o.`Status` = 'PENDING' THEN 1 END) AS SIGNED) AS PendingOrdersToday,
+CAST(COUNT(CASE WHEN o.`Status` IN ('FAILED', 'EXPIRED') THEN 1 END) AS SIGNED) AS FailedOrdersToday
+                FROM `TopupOrders` o
+                LEFT JOIN `GameProducts` p ON o.`GameProductId` = p.`Id`
+                WHERE o.`OrderDate` >= @TodayStart;";
 
             var stats = await conn.QuerySingleAsync<DashboardStatsResponse>(sql, new { TodayStart = wibTodayStart });
             return Results.Ok(stats);
         });
 
         // 2. GET /admin/dashboard/chart?range={range}[&startDate=YYYY-MM-DD&endDate=YYYY-MM-DD]
-        // [M12] A "custom" range is now supported with startDate/endDate query params.
-        // The maximum allowed span is 31 days to prevent expensive full-table scans.
         adminGroup.MapGet("/chart", async (
             [FromQuery] string range,
             [FromQuery] string? startDate,
@@ -53,7 +53,7 @@ public static class DashboardEndpoints
         {
             var tz = TimeZoneInfo.FindSystemTimeZoneById("Asia/Jakarta");
             var localNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
-            
+
             DateTime startUtc;
             DateTime endUtc = DateTime.UtcNow;
             string sql;
@@ -66,13 +66,13 @@ public static class DashboardEndpoints
                     startUtc = TimeZoneInfo.ConvertTimeToUtc(localNow.Date, tz);
                     sql = $@"
                         SELECT 
-                            TO_CHAR(o.""OrderDate"" AT TIME ZONE 'Asia/Jakarta', 'HH24:00') AS Name,
-                            SUM(p.""Price"") AS Pendapatan,
-                            SUM(COALESCE(p.""CustomMargin"", 0)) AS Profit
-                        FROM ""TopupOrders"" o
-                        LEFT JOIN ""GameProducts"" p ON o.""GameProductId"" = p.""Id""
-                        WHERE o.""OrderDate"" >= @Start AND o.""Status"" = '{AppConstants.OrderStatus.Completed}'
-                        GROUP BY TO_CHAR(o.""OrderDate"" AT TIME ZONE 'Asia/Jakarta', 'HH24:00')
+                            DATE_FORMAT(DATE_ADD(o.`OrderDate`, INTERVAL {WibOffsetHours} HOUR), '%H:00') AS Name,
+                            SUM(p.`Price`) AS Pendapatan,
+                            SUM(COALESCE(p.`CustomMargin`, 0)) AS Profit
+                        FROM `TopupOrders` o
+                        LEFT JOIN `GameProducts` p ON o.`GameProductId` = p.`Id`
+                        WHERE o.`OrderDate` >= @Start AND o.`Status` = '{AppConstants.OrderStatus.Completed}'
+                        GROUP BY DATE_FORMAT(DATE_ADD(o.`OrderDate`, INTERVAL {WibOffsetHours} HOUR), '%H:00')
                         ORDER BY Name;";
                     break;
 
@@ -82,13 +82,13 @@ public static class DashboardEndpoints
                     endUtc = TimeZoneInfo.ConvertTimeToUtc(localNow.Date, tz);
                     sql = $@"
                         SELECT 
-                            TO_CHAR(o.""OrderDate"" AT TIME ZONE 'Asia/Jakarta', 'HH24:00') AS Name,
-                            SUM(p.""Price"") AS Pendapatan,
-                            SUM(COALESCE(p.""CustomMargin"", 0)) AS Profit
-                        FROM ""TopupOrders"" o
-                        LEFT JOIN ""GameProducts"" p ON o.""GameProductId"" = p.""Id""
-                        WHERE o.""OrderDate"" >= @Start AND o.""OrderDate"" < @End AND o.""Status"" = '{AppConstants.OrderStatus.Completed}'
-                        GROUP BY TO_CHAR(o.""OrderDate"" AT TIME ZONE 'Asia/Jakarta', 'HH24:00')
+                            DATE_FORMAT(DATE_ADD(o.`OrderDate`, INTERVAL {WibOffsetHours} HOUR), '%H:00') AS Name,
+                            SUM(p.`Price`) AS Pendapatan,
+                            SUM(COALESCE(p.`CustomMargin`, 0)) AS Profit
+                        FROM `TopupOrders` o
+                        LEFT JOIN `GameProducts` p ON o.`GameProductId` = p.`Id`
+                        WHERE o.`OrderDate` >= @Start AND o.`OrderDate` < @End AND o.`Status` = '{AppConstants.OrderStatus.Completed}'
+                        GROUP BY DATE_FORMAT(DATE_ADD(o.`OrderDate`, INTERVAL {WibOffsetHours} HOUR), '%H:00')
                         ORDER BY Name;";
                     break;
 
@@ -96,31 +96,30 @@ public static class DashboardEndpoints
                     startUtc = TimeZoneInfo.ConvertTimeToUtc(localNow.Date.AddDays(-6), tz);
                     sql = $@"
                         SELECT 
-                            TO_CHAR(o.""OrderDate"" AT TIME ZONE 'Asia/Jakarta', 'DD Mon') AS Name,
-                            SUM(p.""Price"") AS Pendapatan,
-                            SUM(COALESCE(p.""CustomMargin"", 0)) AS Profit
-                        FROM ""TopupOrders"" o
-                        LEFT JOIN ""GameProducts"" p ON o.""GameProductId"" = p.""Id""
-                        WHERE o.""OrderDate"" >= @Start AND o.""Status"" = '{AppConstants.OrderStatus.Completed}'
-                        GROUP BY DATE(o.""OrderDate"" AT TIME ZONE 'Asia/Jakarta'), TO_CHAR(o.""OrderDate"" AT TIME ZONE 'Asia/Jakarta', 'DD Mon')
-                        ORDER BY DATE(o.""OrderDate"" AT TIME ZONE 'Asia/Jakarta');";
+                            DATE_FORMAT(DATE_ADD(o.`OrderDate`, INTERVAL {WibOffsetHours} HOUR), '%d %b') AS Name,
+                            SUM(p.`Price`) AS Pendapatan,
+                            SUM(COALESCE(p.`CustomMargin`, 0)) AS Profit
+                        FROM `TopupOrders` o
+                        LEFT JOIN `GameProducts` p ON o.`GameProductId` = p.`Id`
+                        WHERE o.`OrderDate` >= @Start AND o.`Status` = '{AppConstants.OrderStatus.Completed}'
+                        GROUP BY DATE(DATE_ADD(o.`OrderDate`, INTERVAL {WibOffsetHours} HOUR)), DATE_FORMAT(DATE_ADD(o.`OrderDate`, INTERVAL {WibOffsetHours} HOUR), '%d %b')
+                        ORDER BY DATE(DATE_ADD(o.`OrderDate`, INTERVAL {WibOffsetHours} HOUR));";
                     break;
 
                 case "30days":
                     startUtc = TimeZoneInfo.ConvertTimeToUtc(localNow.Date.AddDays(-29), tz);
                     sql = $@"
                         SELECT 
-                            TO_CHAR(o.""OrderDate"" AT TIME ZONE 'Asia/Jakarta', 'DD/MM') AS Name,
-                            SUM(p.""Price"") AS Pendapatan,
-                            SUM(COALESCE(p.""CustomMargin"", 0)) AS Profit
-                        FROM ""TopupOrders"" o
-                        LEFT JOIN ""GameProducts"" p ON o.""GameProductId"" = p.""Id""
-                        WHERE o.""OrderDate"" >= @Start AND o.""Status"" = '{AppConstants.OrderStatus.Completed}'
-                        GROUP BY DATE(o.""OrderDate"" AT TIME ZONE 'Asia/Jakarta'), TO_CHAR(o.""OrderDate"" AT TIME ZONE 'Asia/Jakarta', 'DD/MM')
-                        ORDER BY DATE(o.""OrderDate"" AT TIME ZONE 'Asia/Jakarta');";
+                            DATE_FORMAT(DATE_ADD(o.`OrderDate`, INTERVAL {WibOffsetHours} HOUR), '%d/%m') AS Name,
+                            SUM(p.`Price`) AS Pendapatan,
+                            SUM(COALESCE(p.`CustomMargin`, 0)) AS Profit
+                        FROM `TopupOrders` o
+                        LEFT JOIN `GameProducts` p ON o.`GameProductId` = p.`Id`
+                        WHERE o.`OrderDate` >= @Start AND o.`Status` = '{AppConstants.OrderStatus.Completed}'
+                        GROUP BY DATE(DATE_ADD(o.`OrderDate`, INTERVAL {WibOffsetHours} HOUR)), DATE_FORMAT(DATE_ADD(o.`OrderDate`, INTERVAL {WibOffsetHours} HOUR), '%d/%m')
+                        ORDER BY DATE(DATE_ADD(o.`OrderDate`, INTERVAL {WibOffsetHours} HOUR));";
                     break;
 
-                // ── [M12] Custom date range with 31-day maximum span ─────────
                 case "custom":
                     if (string.IsNullOrEmpty(startDate) || string.IsNullOrEmpty(endDate)
                         || !DateTime.TryParse(startDate, out var parsedStart)
@@ -134,24 +133,23 @@ public static class DashboardEndpoints
                         return Results.BadRequest(new { message = "endDate tidak boleh lebih awal dari startDate." });
                     }
 
-                    // Cap at 31 days to prevent expensive full-table scans
                     if ((parsedEnd.Date - parsedStart.Date).TotalDays > 31)
                     {
                         return Results.BadRequest(new { message = "Rentang tanggal maksimal adalah 31 hari." });
                     }
 
                     startUtc = TimeZoneInfo.ConvertTimeToUtc(parsedStart.Date, tz);
-                    endUtc = TimeZoneInfo.ConvertTimeToUtc(parsedEnd.Date.AddDays(1), tz); // include the end date
+                    endUtc = TimeZoneInfo.ConvertTimeToUtc(parsedEnd.Date.AddDays(1), tz);
                     sql = $@"
                         SELECT 
-                            TO_CHAR(o.""OrderDate"" AT TIME ZONE 'Asia/Jakarta', 'DD/MM') AS Name,
-                            SUM(p.""Price"") AS Pendapatan,
-                            SUM(COALESCE(p.""CustomMargin"", 0)) AS Profit
-                        FROM ""TopupOrders"" o
-                        LEFT JOIN ""GameProducts"" p ON o.""GameProductId"" = p.""Id""
-                        WHERE o.""OrderDate"" >= @Start AND o.""OrderDate"" < @End AND o.""Status"" = '{AppConstants.OrderStatus.Completed}'
-                        GROUP BY DATE(o.""OrderDate"" AT TIME ZONE 'Asia/Jakarta'), TO_CHAR(o.""OrderDate"" AT TIME ZONE 'Asia/Jakarta', 'DD/MM')
-                        ORDER BY DATE(o.""OrderDate"" AT TIME ZONE 'Asia/Jakarta');";
+                            DATE_FORMAT(DATE_ADD(o.`OrderDate`, INTERVAL {WibOffsetHours} HOUR), '%d/%m') AS Name,
+                            SUM(p.`Price`) AS Pendapatan,
+                            SUM(COALESCE(p.`CustomMargin`, 0)) AS Profit
+                        FROM `TopupOrders` o
+                        LEFT JOIN `GameProducts` p ON o.`GameProductId` = p.`Id`
+                        WHERE o.`OrderDate` >= @Start AND o.`OrderDate` < @End AND o.`Status` = '{AppConstants.OrderStatus.Completed}'
+                        GROUP BY DATE(DATE_ADD(o.`OrderDate`, INTERVAL {WibOffsetHours} HOUR)), DATE_FORMAT(DATE_ADD(o.`OrderDate`, INTERVAL {WibOffsetHours} HOUR), '%d/%m')
+                        ORDER BY DATE(DATE_ADD(o.`OrderDate`, INTERVAL {WibOffsetHours} HOUR));";
                     break;
 
                 default:

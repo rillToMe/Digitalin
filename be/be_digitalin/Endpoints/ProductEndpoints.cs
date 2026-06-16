@@ -129,7 +129,7 @@ public static class ProductEndpoints
             // Panggil fungsi master di ProductService
             var (added, updated) = await productService.SyncCatalogFromDigiflazzAsync();
             
-            return Results.Ok(new { message = $"Keajaiban selesai! {added} produk baru, {updated} produk diupdate." });
+            return Results.Ok(new { message = $"Sync selesai! {added} produk baru, {updated} produk diupdate." });
         });
         
         // DELETE /admin/system/clean-dummy-products (HAPUS DATA DUMMY)
