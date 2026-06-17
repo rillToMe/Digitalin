@@ -80,11 +80,11 @@ api.interceptors.response.use(
 // Auth
 export const authService = {
   requestOtp: (payload: RequestOtpPayload) =>
-    api.post<MessageResponse>("/auth/request-otp", payload).then((r) => r.data),
+    api.post<MessageResponse>("/auth/local/request-otp", payload).then((r) => r.data),
   register: (payload: RegisterPayload) =>
-    api.post<AuthTokenResponse>("/auth/register", payload).then((r) => r.data),
+    api.post<AuthTokenResponse>("/auth/local/register", payload).then((r) => r.data),
   login: (payload: LoginPayload) =>
-    api.post<AuthTokenResponse>("/auth/login", payload).then((r) => r.data),
+    api.post<AuthTokenResponse>("/auth/local/login", payload).then((r) => r.data),
   getProfile: () =>
     api.get<ProfileResponse>("/auth/profile").then((r) => r.data),
   updateProfile: (payload: UpdateProfilePayload) =>

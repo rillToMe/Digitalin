@@ -12,6 +12,5 @@ public interface ICustomerService
     Task<Customer?> GetProfileAsync(int id);
     Task<bool> UpdateProfileAsync(int id, string fullName, string? newPassword);
     
-    //check email yang sudah ada
     Task<bool> CheckEmailExistsAsync(string email);
 }

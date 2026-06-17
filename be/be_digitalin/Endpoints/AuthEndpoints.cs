@@ -19,11 +19,13 @@ public static class AuthEndpoints
 {
     public static void MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
-        // AREA PUBLIK (Customer Auth)
+        // AREA PUBLIK
         var customerGroup = app.MapGroup("/auth").WithTags("Otentikasi (Customer)");
 
-        // 1. ENDPOINT MINTA OTP
-        customerGroup.MapPost("/request-otp", async (
+        var localAuthGroup = customerGroup.MapGroup("/local");
+
+        // ENDPOINT MINTA OTP
+        localAuthGroup.MapPost("/request-otp", async (
             [FromBody] RequestOtpRequest req, 
             [FromServices] EmailProvider emailProvider, 
             [FromServices] ICustomerService service,
@@ -43,8 +45,8 @@ public static class AuthEndpoints
             return Results.Ok(new { message = "Kode OTP berhasil dikirim ke email Anda. Berlaku 5 menit." });
         }).RequireRateLimiting("OtpPolicy");
 
-        // 2. ENDPOINT REGISTER (Sudah ditambahkan pengecekan OTP)
-        customerGroup.MapPost("/register", async (
+        // ENDPOINT REGISTER
+        localAuthGroup.MapPost("/register", async (
             [FromBody] RegisterRequest req, 
             [FromServices] ICustomerService service, 
             [FromServices] IMemoryCache cache) =>
@@ -65,15 +67,15 @@ public static class AuthEndpoints
             return Results.BadRequest(new { message = "Email sudah terdaftar." });
         });
 
-        // 3. ENDPOINT LOGIN CUSTOMER
-        customerGroup.MapPost("/login", async ([FromBody] CustomerLoginRequest req, [FromServices] ICustomerService service) =>
+        // ENDPOINT LOGIN CUSTOMER
+        localAuthGroup.MapPost("/login", async ([FromBody] CustomerLoginRequest req, [FromServices] ICustomerService service) =>
         {
             var token = await service.LoginAsync(req.Email, req.Password);
             return token != null ? Results.Ok(new { token }) : Results.Unauthorized();
         });
         
         
-        // 4. GET PROFILE (Melihat Data Sendiri)
+        // GET PROFILE
         customerGroup.MapGet("/profile", async (ClaimsPrincipal user, [FromServices] ICustomerService service) =>
         {
             var idClaim = user.FindFirst(ClaimTypes.NameIdentifier);
@@ -89,7 +91,7 @@ public static class AuthEndpoints
             });
         }).RequireAuthorization();
 
-        // 5. PUT PROFILE (Update Nama & Password)
+        // PUT PROFILE
         customerGroup.MapPut("/profile", async (
             ClaimsPrincipal user, 
             [FromBody] UpdateProfileRequest req, 
@@ -105,7 +107,7 @@ public static class AuthEndpoints
                 : Results.NotFound();
         }).RequireAuthorization();
         
-        // 6. ENDPOINT CHECK EMAIL (Dipanggil saat FE cek email ke DB)
+        // ENDPOINT CHECK EMAIL
         customerGroup.MapGet("/check-email", async (
             [FromQuery] string email, 
             [FromServices] ICustomerService service) =>
@@ -124,25 +126,18 @@ public static class AuthEndpoints
             return Results.Ok(new { message = "Email tersedia." });
         });
         
-        // ── AREA ADMIN ─────────────────────────────────────────────────────
-        // [C7 fix] .RequireAuthorization("AdminOnly") enforces that the JWT
-        // must contain ClaimTypes.Role = "ADMIN". A plain customer token
-        // will be rejected with 403.
+        // AREA ADMIN 
         var group = app.MapGroup("/admin/auth")
             .WithTags("Otentikasi (Admin)")
             .RequireAuthorization("AdminOnly");
 
-        // Admin login — the endpoint itself is public (AllowAnonymous overrides the group policy)
+        // Admin login
         group.MapPost("/login", (
             [FromBody] LoginRequest request, 
             [FromServices] IOptions<JwtSettings> jwtOptions) =>
         {
             var settings = jwtOptions.Value;
 
-            // ── [C8] Admin password is verified via BCrypt, not plaintext ────
-            // Program.cs auto-hashes the config value at startup if it isn't
-            // already a BCrypt hash, so dev configs can stay readable while
-            // production env vars carry a proper $2a$ hash.
             if (request.Username != settings.AdminUser ||
                 !BCrypt.Net.BCrypt.Verify(request.Password, settings.AdminPass))
             {
@@ -152,8 +147,6 @@ public static class AuthEndpoints
             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(settings.Key));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
             
-            // ── [C7] Embed the ADMIN role claim in the JWT ─────────────────
-            // This is what the "AdminOnly" authorization policy checks for.
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Issuer = settings.Issuer,
@@ -171,13 +164,13 @@ public static class AuthEndpoints
             var tokenString = handler.CreateToken(tokenDescriptor);
 
             return Results.Ok(new { token = tokenString });
-        }).AllowAnonymous(); // Admin login must be publicly accessible
+        }).AllowAnonymous(); 
     }
 }
 
-// KUMPULAN DTO
+// DTO
 public record LoginRequest(string Username, string Password);
 public record CustomerLoginRequest(string Email, string Password);
-public record RequestOtpRequest(string Email); // <-- DTO baru
-public record RegisterRequest(string Email, string Password, string FullName, string OtpCode); // <-- Tambahan OtpCode
+public record RequestOtpRequest(string Email);
+public record RegisterRequest(string Email, string Password, string FullName, string OtpCode);
 public record UpdateProfileRequest(string FullName, string? NewPassword);

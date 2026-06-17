@@ -18,7 +18,7 @@ public static class OrderEndpoints
 {
     public static void MapOrderEndpoints(this IEndpointRouteBuilder app)
     {
-        // AREA PUBLIK (Checkout Pembeli)
+        // AREA PUBLIK
         var publicGroup = app.MapGroup("/orders")
                              .WithTags("Transaksi & Checkout (Public)");
 
@@ -40,8 +40,6 @@ public static class OrderEndpoints
                 var result = await orderService.PlaceOrderAsync(req, customerId);
                 return Results.Ok(result);
             } catch (Exception ex) {
-                // [M10] Only return business-logic messages (thrown intentionally by the
-                // service layer). Hide unexpected/system exceptions from the client.
                 logger.LogWarning(ex, "[PlaceOrder] Failed for request.");
                 var message = ex is InvalidOperationException || ex.Message.Length < 100
                     ? ex.Message
@@ -50,8 +48,7 @@ public static class OrderEndpoints
             }
         });
         
-        // GET /orders/my-history -> Riwayat Pribadi (WAJIB LOGIN)
-        // GET /orders/my-history -> Riwayat Pribadi (WAJIB LOGIN)
+        // GET /orders/my-history
         publicGroup.MapGet("/my-history", async (
             [FromQuery] int? page, 
             [FromQuery] int? limit,
@@ -67,21 +64,18 @@ public static class OrderEndpoints
 
             var history = await service.GetCustomerHistoryAsync(int.Parse(userIdClaim.Value), currentPage, currentLimit);
             return Results.Ok(history);
-        }).RequireAuthorization(); // Gembok aktif
+        }).RequireAuthorization();
 
 
-        //. AREA ADMIN (Manajemen Pesanan)
+        // AREA ADMIN
         var adminGroup = app.MapGroup("/admin/orders")
                             .WithTags("Manajemen Pesanan (Admin)")
-                            .RequireAuthorization("AdminOnly"); // <-- Wajib role ADMIN
+                            .RequireAuthorization("AdminOnly");
 
         adminGroup.MapGet("/", async ([FromServices] IOrderService orderService) => 
             Results.Ok(await orderService.GetAllOrdersAsync()));
         
-        // ── POST /admin/orders/{orderNo}/retry ──────────────────────────────
-        // [C3 fix] Before retrying, query Digiflazz upstream status first so we
-        // never double-fulfill an order that Digiflazz already processed.
-        // [C2 fix] Optimistic concurrency via RowVersion + DbUpdateConcurrencyException.
+        // POST /admin/orders/{orderNo}/retry
         adminGroup.MapPost("/{orderNo}/retry", async (
             string orderNo,
             [FromServices] DigitalinDbContext db,
@@ -90,7 +84,7 @@ public static class OrderEndpoints
         {
             var logger = loggerFactory.CreateLogger("OrderRetry");
 
-            // 1. Cari data order beserta produknya
+            // Cari data order & produknya
             var order = await db.TopupOrders
                 .Include(o => o.GameProduct)
                 .FirstOrDefaultAsync(o => o.OrderNo == orderNo);
@@ -98,15 +92,12 @@ public static class OrderEndpoints
             if (order == null) 
                 return Results.NotFound(new { message = "Pesanan tidak ditemukan" });
 
-            // 2. Proteksi Keamanan: Hanya boleh di-retry jika statusnya NEEDS_ACTION (nyangkut)
+            // Hanya boleh di-retry jika statusnya NEEDS_ACTION (nyangkut)
             if (order.Status != AppConstants.OrderStatus.NeedsAction)
                 return Results.BadRequest(new { message = $"Tidak bisa retry. Status pesanan saat ini adalah: {order.Status}" });
 
             try
             {
-                // ── [C3] Check upstream Digiflazz status BEFORE firing another Topup ──
-                // If the original request actually succeeded server-side (but the response
-                // was lost), calling TopupAsync again would double-fulfill.
                 try
                 {
                     var (upstreamStatus, upstreamSn, _) = await digiflazzProvider.CheckStatusAsync(
@@ -114,13 +105,12 @@ public static class OrderEndpoints
 
                     if (upstreamStatus == AppConstants.DigiflazzStatus.Sukses)
                     {
-                        // Digiflazz already processed this — just persist the SN.
                         order.Status = AppConstants.OrderStatus.Completed;
                         order.Sn = upstreamSn;
                         await db.SaveChangesAsync();
                         return Results.Ok(new { message = "Order sudah selesai di Digiflazz sebelumnya. SN berhasil disimpan.", status = order.Status });
                     }
-                    // If upstream says Gagal, we can safely retry. If Pending, we should wait.
+                    
                     if (upstreamStatus == AppConstants.DigiflazzStatus.Pending)
                     {
                         return Results.BadRequest(new { message = "Digiflazz masih memproses pesanan ini. Harap tunggu sebelum mencoba retry." });
@@ -128,18 +118,17 @@ public static class OrderEndpoints
                 }
                 catch
                 {
-                    // If CheckStatus itself fails, proceed with retry cautiously.
                     logger.LogWarning("[RETRY] CheckStatus failed for Order {OrderNo}. Proceeding with retry.", order.OrderNo);
                 }
 
-                // 3. Ubah status ke PROCESSING dulu
+                // Ubah status ke PROCESSING dulu
                 order.Status = AppConstants.OrderStatus.Processing;
                 await db.SaveChangesAsync();
 
-                // 4. Tembak ulang API Digiflazz
+                // Tembak ulang API Digiflazz
                 string? sn = await digiflazzProvider.TopupAsync(order.GameProduct!.BuyerSkuCode, order.PlayerId, order.OrderNo);
                 
-                // 5. Jika entah kenapa Digiflazz ngasih SN secara instan saat itu juga
+                // Jika entah kenapa Digiflazz ngasih SN secara instan saat itu juga
                 if (!string.IsNullOrEmpty(sn))
                 {
                     order.Sn = sn;
@@ -154,14 +143,11 @@ public static class OrderEndpoints
             }
             catch (DbUpdateConcurrencyException)
             {
-                // [C2] Another process (webhook / sweep worker) modified the row between
-                // our read and write. Return a conflict response.
                 logger.LogWarning("[RETRY] Concurrency conflict on Order {OrderNo}. Retry was aborted.", order.OrderNo);
                 return Results.Conflict(new { message = "Pesanan sedang diproses oleh sistem lain. Coba lagi beberapa saat." });
             }
             catch (Exception ex)
             {
-                // [M10] Don't leak ex.Message — log internally, return generic error
                 logger.LogError(ex, "[RETRY] Unexpected error on Order {OrderNo}", order.OrderNo);
                 order.Status = AppConstants.OrderStatus.NeedsAction;
                 try { await db.SaveChangesAsync(); } catch (DbUpdateConcurrencyException) { /* already handled elsewhere */ }
@@ -172,7 +158,7 @@ public static class OrderEndpoints
             }
         });
         
-        // POST /admin/orders/{orderNo}/refund -> Ubah status jadi Refunded (Manual)
+        // POST /admin/orders/{orderNo}/refund - Ubah status jadi Refunded (Manual)
         adminGroup.MapPost("/{orderNo}/refund", async (
             string orderNo,
             [FromServices] DigitalinDbContext db) =>
@@ -214,13 +200,13 @@ public static class OrderEndpoints
             }
             catch (Exception ex)
             {
-                // Jaga-jaga kalau database tiba-tiba putus koneksi pas lagi nge-save
+                // Jaga-jaga kalau database tiba-tiba putus koneksi pas nge-save
                 Console.WriteLine($"[REFUND CRITICAL ERROR] Sistem gagal mengeksekusi refund untuk Order {orderNo}: {ex.Message}");
                 return Results.Problem("Terjadi kesalahan internal saat memproses refund.");
             }
         });
         
-        // AREA WEBHOOK (Sistem Integrasi Antar Server)
+        // AREA WEBHOOK
         var webhookGroup = app.MapGroup("/webhooks")
                               .WithTags("Webhooks (Sistem Integrasi)")
                               .AllowAnonymous();
@@ -235,18 +221,12 @@ public static class OrderEndpoints
             }
             catch (Exception)
             {
-                // [M10] Don't leak internal error details to the webhook caller (Midtrans).
-                // Return a generic 500 so Midtrans retries later.
                 return Results.Problem("Internal server error while processing notification.");
             }
         });
         
-        // webhookGroup.MapGet("/midtrans", () => "Pintu Webhook Midtrans sudah SIAP! (Tapi Midtrans pakai POST ya)");
         
-        // ── Webhook Digiflazz ─────────────────────────────────────────────────
-        // [C2 fix] Added optimistic concurrency handling — if a webhook and the
-        // sweep worker / admin retry write to the same row, the second writer
-        // gets a DbUpdateConcurrencyException which we catch and log.
+        // Webhook Digiflazz 
         webhookGroup.MapPost("/digiflazz", async (
             HttpRequest req, 
             [FromServices] DigitalinDbContext db, 
@@ -260,7 +240,7 @@ public static class OrderEndpoints
             var rawBody = await reader.ReadToEndAsync();
             var signatureHeader = req.Headers[AppConstants.HttpHeaders.XHubSignature].ToString();
 
-            // Validasi Keamanan pakai Provider (Hanya 1 baris!)
+            // Validasi Keamanan pakai Provider
             if (!digiflazzProvider.ValidateWebhookSignature(rawBody, signatureHeader))
             {
                 logger.LogWarning("[WEBHOOK] Ditolak: Signature tidak valid!");
@@ -282,10 +262,10 @@ public static class OrderEndpoints
             {
                 if (payload.data.status == AppConstants.DigiflazzStatus.Sukses)
                 {
-                    // Idempotency: only update if not already COMPLETED
+                    // Update hanya jika belum COMPLETED
                     if (order.Status == AppConstants.OrderStatus.Completed)
                     {
-                        logger.LogWarning("[WEBHOOK] Duplicate success webhook for {OrderNo}. Already COMPLETED — ignored.", order.OrderNo);
+                        logger.LogWarning("[WEBHOOK] Duplicate success webhook untuk {OrderNo}. Sudah COMPLETED - diabaikan.", order.OrderNo);
                         return Results.Ok(new { message = "Webhook Digiflazz received (already processed)" });
                     }
                     order.Sn = payload.data.sn;
@@ -306,12 +286,12 @@ public static class OrderEndpoints
                 catch (DbUpdateConcurrencyException)
                 {
                     logger.LogWarning(
-                        "[WEBHOOK] Concurrency conflict on Order {OrderNo}. Another process already updated it.",
+                        "[WEBHOOK] Concurrency conflict pada Order {{OrderNo}}. Sudah di-update oleh proses lain.",
                         order.OrderNo);
                 }
             }
 
-            return Results.Ok(new { message = "Webhook Digiflazz received" });
+            return Results.Ok(new { message = "Webhook Digiflazz diterima" });
         });
     }
 }

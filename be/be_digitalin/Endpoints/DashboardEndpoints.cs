@@ -19,7 +19,7 @@ public static class DashboardEndpoints
                             .WithTags("Dashboard Admin (High Performance Dapper)")
                             .RequireAuthorization("AdminOnly");
 
-        // 1. GET /admin/dashboard/stats
+        // GET /admin/dashboard/stats
         adminGroup.MapGet("/stats", async ([FromServices] DigitalinDbContext db) =>
         {
             var tz = TimeZoneInfo.FindSystemTimeZoneById("Asia/Jakarta");
@@ -32,10 +32,10 @@ public static class DashboardEndpoints
                 SELECT 
                     COALESCE(SUM(CASE WHEN o.`Status` = '{AppConstants.OrderStatus.Completed}' THEN p.`Price` ELSE 0 END), 0) AS TotalRevenueToday,
                     COALESCE(SUM(CASE WHEN o.`Status` = '{AppConstants.OrderStatus.Completed}' THEN COALESCE(p.`CustomMargin`, 0) ELSE 0 END), 0) AS TotalProfitToday,
-                   CAST(COUNT(o.`Id`) AS SIGNED) AS TotalOrdersToday,
-CAST(COUNT(CASE WHEN o.`Status` = 'COMPLETED' THEN 1 END) AS SIGNED) AS SuccessOrdersToday,
-CAST(COUNT(CASE WHEN o.`Status` = 'PENDING' THEN 1 END) AS SIGNED) AS PendingOrdersToday,
-CAST(COUNT(CASE WHEN o.`Status` IN ('FAILED', 'EXPIRED') THEN 1 END) AS SIGNED) AS FailedOrdersToday
+                    CAST(COUNT(o.`Id`) AS SIGNED) AS TotalOrdersToday,
+                    CAST(COUNT(CASE WHEN o.`Status` = 'COMPLETED' THEN 1 END) AS SIGNED) AS SuccessOrdersToday,
+                    CAST(COUNT(CASE WHEN o.`Status` = 'PENDING' THEN 1 END) AS SIGNED) AS PendingOrdersToday,
+                    CAST(COUNT(CASE WHEN o.`Status` IN ('FAILED', 'EXPIRED') THEN 1 END) AS SIGNED) AS FailedOrdersToday
                 FROM `TopupOrders` o
                 LEFT JOIN `GameProducts` p ON o.`GameProductId` = p.`Id`
                 WHERE o.`OrderDate` >= @TodayStart;";
@@ -44,7 +44,7 @@ CAST(COUNT(CASE WHEN o.`Status` IN ('FAILED', 'EXPIRED') THEN 1 END) AS SIGNED) 
             return Results.Ok(stats);
         });
 
-        // 2. GET /admin/dashboard/chart?range={range}[&startDate=YYYY-MM-DD&endDate=YYYY-MM-DD]
+        // GET /admin/dashboard/chart?range={range}[&startDate=YYYY-MM-DD&endDate=YYYY-MM-DD]
         adminGroup.MapGet("/chart", async (
             [FromQuery] string range,
             [FromQuery] string? startDate,

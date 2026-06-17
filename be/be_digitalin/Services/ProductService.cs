@@ -11,9 +11,8 @@ public class ProductService : IProductService
 {
     private readonly DigitalinDbContext _db;
     private readonly CloudflareR2Provider _r2Provider;
-    private readonly DigiflazzProvider _digiflazzProvider; // <-- Wadah baru untuk Digiflazz Provider
-
-    // Constructor dengan 3 Injection (DbContext, R2, dan Digiflazz)
+    private readonly DigiflazzProvider _digiflazzProvider;
+    
     public ProductService(
         DigitalinDbContext db, 
         CloudflareR2Provider r2Provider, 
@@ -24,7 +23,7 @@ public class ProductService : IProductService
         _digiflazzProvider = digiflazzProvider;
     }
 
-    // ─── MASTER LOGIKA SINKRONISASI (Satu untuk Semua) ───
+    // logic sync
     public async Task<(int Added, int Updated)> SyncCatalogFromDigiflazzAsync()
     {
         var dataArray = await _digiflazzProvider.GetPriceListAsync();
@@ -60,7 +59,7 @@ public class ProductService : IProductService
 
             if (existingProduct != null)
             {
-                // Hanya update jika ada perubahan harga/nama asli biar hemat resource
+                // Hanya update jika ada perubahan harga/nama asli
                 if (existingProduct.Price != sellingPrice || existingProduct.Name != name)
                 {
                     existingProduct.Price = sellingPrice;
@@ -104,7 +103,7 @@ public class ProductService : IProductService
             })
             .ToListAsync();
 
-        // Tarik metadata untuk memberikan instruksi ke Frontend
+        // Ambil metadata untuk memberikan instruksi ke FE
         var metadataList = await _db.GameMetadata.ToListAsync();
 
         var result = groupedGames.Select(g => 

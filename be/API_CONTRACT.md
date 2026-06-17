@@ -32,14 +32,14 @@
 
 | Role | JWT Claim | Token Lifetime | Issued By |
 |------|-----------|----------------|-----------|
-| CUSTOMER | `ClaimTypes.NameIdentifier` = customerId, `ClaimTypes.Role` = "CUSTOMER" | 24 hours | `POST /auth/login` |
+| CUSTOMER | `ClaimTypes.NameIdentifier` = customerId, `ClaimTypes.Role` = "CUSTOMER" | 24 hours | `POST /auth/local/login` |
 | ADMIN | `ClaimTypes.Name` = username, `ClaimTypes.Role` = "ADMIN" | 12 hours | `POST /admin/auth/login` |
 
 ### Endpoint Protection Levels
 
 | Prefix / Pattern | Auth Required | Role |
 |------------------|---------------|------|
-| `POST /auth/*`, `GET /games/*` | No | Public |
+| `POST /auth/local/*`, `GET /games/*` | No | Public |
 | `GET /banners/` | No | Public |
 | `POST /orders/` | Optional | Any (customerId extracted if present) |
 | `GET /auth/profile`, `PUT /auth/profile`, `GET /orders/my-history` | Yes | CUSTOMER |
@@ -93,14 +93,14 @@ PENDING ──(payment received)──► PAID ──(Digiflazz called)──►
 
 ---
 
-### POST /auth/request-otp
+### POST /auth/local/request-otp
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `POST` |
-| Path | `/auth/request-otp` |
+| Path | `/auth/local/request-otp` |
 | Description | Sends a 6-digit OTP to the user's email for registration |
 | Auth | None (Public) |
 | Rate Limit | 3 requests per 10 minutes per IP |
@@ -128,14 +128,14 @@ interface RequestOtpResponse {
 
 ---
 
-### POST /auth/register
+### POST /auth/local/register
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `POST` |
-| Path | `/auth/register` |
+| Path | `/auth/local/register` |
 | Description | Register a new customer account using OTP verification |
 | Auth | None (Public) |
 
@@ -165,14 +165,14 @@ interface RegisterResponse {
 
 ---
 
-### POST /auth/login
+### POST /auth/local/login
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `POST` |
-| Path | `/auth/login` |
+| Path | `/auth/local/login` |
 | Description | Authenticate customer and receive JWT |
 | Auth | None (Public) |
 

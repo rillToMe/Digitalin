@@ -19,9 +19,9 @@ public class OrderSweepWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("🧹 Robot Tukang Sapu (Order Sweep) mulai berpatroli...");
+        _logger.LogInformation("Bot Patroli (Order Sweep) mulai berpatroli...");
 
-        // Jalankan patroli setiap 2 menit sekali
+        // Jalankan bot setiap 2 menit
         using var timer = new PeriodicTimer(TimeSpan.FromMinutes(2));
 
         do
@@ -32,7 +32,7 @@ public class OrderSweepWorker : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Robot Tukang Sapu mengalami gangguan sistem.");
+                _logger.LogError(ex, "Bot Patroli mengalami gangguan sistem.");
             }
         } while (await timer.WaitForNextTickAsync(stoppingToken));
     }
@@ -44,36 +44,34 @@ public class OrderSweepWorker : BackgroundService
         var digiflazz = scope.ServiceProvider.GetRequiredService<DigiflazzProvider>();
         var telegram = scope.ServiceProvider.GetRequiredService<TelegramProvider>();
 
-        // 1. Cari pesanan yang statusnya PROCESSING dan umurnya sudah lewat dari 3 menit
+        // Cari pesanan yang statusnya PROCESSING dan sudah lebih dari 3 menit
         var timeThreshold = DateTime.UtcNow.AddMinutes(-3);
         var stuckOrders = await db.TopupOrders
             .Include(o => o.GameProduct)
             .Where(o => o.Status == AppConstants.OrderStatus.Processing && o.OrderDate <= timeThreshold)
             .ToListAsync();
 
-        if (!stuckOrders.Any()) return; // Aman, keluar jika tidak ada yang nyangkut
+        if (!stuckOrders.Any()) return; // matikan waktu tidak ada yang nyangkut
 
-        _logger.LogInformation("⚠️ [SWEEP] Menemukan {Count} pesanan nyangkut. Memulai interogasi ke Digiflazz...", stuckOrders.Count);
+        _logger.LogInformation("[SWEEP] Menemukan {Count} pesanan nyangkut. Memulai interogasi ke Digiflazz...", stuckOrders.Count);
 
-        // ── [C2] Process each order INDIVIDUALLY so a concurrency conflict on
-        //         one order does NOT discard updates for the rest of the batch.
         foreach (var order in stuckOrders)
         {
             try
             {
-                // 2. Minta kejelasan status ke Digiflazz
+                // Minta penjelasan status ke Digiflazz
                 var (status, sn, message) = await digiflazz.CheckStatusAsync(order.GameProduct!.BuyerSkuCode, order.PlayerId, order.OrderNo);
 
                 if (status == AppConstants.DigiflazzStatus.Sukses)
                 {
                     order.Status = AppConstants.OrderStatus.Completed;
                     order.Sn = sn;
-                    _logger.LogInformation("✅ [SWEEP] Order {OrderNo} ternyata SUKSES. Data SN diperbarui.", order.OrderNo);
+                    _logger.LogInformation("[SWEEP] Order {OrderNo} ternyata SUKSES. Data SN diperbarui.", order.OrderNo);
                 }
                 else if (status == AppConstants.DigiflazzStatus.Gagal)
                 {
                     order.Status = AppConstants.OrderStatus.NeedsAction;
-                    _logger.LogWarning("⛔ [SWEEP] Order {OrderNo} dipastikan GAGAL dari pusat. Mengunci pesanan...", order.OrderNo);
+                    _logger.LogWarning("[SWEEP] Order {OrderNo} dipastikan GAGAL dari pusat. Mengunci pesanan...", order.OrderNo);
 
                     string alertMessage = $@"⚠️ <b>PESANAN TERTUNDA (Hasil Sapuan Sistem)</b> ⚠️
 
@@ -91,45 +89,41 @@ Silakan buka Admin Panel untuk klik Retry atau hubungi pembeli untuk Refund.";
                 }
                 else
                 {
-                    // 3. BATAS KESABARAN: Jika status dari pusat masih "Pending", tapi usia orderan sudah > 15 menit
+                    // Jika status dari pusat masih "Pending", tapi usia orderan sudah > 15 menit
                     var maxToleransi = DateTime.UtcNow.AddMinutes(-15);
                     
                     if (order.OrderDate <= maxToleransi)
                     {
                         order.Status = AppConstants.OrderStatus.NeedsAction;
-                        _logger.LogWarning("⏳ [SWEEP] Order {OrderNo} kelamaan Pending di Digiflazz (>15 menit). Force Needs Action!", order.OrderNo);
+                        _logger.LogWarning("[SWEEP] Order {OrderNo} kelamaan Pending di Digiflazz (>15 menit). Force Needs Action!", order.OrderNo);
 
                         string timeoutMessage = $@"⚠️ <b>PESANAN MENGGANTUNG / TIMEOUT</b> ⚠️
 
-Halo Admin, sistem menemukan pesanan yang sudah lebih dari 15 menit dibiarget 'Pending' oleh Digiflazz tanpa kejelasan.
+                            Halo Admin, sistem menemukan pesanan yang sudah lebih dari 15 menit dibiarget 'Pending' oleh Digiflazz tanpa kejelasan.
 
-<b>📝 Detail Pesanan:</b>
-• <b>Invoice:</b> {order.OrderNo}
-• <b>Produk:</b> {order.GameProduct!.Name}
-• <b>ID Tujuan:</b> {order.PlayerId}
+                            <b>📝 Detail Pesanan:</b>
+                            • <b>Invoice:</b> {order.OrderNo}
+                            • <b>Produk:</b> {order.GameProduct!.Name}
+                            • <b>ID Tujuan:</b> {order.PlayerId}
 
-Silakan cek manual di dashboard Digiflazz. Jika pesanan tidak masuk, segera proses <b>Refund</b> ke pembeli agar tidak dikomplain.";
+                            Silakan cek manual di dashboard Digiflazz. Jika pesanan tidak masuk, segera proses <b>Refund</b> ke pembeli agar tidak dikomplain.";
 
                         await telegram.SendNotificationAsync(timeoutMessage);
                     }
                     else
                     {
-                        _logger.LogInformation("⏳ [SWEEP] Order {OrderNo} masih Pending dari pusat. Sabar, tunggu putaran selanjutnya.", order.OrderNo);
-                        // Nothing changed — skip saving this order.
+                        _logger.LogInformation("[SWEEP] Order {OrderNo} masih Pending dari pusat. Sabar, tunggu putaran selanjutnya.", order.OrderNo);
+                        // tidak ada yang berubah, langsung skip
                         continue;
                     }
-                } // Akhir blok pengecekan Status
+                } 
 
-                // ── [C2] Save EACH order individually and catch concurrency
-                //         conflicts so one bad row doesn't fail the whole sweep.
                 try
                 {
                     await db.SaveChangesAsync();
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    // Another process (webhook / admin retry) already updated this
-                    // order. Reload from DB and skip — the state is already handled.
                     _logger.LogWarning(
                         "[SWEEP] Concurrency conflict on Order {OrderNo}. Another process already updated it — skipping.",
                         order.OrderNo);
@@ -140,6 +134,6 @@ Silakan cek manual di dashboard Digiflazz. Jika pesanan tidak masuk, segera pros
             {
                 _logger.LogError("[SWEEP] Gagal mengecek order {OrderNo}: {Message}", order.OrderNo, ex.Message);
             }
-        } // Akhir blok foreach
+        }
     }
 }

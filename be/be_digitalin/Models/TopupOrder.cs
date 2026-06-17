@@ -14,6 +14,7 @@ public class TopupOrder
     
     //token dari midtrans
     public string? SnapToken { get; set; }
+    
     //direct kalau berhasil membayar
     public string? RedirectUrl { get; set; }
     
@@ -25,16 +26,10 @@ public class TopupOrder
     public Customer? Customer { get; set; }
     
     public string? VoucherCode { get; set; }
-    public decimal DiscountAmount { get; set; } // Menyimpan nominal diskon yang didapat
-
-    // === OPTIMISTIC CONCURRENCY ===
-    // EF Core uses this [Timestamp] column to detect conflicting writes.
-    // Any concurrent update to the same row will cause a DbUpdateConcurrencyException.
+    public decimal DiscountAmount { get; set; } // Simpan nominal diskon yang didapat
+    
     [Timestamp]
     public byte[]? RowVersion { get; set; }
 
-    // === IDEMPOTENCY GUARD ===
-    // Records when the payment webhook was first processed.
-    // Prevents duplicate webhook replays from re-triggering fulfillment.
     public DateTime? ProcessedAt { get; set; }
 }

@@ -15,8 +15,7 @@ public class DigiflazzSyncWorker : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<DigiflazzSyncWorker> _logger;
-
-    // Kita pakai IServiceScopeFactory karena DbContext itu "Scoped", sedangkan Worker ini "Singleton" (hidup terus)
+    
     public DigiflazzSyncWorker(IServiceScopeFactory scopeFactory, ILogger<DigiflazzSyncWorker> logger)
     {
         _scopeFactory = scopeFactory;
@@ -25,9 +24,9 @@ public class DigiflazzSyncWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("🤖 Robot Auto-Sync Digiflazz mulai bertugas...");
+        _logger.LogInformation("Bot Auto-Sync Digiflazz mulai jalan...");
 
-        // Atur interval waktu di sini (Misal: Sinkronisasi setiap 6 Jam)
+        // Atur interval waktu
         using var timer = new PeriodicTimer(TimeSpan.FromHours(1));
 
         // Loop abadi selama server hidup
@@ -39,23 +38,22 @@ public class DigiflazzSyncWorker : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Robot gagal melakukan sinkronisasi otomatis.");
+                _logger.LogError(ex, "Bot gagal melakukan sync otomatis.");
             }
         } while (await timer.WaitForNextTickAsync(stoppingToken));
     }
 
     private async Task SyncKatalogAsync()
     {
-        _logger.LogInformation("🔄 [AUTO-SYNC] Menarik data terbaru dari Digiflazz...");
+        _logger.LogInformation("[AUTO-SYNC] Menarik data terbaru dari Digiflazz...");
 
         using var scope = _scopeFactory.CreateScope();
         
         // Panggil IProductService lewat scope provider
         var productService = scope.ServiceProvider.GetRequiredService<IProductService>();
 
-        // Cukup panggil fungsi master dalam 1 baris!
         var (added, updated) = await productService.SyncCatalogFromDigiflazzAsync();
 
-        _logger.LogInformation($"✅ [AUTO-SYNC] Selesai! {added} produk baru ditambah, {updated} produk diupdate harganya.");
+        _logger.LogInformation($"[AUTO-SYNC] Selesai! {added} produk baru ditambah, {updated} produk diupdate harganya.");
     }
 }

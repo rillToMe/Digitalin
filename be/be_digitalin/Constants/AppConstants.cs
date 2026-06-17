@@ -2,7 +2,7 @@
 
 public static class AppConstants
 {
-    // Kumpulan Hak Akses (Role)
+    // Role
     public static class Roles
     {
         public const string Admin = "ADMIN";
@@ -19,10 +19,10 @@ public static class AppConstants
         public const string Sha1 = "sha1=";
     }
     
-    // Kumpulan Status Pesanan di Database Kita
+    // Status Pesanan di Database
     public static class OrderStatus
     {
-        public const string Pending = "PENDING";             // User baru bikin order, belum bayar
+        public const string Pending = "PENDING";             // User baru buat order, belum bayar
         public const string Paid = "PAID";                   // Uang SUDAH MASUK ke Midtrans
         public const string Processing = "PROCESSING";       // Sedang diproses oleh Digiflazz (tunggu SN)
         public const string Completed = "COMPLETED";         // Selesai! SN sudah keluar
@@ -32,7 +32,7 @@ public static class AppConstants
         public const string Refunded = "REFUNDED";           // Refund uang kalau transaksi beneran gk bisa di lakukan
     }
     
-    // Kumpulan Status Transaksi dari Midtrans
+    // Status Transaksi dari Midtrans
     public static class MidtransStatus
     {
         public const string Settlement = "settlement";
@@ -42,27 +42,27 @@ public static class AppConstants
         public const string Deny = "deny";
     }
 
-    // Kumpulan Status Fraud (Anti-Kecurangan) dari Midtrans
+    // Status Fraud dari Midtrans
     public static class MidtransFraud
     {
         public const string Accept = "accept";
     }
     
-    // Kumpulan Kunci JSON dari Respons Midtrans
+    //JWT JSON dari Respons Midtrans
     public static class MidtransResponseKeys
     {
         public const string Token = "token";
         public const string RedirectUrl = "redirect_url";
     }
 
-    // Kumpulan Skema Otentikasi HTTP (Header)
+    // Skema Otentikasi HTTP (Header)
     public static class HttpAuthSchemes
     {
         public const string Basic = "Basic";
-        public const string Bearer = "Bearer"; // Disiapin juga buat JWT lu nanti
+        public const string Bearer = "Bearer";
     }
 
-    // Kumpulan Satuan Waktu
+    // waktu
     public static class TimeUnits
     {
         public const string Minute = "minute";
@@ -75,7 +75,7 @@ public static class AppConstants
     }
     
 
-    // Kumpulan Status Balasan dari Digiflazz
+    // Status Balasan dari Digiflazz
     public static class DigiflazzStatus
     {
         public const string Sukses = "Sukses";
@@ -84,14 +84,14 @@ public static class AppConstants
         
     }
 
-    // Kumpulan Command API Digiflazz
+    // Command API Digiflazz
     public static class DigiflazzCommands
     {
         public const string Prepaid = "prepaid";
         public const string Pricelist = "pricelist";
     }
 
-    // Kumpulan Kunci JSON dari Respons Digiflazz
+    // JTW JSON dari Respons Digiflazz
     public static class DigiflazzResponseKeys
     {
         public const string Data = "data";
@@ -107,25 +107,25 @@ public static class AppConstants
     public static class Categories
     {
         public const string Games = "Games";
-        public const string Pulsa = "Pulsa"; // Persiapan kalau client lu mau jualan pulsa nanti
+        public const string Pulsa = "Pulsa"; 
     }
     
-    // Kumpulan Tipe Input Form untuk Frontend
+    // Tipe Input Form untuk Frontend
     public static class InputTypes
     {
         public const string UserIdOnly = "USER_ID_ONLY";
-        public const string UserIdAndZoneId = "USER_ID_AND_ZONE_ID"; // Sekalian disiapin buat game kayak ML
+        public const string UserIdAndZoneId = "USER_ID_AND_ZONE_ID";
     }
 
-    // Kumpulan Nama Folder di Cloudflare R2
+    // Nama Folder di Cloudflare R2
     public static class StorageFolders
     {
         public const string GameCovers = "icons-cover";
         public const string ItemIcons = "-icons-item";
-        public const string Banners = "banners"; // Sekalian disiapin buat fitur Banner lu nanti
+        public const string Banners = "banners"; 
     }
 
-    // [M5] Batas ukuran file upload (2 MB)
+    // Batas ukuran file upload (2 MB)
     public static class FileLimits
     {
         public const long MaxImageBytes = 2 * 1024 * 1024; // 2 MB

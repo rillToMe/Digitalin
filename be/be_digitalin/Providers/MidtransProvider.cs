@@ -23,7 +23,7 @@ public class MidtransProvider
         _db = db;
     }
 
-    // Fungsi nembak API untuk dapat Token Pop-Up UI
+    // nembak API untuk dapat Token Pop-Up UI
     public async Task<(string? Token, string? RedirectUrl)> CreateSnapTransactionAsync(
         string orderNo, decimal grossAmount, string productId, string productName, string customerName)
     {
@@ -60,13 +60,10 @@ public class MidtransProvider
         );
     }
 
-    // ── [C5] Timing-safe signature validation ─────────────────────────────
-    // Uses CryptographicOperations.FixedTimeEquals to prevent timing side-channel
-    // attacks where an attacker can infer how many bytes matched by measuring
-    // the response time of a normal string comparison.
+    // validasi signature
     public bool ValidateSignature(string orderId, string statusCode, string grossAmount, string signatureKey)
     {
-        // Reject immediately if any input is null/empty
+        // tolak kalau input kosong
         if (string.IsNullOrEmpty(orderId) || string.IsNullOrEmpty(statusCode) ||
             string.IsNullOrEmpty(grossAmount) || string.IsNullOrEmpty(signatureKey))
         {
@@ -78,8 +75,6 @@ public class MidtransProvider
         byte[] hashBytes = sha512.ComputeHash(Encoding.UTF8.GetBytes(rawSignature));
         string calculatedSignature = BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
 
-        // Timing-safe comparison: always compares the full byte arrays regardless
-        // of where the first mismatch occurs.
         byte[] expectedBytes = Encoding.UTF8.GetBytes(calculatedSignature);
         byte[] actualBytes   = Encoding.UTF8.GetBytes(signatureKey);
 

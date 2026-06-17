@@ -4,9 +4,9 @@ using Amazon.S3.Model;
 using be_digitalin.Config;
 using Microsoft.Extensions.Options;
 
-namespace be_digitalin.Providers; // <-- Berubah jadi Providers
+namespace be_digitalin.Providers; 
 
-public class CloudflareR2Provider // <-- Ganti nama dari FileService
+public class CloudflareR2Provider 
 {
     private readonly IAmazonS3 _s3Client;
     private readonly string _bucketName;

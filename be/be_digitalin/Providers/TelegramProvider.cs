@@ -25,7 +25,7 @@ public class TelegramProvider
     public async Task SendNotificationAsync(string message)
     {
         if (string.IsNullOrEmpty(_botToken) || string.IsNullOrEmpty(_chatId)) 
-            return; // Skip kalau settingan kosong
+            return; // Skip kalau config kosong
 
         try
         {

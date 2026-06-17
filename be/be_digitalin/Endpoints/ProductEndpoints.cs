@@ -16,18 +16,18 @@ public static class ProductEndpoints
 {
     public static void MapProductEndpoints(this IEndpointRouteBuilder app)
     {
-        // 1. AREA PUBLIK (Katalog Game Pembeli)
+        // AREA PUBLIK
         var publicGroup = app.MapGroup("/games")
             .WithTags("Katalog Game (Public)");
         
-        // GET /games/brands - Untuk nampilin list game di Homepage
+        // GET /games/brands
         publicGroup.MapGet("/brands", async ([FromServices] DigitalinDbContext db) =>
         {
             var brands = await db.GameMetadata
                 .Select(m => new {
                     m.Id,
                     m.Brand,
-                    Slug = m.Brand.ToLower().Replace(" ", "-"), // Bikin slug otomatis
+                    Slug = m.Brand.ToLower().Replace(" ", "-"),
                     m.ImageUrl, 
                     m.InputType
                 })
@@ -37,16 +37,14 @@ public static class ProductEndpoints
             return Results.Ok(brands);
         });
 
-        // GET /games/{brandSlug} - Untuk nampilin detail game + list diamond
+        // GET /games/{brandSlug}
         publicGroup.MapGet("/{brandSlug}", async (string brandSlug, [FromServices] DigitalinDbContext db) =>
         {
-            // 1. Cari metadata gamenya dulu berdasarkan slug
             var meta = await db.GameMetadata
                 .FirstOrDefaultAsync(m => m.Brand.ToLower().Replace(" ", "-") == brandSlug);
 
             if (meta == null) return Results.NotFound(new { message = "Game tidak ditemukan" });
-
-            // 2. Tarik daftar produk (diamond) untuk game ini
+            
             var products = await db.GameProducts
                 .Where(p => p.Brand == meta.Brand) 
                 .OrderBy(p => p.Price)
@@ -61,8 +59,7 @@ public static class ProductEndpoints
                     p.CustomMargin
                 })
                 .ToListAsync();
-
-            // 3. Gabungkan jadi 1 response sesuai format GameDetailResponse di api.ts
+            
             return Results.Ok(new {
                 brand = meta.Brand,
                 gameCode = meta.Brand, 
@@ -72,11 +69,10 @@ public static class ProductEndpoints
             });
         });
         
-
-        // 2. AREA ADMIN (Manajemen Produk)
+        // AREA ADMIN 
         var adminGroup = app.MapGroup("/admin/products")
                             .WithTags("Manajemen Produk (Admin)")
-                            .RequireAuthorization("AdminOnly"); // <-- Semua endpoint admin wajib role ADMIN
+                            .RequireAuthorization("AdminOnly"); 
         
         // GET /admin/products (PENCARIAN & PAGINASI) 
         adminGroup.MapGet("/", async (
@@ -93,11 +89,11 @@ public static class ProductEndpoints
         });
         
         // POST /admin/products (BUAT PRODUK MANUAL)
-        adminGroup.MapPost("/", async (GameProduct product, [FromServices] IProductService productService) =>
-        {
-            var createdProduct = await productService.CreateProductAsync(product);
-            return Results.Created($"/admin/products/{createdProduct.Id}", createdProduct);
-        });
+        // adminGroup.MapPost("/", async (GameProduct product, [FromServices] IProductService productService) =>
+        // {
+        //     var createdProduct = await productService.CreateProductAsync(product);
+        //     return Results.Created($"/admin/products/{createdProduct.Id}", createdProduct);
+        // });
         
         // POST /admin/products/{id}/upload-icon (UPLOAD ICON KE CLOUDFLARE R2)
         adminGroup.MapPost("/{id}/upload-item-image", async (
@@ -107,7 +103,7 @@ public static class ProductEndpoints
         {
             if (file == null || file.Length == 0) return Results.BadRequest("File tidak boleh kosong.");
 
-            // [M5] Reject files larger than 2 MB
+            // tolak file yang lebih dari 2MB
             if (file.Length > AppConstants.FileLimits.MaxImageBytes)
                 return Results.BadRequest($"Ukuran file terlalu besar. Maksimal {AppConstants.FileLimits.MaxImageBytes / (1024 * 1024)} MB.");
 
@@ -118,15 +114,14 @@ public static class ProductEndpoints
         }).DisableAntiforgery();
         
 
-        // 3. AREA ADMIN (Sistem & Integrasi)
+        // AREA ADMIN
         var systemGroup = app.MapGroup("/admin/system")
                              .WithTags("Sistem & Integrasi (Admin)")
-                             .RequireAuthorization("AdminOnly"); // <-- Wajib role ADMIN
+                             .RequireAuthorization("AdminOnly"); 
 
         // POST /admin/system/sync-digiflazz (SINKRONISASI MANUAL DARI TOMBOL ADMIN)
         systemGroup.MapPost("/sync-digiflazz", async ([FromServices] IProductService productService) =>
         {
-            // Panggil fungsi master di ProductService
             var (added, updated) = await productService.SyncCatalogFromDigiflazzAsync();
             
             return Results.Ok(new { message = $"Sync selesai! {added} produk baru, {updated} produk diupdate." });
@@ -158,17 +153,17 @@ public static class ProductEndpoints
             decimal newMargin = req.Margin ?? 0m;
 
             product.Price = modalPrice + newMargin;            
-            product.CustomMargin = req.Margin; // <-- Ambil Margin dari 'req'
+            product.CustomMargin = req.Margin; 
             await db.SaveChangesAsync();
 
             return Results.Ok(new { message = "Margin berhasil diatur!" });
         });
         
-        // GET /admin/system/midtrans-expiry (BACA WAKTU EXPIRY SAAT INI)
+        // GET /admin/system/midtrans-expiry
         systemGroup.MapGet("/midtrans-expiry", async ([FromServices] DigitalinDbContext db) =>
         {
             var setting = await db.AppSettings.FirstOrDefaultAsync(s => s.Key == AppConstants.SystemSettings.MidtransExpiry);
-            int currentExpiry = setting != null ? int.Parse(setting.Value) : 5; // Default 5 menit
+            int currentExpiry = setting != null ? int.Parse(setting.Value) : 5; // untuk mengganti menit
             return Results.Ok(new { expiry = currentExpiry });
         });
 
@@ -190,21 +185,21 @@ public static class ProductEndpoints
             return Results.Ok(new { message = "Waktu kedaluwarsa Midtrans berhasil diubah!" });
         });
         
-        // GET /admin/system/metadata - (Tarik semua data buat ditampilin di Tabel Admin)
+        // GET /admin/system/metadata
         systemGroup.MapGet("/metadata", async ([FromServices] DigitalinDbContext db) =>
         {
             var metadata = await db.GameMetadata.OrderBy(m => m.Brand).ToListAsync();
             return Results.Ok(metadata);
         });
 
-        // PUT /admin/system/metadata/{id} - (Simpan perubahan tipe input & server dari Admin)
+        // PUT /admin/system/metadata/{id} 
         systemGroup.MapPut("/metadata/{id}", async (int id, [FromBody] UpdateMetadataRequest req, [FromServices] DigitalinDbContext db) =>
         {
             var meta = await db.GameMetadata.FindAsync(id);
             if (meta == null) return Results.NotFound(new { message = "Metadata tidak ditemukan." });
 
             meta.InputType = req.InputType;
-            meta.ServerList = req.ServerList; // Simpan daftar server baru
+            meta.ServerList = req.ServerList; 
             await db.SaveChangesAsync();
 
             return Results.Ok(new { message = "Pengaturan game berhasil diperbarui!" });
@@ -219,23 +214,19 @@ public static class ProductEndpoints
         {
             if (file == null || file.Length == 0) return Results.BadRequest("File tidak boleh kosong.");
 
-            // [M5] Reject files larger than 2 MB
+            // tolak jadi lebih dari 2MB
             if (file.Length > AppConstants.FileLimits.MaxImageBytes)
                 return Results.BadRequest($"Ukuran file terlalu besar. Maksimal {AppConstants.FileLimits.MaxImageBytes / (1024 * 1024)} MB.");
 
             var meta = await db.GameMetadata.FindAsync(id);
             if (meta == null) return Results.NotFound(new { message = "Metadata Game tidak ditemukan." });
 
-            // ==========================================
-            // TAMBAHAN BARU: HAPUS GAMBAR LAMA DULU
-            // ==========================================
+            // hapus gambar lama
             if (!string.IsNullOrEmpty(meta.ImageUrl))
             {
                 await r2.DeleteFileAsync(meta.ImageUrl); 
             }
-
-            // UBAH FOLDER UPLOADNYA DI SINI
-            // Ganti AppConstants.StorageFolders.Icons menjadi AppConstants.StorageFolders.GameCovers (atau langsung "icon-cover")
+            
             var imageUrl = await r2.UploadFileAsync(file, "icon-cover"); 
 
             meta.ImageUrl = imageUrl;

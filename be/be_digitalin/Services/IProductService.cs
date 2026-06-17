@@ -5,7 +5,6 @@ namespace be_digitalin.Services;
 
 public interface IProductService
 {
-    // Tambahkan 2 baris ini agar dikenali oleh ProductEndpoints
     Task<PagedResult<GameProduct>> GetPagedProductsAsync(string? search, int page, int limit);
     Task<IEnumerable<CategoryInfo>> GetUniqueGameBrandsAsync();
 

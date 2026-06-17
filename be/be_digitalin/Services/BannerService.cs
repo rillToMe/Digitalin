@@ -1,7 +1,7 @@
 ﻿using be_digitalin.Constants;
 using be_digitalin.Data;
 using be_digitalin.Models;
-using be_digitalin.Providers; // <-- Tambahkan ini untuk memanggil Provider
+using be_digitalin.Providers;
 using Microsoft.EntityFrameworkCore;
 
 namespace be_digitalin.Services;
@@ -9,9 +9,9 @@ namespace be_digitalin.Services;
 public class BannerService : IBannerService
 {
     private readonly DigitalinDbContext _db;
-    private readonly CloudflareR2Provider _r2Provider; // <-- Ubah Tipe Data
+    private readonly CloudflareR2Provider _r2Provider; 
 
-    public BannerService(DigitalinDbContext db, CloudflareR2Provider r2Provider) // <-- Suntik Provider
+    public BannerService(DigitalinDbContext db, CloudflareR2Provider r2Provider)
     {
         _db = db;
         _r2Provider = r2Provider;
@@ -31,7 +31,7 @@ public class BannerService : IBannerService
     
     public async Task<Banner> CreateBannerAsync(string title, IFormFile file)
     {
-        var imageUrl = await _r2Provider.UploadFileAsync(file, AppConstants.StorageFolders.Banners); // <-- Gunakan _r2Provider
+        var imageUrl = await _r2Provider.UploadFileAsync(file, AppConstants.StorageFolders.Banners); 
 
         var banner = new Banner
         {
@@ -62,7 +62,7 @@ public class BannerService : IBannerService
 
         if (!string.IsNullOrEmpty(banner.ImageUrl))
         {
-            await _r2Provider.DeleteFileAsync(banner.ImageUrl); // <-- Gunakan _r2Provider
+            await _r2Provider.DeleteFileAsync(banner.ImageUrl);
         }
 
         _db.Banners.Remove(banner);

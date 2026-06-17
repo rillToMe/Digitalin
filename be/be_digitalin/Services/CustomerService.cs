@@ -58,9 +58,6 @@ public class CustomerService : ICustomerService
                 new Claim(ClaimTypes.NameIdentifier, customer.Id.ToString()),
                 new Claim(ClaimTypes.Role, AppConstants.Roles.Customer) 
             }),
-            // [M11] Reduced from 7 days to 24 hours to limit the window of
-            // abuse if a token is stolen. Consider adding a refresh-token
-            // mechanism in the future for a better UX.
             Expires = DateTime.UtcNow.AddHours(24),
             SigningCredentials = credentials
         };
@@ -86,7 +83,7 @@ public class CustomerService : ICustomerService
 
         customer.FullName = fullName;
 
-        // Jika user ngisi password baru, kita hash lagi
+        // Jika user ngisi password baru, hash lagi
         if (!string.IsNullOrWhiteSpace(newPassword))
         {
             customer.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
@@ -98,7 +95,6 @@ public class CustomerService : ICustomerService
 
     public async Task<PagedResult<OrderResponse>> GetCustomerHistoryAsync(int customerId, int page = 1, int limit = 20)
     {
-        // Langsung suruh spesialis order yang narik datanya beserta pagination!
         return await _orderService.GetOrdersAsync(customerId, page, limit);
     }
     

@@ -13,7 +13,7 @@ Content-Type: application/json
 
 ### B. CUSTOMER AUTHENTICATION
 
-POST http://localhost:5210/auth/request-otp
+POST http://localhost:5210/auth/local/request-otp
 Content-Type: application/json
 
 {
@@ -21,7 +21,7 @@ Content-Type: application/json
 }
 
 ### 1. Register Pembeli Baru
-POST {{host}}/auth/register
+POST {{host}}/auth/local/register
 Content-Type: application/json
 
 {
@@ -33,7 +33,7 @@ Content-Type: application/json
 
 ### 2. Login Pembeli 
 # @name loginCustomer
-POST {{host}}/auth/login
+POST {{host}}/auth/local/login
 Content-Type: application/json
 
 {
@@ -64,7 +64,7 @@ Accept: application/json
 
 
 ### 1. Minta Kode OTP (Cek Mailtrap setelah ini)
-POST {{host}}/auth/request-otp
+POST {{host}}/auth/local/request-otp
 Content-Type: application/json
 
 {
@@ -73,7 +73,7 @@ Content-Type: application/json
 
 ### 2. Selesaikan Pendaftaran
 # Ganti 123456 dengan 6 angka yang lu dapet dari Mailtrap!
-POST {{host}}/auth/register
+POST {{host}}/auth/local/register
 Content-Type: application/json
 
 {

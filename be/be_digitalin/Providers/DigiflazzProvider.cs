@@ -11,8 +11,7 @@ public class DigiflazzProvider
 {
     private readonly HttpClient _httpClient;
     private readonly DigiflazzSettings _settings;
-
-    // 1. Definisikan endpoint secara global di sini
+    
     private const string EndpointTransaction = "/v1/transaction";
     private const string EndpointPriceList = "/v1/price-list";
 
@@ -20,9 +19,7 @@ public class DigiflazzProvider
     {
         _httpClient = httpClient;
         _settings = settings.Value;
-
-        // 2. Setup BaseAddress sekali saja. 
-        // Pastikan di appsettings.json _settings.BaseUrl isinya HANYA domain (contoh: "http://IP_VPS_LU:8080" atau "https://api.digiflazz.com")
+        
         if (_httpClient.BaseAddress == null && !string.IsNullOrEmpty(_settings.BaseUrl))
         {
             _httpClient.BaseAddress = new Uri(_settings.BaseUrl);
@@ -49,7 +46,6 @@ public class DigiflazzProvider
 
         var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
         
-        // 4. Tinggal panggil konstantanya, otomatis nyambung ke BaseUrl
         var response = await _httpClient.PostAsync(EndpointTransaction, content, cancellationToken);
         var responseString = await response.Content.ReadAsStringAsync(cancellationToken);
         
@@ -69,7 +65,7 @@ public class DigiflazzProvider
                     string errorMsg = msgElement.GetString() ?? "Alasan tidak diketahui";
                     Console.WriteLine($"[DIGIFLAZZ ERROR] Transaksi Gagal! Pesan: {errorMsg}");
                     
-                    // TAMBAHKAN BARIS INI: Paksa sistem melempar error agar masuk ke blok 'catch'
+                    // Paksa sistem melempar error agar masuk ke blok 'catch'
                     throw new Exception(errorMsg); 
                 }
                 if (dataElement.TryGetProperty("sn", out var snElement))
@@ -97,7 +93,6 @@ public class DigiflazzProvider
         
         var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
         
-        // 5. Ganti link hardcode menjadi konstanta
         var response = await _httpClient.PostAsync(EndpointPriceList, content);
         var responseString = await response.Content.ReadAsStringAsync();
         var jsonDoc = JsonDocument.Parse(responseString);
@@ -112,17 +107,12 @@ public class DigiflazzProvider
         return dataElement.EnumerateArray();
     }
 
-    // ── [C5] Timing-safe webhook signature validation ───────────────────────
-    // • Rejects null/empty/missing headers before comparison
-    // • Uses CryptographicOperations.FixedTimeEquals to prevent timing attacks
+    // webhook validasi signature
     public bool ValidateWebhookSignature(string rawBody, string signatureHeader)
     {
-        // Guard: reject missing or empty header (previously an empty string
-        // would silently pass through and produce a meaningless comparison).
         if (string.IsNullOrEmpty(rawBody) || string.IsNullOrEmpty(signatureHeader))
             return false;
-
-        // Guard: signature must start with the expected prefix
+        
         if (!signatureHeader.StartsWith(AppConstants.SecurityPrefixes.Sha1, StringComparison.Ordinal))
             return false;
 
@@ -130,7 +120,6 @@ public class DigiflazzProvider
         var hashBytes = hmac.ComputeHash(Encoding.UTF8.GetBytes(rawBody));
         var expectedSignature = AppConstants.SecurityPrefixes.Sha1 + Convert.ToHexString(hashBytes).ToLower();
 
-        // Timing-safe comparison: always compares the full byte arrays
         byte[] expectedBytes = Encoding.UTF8.GetBytes(expectedSignature);
         byte[] actualBytes   = Encoding.UTF8.GetBytes(signatureHeader);
 
@@ -140,7 +129,7 @@ public class DigiflazzProvider
         return CryptographicOperations.FixedTimeEquals(expectedBytes, actualBytes);
     }
     
-    // Fungsi khusus untuk Robot Tukang Sapu membaca status real-time
+    //  Bot Patroli membaca status real-time
     public async Task<(string Status, string Sn, string Message)> CheckStatusAsync(string sku, string customerNo, string refId)
     {
         var payload = new
@@ -149,7 +138,7 @@ public class DigiflazzProvider
             buyer_sku_code = sku,
             customer_no = customerNo,
             ref_id = refId,
-            sign = GenerateSignature(refId) // Pastikan fungsi GenerateSignature lu ada dan bisa dipakai
+            sign = GenerateSignature(refId)
         };
 
         var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
