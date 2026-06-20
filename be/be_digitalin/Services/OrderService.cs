@@ -279,7 +279,7 @@ public class OrderService : IOrderService
         {
             await dbTransaction.RollbackAsync();
             _logger.LogWarning(
-                "[WEBHOOK] Konflik konkurensi pada Pesanan {{OrderNo}}. Proses lain sudah menanganinya",
+                "[WEBHOOK] Konflik konkurensi pada Pesanan {OrderNo}. Proses lain sudah menanganinya",
                 order.OrderNo);
         }
         catch (Exception ex)

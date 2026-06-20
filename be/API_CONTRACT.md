@@ -39,7 +39,7 @@
 
 | Prefix / Pattern | Auth Required | Role |
 |------------------|---------------|------|
-| `POST /auth/local/*`, `GET /games/*` | No | Public |
+| `POST /auth/local/*`, `POST /auth/google`, `GET /games/*` | No | Public |
 | `GET /banners/` | No | Public |
 | `POST /orders/` | Optional | Any (customerId extracted if present) |
 | `GET /auth/profile`, `PUT /auth/profile`, `GET /orders/my-history` | Yes | CUSTOMER |
@@ -196,6 +196,46 @@ interface LoginResponse {
 
 - Error 401: Invalid email or password (generic message, does not reveal which)
 - JWT claims: `NameIdentifier` = customerId (integer), `Role` = "CUSTOMER"
+
+---
+
+### POST /auth/google
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `POST` |
+| Path | `/auth/google` |
+| Description | Authenticate with Google ID Token (from Google Identity Services on frontend). Auto-registers if the email is new; links to existing local account if the same email already exists. Returns the same JWT shape as local login. |
+| Auth | None (Public) |
+
+#### REQUEST PAYLOAD
+
+| Field Name | Data Type | Required/Optional | Description & Constraints |
+|------------|-----------|-------------------|---------------------------|
+| `idToken` | `string` | Required | Google ID Token obtained from Google Identity Services (GIS) on the frontend |
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK
+interface GoogleLoginResponse {
+  token: string; // JWT, expires in 24 hours — identical to local login response
+}
+```
+
+#### BUSINESS RULES & EDGE CASES
+
+- Backend verifies the Google ID Token using the official Google SDK (signature, audience, issuer, expiration)
+- **New email** → a new Customer is auto-created with `AuthProvider = "GOOGLE"`, `GoogleId = sub`, `FullName = Google display name`. Email is treated as verified.
+- **Existing local account with same email** → the account is linked by setting `GoogleId`. No duplicate account is created. Local password login continues to work.
+- **Existing Google-linked account** → login proceeds normally, no DB write required.
+- JWT claims are identical to local login: `NameIdentifier` = customerId, `Role` = "CUSTOMER", 24-hour expiry.
+- Error 400: `"ID token tidak boleh kosong."` — missing or empty `idToken`
+- Error 400: `"Invalid Google ID token."` — token failed verification (bad signature, wrong audience, expired, or malformed)
+- Error 400: `"Google token verification failed."` — network or unexpected error during verification
+- The backend does NOT store the Google ID token, access token, or refresh token — only `GoogleId` (the `sub` claim) and the email.
 
 ---
 

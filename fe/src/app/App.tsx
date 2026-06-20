@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router";
 import { Toaster } from "sonner";
+import ScrollToTop from "./components/ScrollToTop";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import { useAuthStore } from "../store/authStore";
 import { CustomerLayout } from "../layouts/CustomerLayout";
 
@@ -91,12 +93,30 @@ function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-export default function App() {
-  return (
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+
+function AppProviders({ children }: { children: React.ReactNode }) {
+  const inner = (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Toaster position="top-right" richColors closeButton />
-        <Routes>
+        {children}
+      </BrowserRouter>
+    </QueryClientProvider>
+  );
+
+  if (googleClientId) {
+    return <GoogleOAuthProvider clientId={googleClientId}>{inner}</GoogleOAuthProvider>;
+  }
+
+  return inner;
+}
+
+export default function App() {
+  return (
+    <AppProviders>
+      <ScrollToTop />
+      <Toaster position="top-right" richColors closeButton />
+      <Routes>
         {/* Customer routes */}
         <Route path="/" element={<CustomerRoute><HomePage /></CustomerRoute>} />
         <Route path="/game/:slug" element={<CustomerRoute><GameDetailPage /></CustomerRoute>} />
@@ -114,8 +134,7 @@ export default function App() {
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </QueryClientProvider>
+      </Routes>
+    </AppProviders>
   );
 }

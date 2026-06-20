@@ -6,12 +6,14 @@ import { useMutation } from "@tanstack/react-query";
 import { useAuthStore } from "../../../store/authStore";
 import { authService } from "../../../services/api";
 import type { LoginPayload } from "../../../api/index";
+import GoogleLoginButton, { googleClientId } from "../../../components/common/GoogleLoginButton";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { setToken } = useAuthStore();
   const [form, setForm] = useState<LoginPayload>({ email: "", password: "" });
   const [showPass, setShowPass] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const loginMutation = useMutation({
     mutationFn: (payload: LoginPayload) => authService.login(payload),
@@ -36,6 +38,7 @@ export default function LoginPage() {
   };
 
   const loading = loginMutation.isPending;
+  const anyLoading = loading || googleLoading;
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12" style={{ backgroundColor: "var(--color-neutral,#F1F3F5)" }}>
@@ -92,14 +95,18 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={anyLoading}
               className="w-full py-3.5 rounded-xl flex items-center justify-center gap-2 transition-opacity mt-2"
-              style={{ backgroundColor: "var(--color-tertiary,#2C5EF5)", color: "#fff", fontWeight: 600, fontSize: "0.95rem", opacity: loading ? 0.7 : 1 }}
+              style={{ backgroundColor: "var(--color-tertiary,#2C5EF5)", color: "#fff", fontWeight: 600, fontSize: "0.95rem", opacity: anyLoading ? 0.7 : 1 }}
             >
               {loading && <Loader2 size={16} className="animate-spin" />}
               {loading ? "Masuk..." : "Masuk"}
             </button>
           </form>
+
+          {googleClientId && (
+            <GoogleLoginButton disabled={anyLoading} onLoadingChange={setGoogleLoading} />
+          )}
 
           <p className="text-center mt-5" style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.875rem" }}>
             Belum punya akun?{" "}

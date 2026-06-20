@@ -47,6 +47,23 @@ Content-Type: application/json
     client.log("Token Customer berhasil disimpan ke memori global!");
 %}
 
+### 3. Google Login
+# Ganti idToken dengan token asli dari Google Identity Services (frontend)
+# @name loginGoogle
+POST {{host}}/auth/google
+Content-Type: application/json
+
+{
+  "idToken": "PASTE_GOOGLE_ID_TOKEN_HERE"
+}
+
+> {%
+    if (response.status === 200) {
+        client.global.set("customer_token", response.body.token);
+        client.log("Token Google Customer berhasil disimpan!");
+    }
+%}
+
 ### C. SECURITY CHECK (TESTING ERROR)
 
 ### Test Admin Login Gagal (Password Salah) -> Harusnya 401

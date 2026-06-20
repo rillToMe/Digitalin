@@ -73,8 +73,35 @@ public static class AuthEndpoints
             var token = await service.LoginAsync(req.Email, req.Password);
             return token != null ? Results.Ok(new { token }) : Results.Unauthorized();
         });
-        
-        
+
+        // GOOGLE LOGIN ENDPOINT
+        // Verifies a Google ID Token, auto-registers if needed, returns JWT.
+        customerGroup.MapPost("/google", async (
+            [FromBody] GoogleLoginRequest req,
+            [FromServices] IGoogleAuthService googleAuthService) =>
+        {
+            if (string.IsNullOrWhiteSpace(req.IdToken))
+            {
+                return Results.BadRequest(new { message = "ID token tidak boleh kosong." });
+            }
+
+            try
+            {
+                var result = await googleAuthService.AuthenticateWithGoogleAsync(req.IdToken);
+                if (result == null)
+                {
+                    return Results.Unauthorized();
+                }
+
+                return Results.Ok(new { token = result.Token });
+            }
+            catch (GoogleAuthenticationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
+        });
+
+
         // GET PROFILE
         customerGroup.MapGet("/profile", async (ClaimsPrincipal user, [FromServices] ICustomerService service) =>
         {
@@ -174,3 +201,4 @@ public record CustomerLoginRequest(string Email, string Password);
 public record RequestOtpRequest(string Email);
 public record RegisterRequest(string Email, string Password, string FullName, string OtpCode);
 public record UpdateProfileRequest(string FullName, string? NewPassword);
+public record GoogleLoginRequest(string IdToken);

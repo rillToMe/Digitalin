@@ -1,0 +1,4 @@
+[*.{cs,vb}]
+# CA2007: Consider calling ConfigureAwait on the awaited task
+# Not needed in ASP.NET Core (no SynchronizationContext)
+dotnet_diagnostic.CA2007.severity = none

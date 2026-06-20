@@ -1,13 +1,22 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
-import { Check, AlertCircle, Loader2, ShieldCheck } from "lucide-react";
+import { Check, AlertCircle, Loader2, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { brandService, orderService } from "../../../services/api";
 import { useCheckoutStore } from "../../../store/checkoutStore";
-import { useAuthStore } from "../../../store/authStore";
 import type { ProductItem, CreateOrderPayload } from "../../../api/index";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "../../../app/components/ui/dialog";
+import { Button } from "../../../app/components/ui/button";
 
 function formatRp(n: number) {
   return "Rp " + n.toLocaleString("id-ID");
@@ -17,8 +26,10 @@ export default function GameDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { isAuthenticated } = useAuthStore();
+
   const [isPaying, setIsPaying] = useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<{ title: string; description: string } | null>(null);
 
   const {
     selectedProduct, setSelectedProduct,
@@ -50,14 +61,26 @@ export default function GameDetailPage() {
         window.snap.pay(res.snapToken, {
           onSuccess: () => {
             setIsPaying(false);
-            toast.success("Pembayaran berhasil!");
             queryClient.invalidateQueries({ queryKey: ["orders"] });
-            navigate("/history");
+            queryClient.invalidateQueries({ queryKey: ["brand", slug] });
+            setSuccessMessage({
+              title: "Pembayaran Berhasil",
+              description:
+                "Pesanan Anda sedang diproses. Anda dapat melihat status transaksi pada halaman Riwayat Order kapan saja.",
+            });
+            setShowSuccessDialog(true);
+            // Reset checkout form so user can make another purchase immediately
+            setSelectedProduct(null as unknown as ProductItem);
           },
           onPending: () => {
             setIsPaying(false);
-            toast.info("Pembayaran sedang diproses. Silakan selesaikan pembayaran Anda.");
-            navigate("/history");
+            queryClient.invalidateQueries({ queryKey: ["orders"] });
+            setSuccessMessage({
+              title: "Pembayaran Sedang Diproses",
+              description:
+                "Pembayaran Anda sedang diproses. Silakan selesaikan pembayaran Anda. Status transaksi dapat dilihat di halaman Riwayat Order.",
+            });
+            setShowSuccessDialog(true);
           },
           onError: () => {
             setIsPaying(false);
@@ -75,12 +98,13 @@ export default function GameDetailPage() {
       } else {
         // Fallback: no snapToken (should not happen if backend is configured correctly)
         setIsPaying(false);
-        toast.success("Pesanan berhasil dibuat!");
-        if (isAuthenticated()) {
-          navigate("/history");
-        } else {
-          navigate("/");
-        }
+        queryClient.invalidateQueries({ queryKey: ["orders"] });
+        setSuccessMessage({
+          title: "Pesanan Berhasil Dibuat",
+          description:
+            "Pesanan Anda sedang diproses. Anda dapat melihat status transaksi pada halaman Riwayat Order kapan saja.",
+        });
+        setShowSuccessDialog(true);
       }
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {
@@ -143,21 +167,22 @@ export default function GameDetailPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Banner */}
-      <div className="rounded-2xl overflow-hidden mb-8 w-48 h-48 sm:w-56 sm:h-56">
-        {brand.imageUrl ? (
-          <img src={brand.imageUrl} alt={brand.brand} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: "var(--color-primary,#0F1419)" }}>
-            <p style={{ color: "#fff", fontWeight: 700, fontSize: "1.5rem" }}>{brand.brand}</p>
-          </div>
-        )}
-      </div>
+      
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left - Main content */}
         <div className="lg:col-span-2 space-y-5">
           {/* Game info */}
           <div className="rounded-2xl p-5" style={{ backgroundColor: "var(--color-surface,#fff)", border: "1px solid rgba(0,0,0,0.07)" }}>
+            <div className="rounded-2xl overflow-hidden mb-8 w-48 h-48 sm:w-56 sm:h-56">
+              {brand.imageUrl ? (
+                <img src={brand.imageUrl} alt={brand.brand} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: "var(--color-primary,#0F1419)" }}>
+                  <p style={{ color: "#fff", fontWeight: 700, fontSize: "1.5rem" }}>{brand.brand}</p>
+                </div>
+              )}
+            </div>
             <h1 style={{ color: "var(--color-primary,#0F1419)", fontWeight: 700, fontSize: "1.3rem" }}>{brand.brand}</h1>
             <p style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.85rem", marginTop: 4 }}>
               Kode: {brand.gameCode} · Isi saldo dengan mudah dan cepat
@@ -294,6 +319,45 @@ export default function GameDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Payment Success Dialog */}
+      <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex justify-center mb-2">
+              <div
+                className="w-14 h-14 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: "rgba(34,197,94,0.12)" }}
+              >
+                <CheckCircle2 size={32} style={{ color: "#22c55e" }} />
+              </div>
+            </div>
+            <DialogTitle className="text-center" style={{ color: "var(--color-primary,#0F1419)" }}>
+              {successMessage?.title ?? "Pembayaran Berhasil"}
+            </DialogTitle>
+            <DialogDescription className="text-center" style={{ color: "var(--color-secondary,#4A5568)" }}>
+              {successMessage?.description ??
+                "Pesanan Anda sedang diproses. Anda dapat melihat status transaksi pada halaman Riwayat Order kapan saja."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0">
+            <DialogClose asChild>
+              <Button variant="outline" className="w-full sm:flex-1">
+                Tutup
+              </Button>
+            </DialogClose>
+            <Button
+              className="w-full sm:flex-1"
+              onClick={() => {
+                setShowSuccessDialog(false);
+                navigate("/history");
+              }}
+            >
+              Lihat Riwayat
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

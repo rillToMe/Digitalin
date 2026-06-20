@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router";
 import {
   User, Mail, Calendar, Edit2, Loader2, Check,
@@ -69,10 +69,12 @@ export default function ProfilePage() {
   });
 
   // Sync form when profile loads
-  if (profile && !form.fullName && !editing) {
-    setForm({ fullName: profile.fullName, newPassword: "" });
-    setUser(profile);
-  }
+  useEffect(() => {
+    if (profile && !form.fullName && !editing) {
+      setForm({ fullName: profile.fullName, newPassword: "" });
+      setUser(profile);
+    }
+  }, [profile, form.fullName, editing, setUser]);
 
   // Compute stats and favorites from order history
   const allOrders = historyData?.data ?? [];

@@ -33,4 +33,13 @@ export default defineConfig({
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
+
+  server: {
+    // WAJIB: paksa Vite bind ke 'localhost' bukan '127.0.0.1'
+    // agar Origin header browser = http://localhost:5173
+    // yang terdaftar di Google Cloud Console → OAuth works
+    host: 'localhost',
+    port: 5173,
+    strictPort: true, // gagal jika port sudah dipakai, jangan silently pindah port
+  },
 })

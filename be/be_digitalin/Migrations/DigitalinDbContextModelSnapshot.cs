@@ -71,6 +71,10 @@ namespace be_digitalin.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AuthProvider")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<DateTime>("CreatetAt")
                         .HasColumnType("datetime(6)");
 
@@ -80,6 +84,9 @@ namespace be_digitalin.Migrations
 
                     b.Property<string>("FullName")
                         .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("GoogleId")
                         .HasColumnType("longtext");
 
                     b.Property<string>("PasswordHash")

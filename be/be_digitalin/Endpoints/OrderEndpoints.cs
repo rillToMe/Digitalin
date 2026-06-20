@@ -286,7 +286,7 @@ public static class OrderEndpoints
                 catch (DbUpdateConcurrencyException)
                 {
                     logger.LogWarning(
-                        "[WEBHOOK] Concurrency conflict pada Order {{OrderNo}}. Sudah di-update oleh proses lain.",
+                        "[WEBHOOK] Concurrency conflict pada Order {OrderNo}. Sudah di-update oleh proses lain.",
                         order.OrderNo);
                 }
             }

@@ -32,6 +32,10 @@ builder.Services.Configure<MidtransSettings>(builder.Configuration.GetSection("M
 builder.Services.Configure<CloudflareR2Settings>(builder.Configuration.GetSection("CloudflareR2"));
 builder.Services.AddScoped<CloudflareR2Provider>();
 
+builder.Services.Configure<GoogleAuthSettings>(builder.Configuration.GetSection("GoogleAuth"));
+builder.Services.AddScoped<GoogleProvider>();
+builder.Services.AddScoped<IGoogleAuthService, GoogleAuthService>();
+
 builder.Services.AddHttpClient();
 
 builder.Services.AddScoped<MidtransProvider>();
@@ -150,7 +154,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins("http://localhost:5173", "http://localhost:3000")
+        policy.WithOrigins(
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",  // loopback IP fallback for dev
+                "http://localhost:3000")
             .WithHeaders("Authorization", "Content-Type", "Accept")   
             .WithMethods("GET", "POST", "PUT", "DELETE")               
             .AllowCredentials();
@@ -176,6 +183,8 @@ app.Use(async (context, next) =>
     context.Response.Headers.Append("X-Frame-Options", "DENY");
     context.Response.Headers.Append("X-XSS-Protection", "0"); // Modern browsers use CSP, not XSS filter
     context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+    // Required for Google OAuth popup flow — allows postMessage from popup to opener
+    context.Response.Headers.Append("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
 
     // HSTS - only in production
     if (!app.Environment.IsDevelopment())

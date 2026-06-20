@@ -4,15 +4,15 @@ import { Eye, EyeOff, Zap, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation } from "@tanstack/react-query";
 import { authService } from "../../../services/api";
-import { useAuthStore } from "../../../store/authStore";
-import type { RegisterPayload, RequestOtpPayload } from "../../../api/index";
+import type { RequestOtpPayload } from "../../../api/index";
+import GoogleLoginButton, { googleClientId } from "../../../components/common/GoogleLoginButton";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
-  const { setToken } = useAuthStore();
   const [form, setForm] = useState({ email: "", password: "", fullName: "", otpCode: "" });
   const [showPass, setShowPass] = useState(false);
   const [step, setStep] = useState<"form" | "otp">("form");
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const otpMutation = useMutation({
     mutationFn: (payload: RequestOtpPayload) => authService.requestOtp(payload),
@@ -27,11 +27,13 @@ export default function RegisterPage() {
   });
 
   const registerMutation = useMutation({
-    mutationFn: (payload: RegisterPayload) => authService.register(payload),
-    onSuccess: (res) => {
-      setToken(res.token);
-      toast.success("Registrasi berhasil! Selamat datang di Digitalin");
-      navigate("/");
+    // API contract: POST /auth/local/register returns { message } only (no token).
+    // After success, redirect to /login so user authenticates properly.
+    mutationFn: (payload: { email: string; password: string; fullName: string; otpCode: string }) =>
+      authService.register(payload),
+    onSuccess: () => {
+      toast.success("Registrasi berhasil! Silakan masuk dengan akun baru kamu.");
+      navigate("/login");
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {
       const msg = err?.response?.data?.message ?? "Registrasi gagal";
@@ -59,6 +61,7 @@ export default function RegisterPage() {
   };
 
   const loading = otpMutation.isPending || registerMutation.isPending;
+  const anyLoading = loading || googleLoading;
   // const otpSent = step === "otp";
 
   return (
@@ -127,13 +130,17 @@ export default function RegisterPage() {
               </div>
               <button
                 onClick={sendOtp}
-                disabled={loading}
+                disabled={anyLoading}
                 className="w-full py-3.5 rounded-xl flex items-center justify-center gap-2"
-                style={{ backgroundColor: "var(--color-tertiary,#2C5EF5)", color: "#fff", fontWeight: 600, fontSize: "0.95rem", opacity: loading ? 0.7 : 1 }}
+                style={{ backgroundColor: "var(--color-tertiary,#2C5EF5)", color: "#fff", fontWeight: 600, fontSize: "0.95rem", opacity: anyLoading ? 0.7 : 1 }}
               >
                 {loading && <Loader2 size={16} className="animate-spin" />}
                 Kirim Kode OTP
               </button>
+
+              {googleClientId && step === "form" && (
+                <GoogleLoginButton disabled={anyLoading} onLoadingChange={setGoogleLoading} />
+              )}
             </div>
           ) : (
             <form onSubmit={handleRegister} className="space-y-4">

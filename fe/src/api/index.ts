@@ -29,6 +29,14 @@ export interface RegisterPayload {
   otpCode: string;
 }
 
+/**
+ * POST /auth/local/register returns only a success message.
+ * Use LoginPayload + /auth/local/login to obtain a JWT after registration.
+ */
+export interface RegisterResponse {
+  message: string;
+}
+
 export interface LoginPayload {
   email: string;
   password: string;
@@ -37,6 +45,10 @@ export interface LoginPayload {
 export interface AdminLoginPayload {
   username: string;
   password: string;
+}
+
+export interface GoogleLoginPayload {
+  idToken: string;
 }
 
 export interface AuthTokenResponse {

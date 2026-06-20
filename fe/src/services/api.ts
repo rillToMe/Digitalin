@@ -4,7 +4,9 @@ import { useAuthStore } from "../store/authStore";
 import type {
   AuthTokenResponse,
   LoginPayload,
+  GoogleLoginPayload,
   RegisterPayload,
+  RegisterResponse,
   RequestOtpPayload,
   AdminLoginPayload,
   UpdateProfilePayload,
@@ -82,9 +84,12 @@ export const authService = {
   requestOtp: (payload: RequestOtpPayload) =>
     api.post<MessageResponse>("/auth/local/request-otp", payload).then((r) => r.data),
   register: (payload: RegisterPayload) =>
-    api.post<AuthTokenResponse>("/auth/local/register", payload).then((r) => r.data),
+    // Returns { message } only — no token. Caller must redirect to /login after success.
+    api.post<RegisterResponse>("/auth/local/register", payload).then((r) => r.data),
   login: (payload: LoginPayload) =>
     api.post<AuthTokenResponse>("/auth/local/login", payload).then((r) => r.data),
+  loginGoogle: (payload: GoogleLoginPayload) =>
+    api.post<AuthTokenResponse>("/auth/google", payload).then((r) => r.data),
   getProfile: () =>
     api.get<ProfileResponse>("/auth/profile").then((r) => r.data),
   updateProfile: (payload: UpdateProfilePayload) =>

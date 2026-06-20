@@ -89,11 +89,11 @@ public static class ProductEndpoints
         });
         
         // POST /admin/products (BUAT PRODUK MANUAL)
-        // adminGroup.MapPost("/", async (GameProduct product, [FromServices] IProductService productService) =>
-        // {
-        //     var createdProduct = await productService.CreateProductAsync(product);
-        //     return Results.Created($"/admin/products/{createdProduct.Id}", createdProduct);
-        // });
+        adminGroup.MapPost("/", async (GameProduct product, [FromServices] IProductService productService) =>
+        {
+            var createdProduct = await productService.CreateProductAsync(product);
+            return Results.Created($"/admin/products/{createdProduct.Id}", createdProduct);
+        });
         
         // POST /admin/products/{id}/upload-icon (UPLOAD ICON KE CLOUDFLARE R2)
         adminGroup.MapPost("/{id}/upload-item-image", async (
