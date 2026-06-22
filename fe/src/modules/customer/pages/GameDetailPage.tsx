@@ -6,7 +6,8 @@ import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { brandService, orderService } from "../../../services/api";
 import { useCheckoutStore } from "../../../store/checkoutStore";
-import type { ProductItem, CreateOrderPayload } from "../../../api/index";
+import type { ProductItem, CreateOrderPayload, CheckoutPreviewResponse } from "../../../api/index";
+import VoucherCard from "../../../components/common/VoucherCard";
 import {
   Dialog,
   DialogContent,
@@ -30,12 +31,16 @@ export default function GameDetailPage() {
   const [isPaying, setIsPaying] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [successMessage, setSuccessMessage] = useState<{ title: string; description: string } | null>(null);
+  const [discountInfo, setDiscountInfo] = useState<{ discountAmount: number; finalPrice: number; price: number } | null>(null);
+  const [previewResult, setPreviewResult] = useState<CheckoutPreviewResponse | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   const {
     selectedProduct, setSelectedProduct,
     playerId, setPlayerId,
     zoneId, setZoneId,
     setBrand, reset,
+    voucherCode, setVoucherCode,
   } = useCheckoutStore();
 
   const { data: brand, isLoading: loading, isError } = useQuery({
@@ -47,6 +52,51 @@ export default function GameDetailPage() {
   useEffect(() => {
     reset();
   }, [slug]);
+
+  // Reset voucher and preview when product or player data changes
+  useEffect(() => {
+    setVoucherCode(null);
+    setPreviewResult(null);
+    setPreviewError(null);
+  }, [selectedProduct?.id, playerId, zoneId]);
+
+  // Voucher preview mutation
+  const previewMutation = useMutation({
+    mutationFn: (payload: { productId: number; voucherCode: string }) =>
+      orderService.preview(payload),
+    onSuccess: (res) => {
+      if (res.isVoucherApplied) {
+        setPreviewResult(res);
+        setPreviewError(null);
+        setVoucherCode(res.voucherCode);
+      } else {
+        setPreviewResult(null);
+        setVoucherCode(null);
+      }
+    },
+    onError: (err: { response?: { data?: { message?: string } } }) => {
+      const msg = err?.response?.data?.message ?? "Gagal memvalidasi voucher.";
+      setPreviewError(msg);
+      setPreviewResult(null);
+      setVoucherCode(null);
+      toast.error(msg);
+    },
+  });
+
+  const handleVoucherApply = (code: string) => {
+    if (!selectedProduct) {
+      toast.error("Pilih nominal terlebih dahulu");
+      return;
+    }
+    setPreviewError(null);
+    previewMutation.mutate({ productId: selectedProduct.id, voucherCode: code });
+  };
+
+  const handleVoucherRemove = () => {
+    setVoucherCode(null);
+    setPreviewResult(null);
+    setPreviewError(null);
+  };
 
   useEffect(() => {
     if (brand) setBrand(brand);
@@ -63,6 +113,7 @@ export default function GameDetailPage() {
             setIsPaying(false);
             queryClient.invalidateQueries({ queryKey: ["orders"] });
             queryClient.invalidateQueries({ queryKey: ["brand", slug] });
+            setDiscountInfo(res.discountAmount > 0 ? { discountAmount: res.discountAmount, finalPrice: res.finalPrice, price: res.price } : null);
             setSuccessMessage({
               title: "Pembayaran Berhasil",
               description:
@@ -71,10 +122,12 @@ export default function GameDetailPage() {
             setShowSuccessDialog(true);
             // Reset checkout form so user can make another purchase immediately
             setSelectedProduct(null as unknown as ProductItem);
+            setVoucherCode(null);
           },
           onPending: () => {
             setIsPaying(false);
             queryClient.invalidateQueries({ queryKey: ["orders"] });
+            setDiscountInfo(res.discountAmount > 0 ? { discountAmount: res.discountAmount, finalPrice: res.finalPrice, price: res.price } : null);
             setSuccessMessage({
               title: "Pembayaran Sedang Diproses",
               description:
@@ -99,6 +152,7 @@ export default function GameDetailPage() {
         // Fallback: no snapToken (should not happen if backend is configured correctly)
         setIsPaying(false);
         queryClient.invalidateQueries({ queryKey: ["orders"] });
+        setDiscountInfo(res.discountAmount > 0 ? { discountAmount: res.discountAmount, finalPrice: res.finalPrice, price: res.price } : null);
         setSuccessMessage({
           title: "Pesanan Berhasil Dibuat",
           description:
@@ -157,11 +211,13 @@ export default function GameDetailPage() {
       productId: selectedProduct.id,
       targetId: playerId,
       zoneId: brand.inputType === "USER_ID_AND_ZONE_ID" ? zoneId : null,
-      voucherCode: null,
+      voucherCode: voucherCode,
     });
   };
 
-  const total = selectedProduct?.price ?? 0;
+  const total = previewResult ? previewResult.finalPrice : (selectedProduct?.price ?? 0);
+  const originalPrice = previewResult?.originalPrice ?? selectedProduct?.price ?? 0;
+  const discountAmount = previewResult?.discountAmount ?? 0;
   const isSubmitting = createOrder.isPending || isPaying;
 
   return (
@@ -278,7 +334,6 @@ export default function GameDetailPage() {
                 { label: "Player ID", value: playerId || "-" },
                 ...(brand.inputType === "USER_ID_AND_ZONE_ID" ? [{ label: "Zone ID", value: zoneId || "-" }] : []),
                 { label: "Produk", value: selectedProduct?.name ?? "-" },
-                { label: "Harga", value: selectedProduct ? formatRp(selectedProduct.price) : "-" },
               ].map((item, i) => (
                 <div key={i} className="flex justify-between items-start">
                   <span style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.85rem" }}>{item.label}</span>
@@ -287,10 +342,50 @@ export default function GameDetailPage() {
               ))}
             </div>
 
+            {/* Voucher section inside summary */}
+            <div className="mb-4">
+              <VoucherCard
+                appliedCode={voucherCode}
+                onApply={handleVoucherApply}
+                onRemove={handleVoucherRemove}
+                compact
+                isLoading={previewMutation.isPending}
+                error={previewError}
+              />
+            </div>
+
             <div className="pt-4" style={{ borderTop: "1px solid rgba(0,0,0,0.08)" }}>
-              <div className="flex justify-between items-center mb-4">
-                <span style={{ color: "var(--color-primary,#0F1419)", fontWeight: 600 }}>Total</span>
-                <span style={{ color: "var(--color-tertiary,#2C5EF5)", fontWeight: 700, fontSize: "1.1rem" }}>
+              {/* Price breakdown */}
+              <div className="space-y-2 mb-4">
+                <div className="flex justify-between items-center">
+                  <span style={{ color: "var(--color-secondary)", fontSize: "0.85rem" }}>Harga</span>
+                  <span style={{ color: "var(--color-primary)", fontSize: "0.85rem", fontWeight: 500 }}>
+                    {originalPrice > 0 ? formatRp(originalPrice) : "-"}
+                  </span>
+                </div>
+                {discountAmount > 0 && (
+                  <>
+                    <div className="flex justify-between items-center">
+                      <span style={{ color: "var(--color-success)", fontSize: "0.85rem" }}>Diskon</span>
+                      <span style={{ color: "var(--color-success)", fontSize: "0.85rem", fontWeight: 600 }}>
+                        -{formatRp(discountAmount)}
+                      </span>
+                    </div>
+                    {previewResult?.voucherCode && (
+                      <div className="flex justify-between items-center">
+                        <span style={{ color: "var(--color-secondary)", fontSize: "0.85rem" }}>Voucher</span>
+                        <span style={{ fontFamily: "monospace", color: "var(--color-success)", fontSize: "0.8rem", fontWeight: 600 }}>
+                          {previewResult.voucherCode}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <div className="flex justify-between items-center mb-4" style={{ borderTop: "1px solid var(--color-border-lighter)", paddingTop: 12 }}>
+                <span style={{ color: "var(--color-primary)", fontWeight: 600 }}>Total</span>
+                <span style={{ color: "var(--color-tertiary)", fontWeight: 700, fontSize: "1.1rem" }}>
                   {total > 0 ? formatRp(total) : "-"}
                 </span>
               </div>
@@ -340,6 +435,28 @@ export default function GameDetailPage() {
                 "Pesanan Anda sedang diproses. Anda dapat melihat status transaksi pada halaman Riwayat Order kapan saja."}
             </DialogDescription>
           </DialogHeader>
+
+          {/* Discount breakdown */}
+          {discountInfo && (
+            <div
+              className="rounded-xl px-4 py-3 mx-1 mb-2 space-y-2"
+              style={{ backgroundColor: "var(--color-success-bg)" }}
+            >
+              <div className="flex justify-between" style={{ fontSize: "0.85rem" }}>
+                <span style={{ color: "var(--color-secondary)" }}>Harga</span>
+                <span style={{ color: "var(--color-primary)", fontWeight: 500 }}>{formatRp(discountInfo.price)}</span>
+              </div>
+              <div className="flex justify-between" style={{ fontSize: "0.85rem" }}>
+                <span style={{ color: "var(--color-success)" }}>Diskon Voucher</span>
+                <span style={{ color: "var(--color-success)", fontWeight: 600 }}>-{formatRp(discountInfo.discountAmount)}</span>
+              </div>
+              <div className="flex justify-between pt-1" style={{ fontSize: "0.9rem", borderTop: "1px solid var(--color-border-lighter)" }}>
+                <span style={{ color: "var(--color-primary)", fontWeight: 600 }}>Total Dibayar</span>
+                <span style={{ color: "var(--color-tertiary)", fontWeight: 700 }}>{formatRp(discountInfo.finalPrice)}</span>
+              </div>
+            </div>
+          )}
+
           <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0">
             <DialogClose asChild>
               <Button variant="outline" className="w-full sm:flex-1">

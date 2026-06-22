@@ -15,6 +15,8 @@ import type {
   BrandDetailResponse,
   CreateOrderPayload,
   CreateOrderResponse,
+  CheckoutPreviewRequest,
+  CheckoutPreviewResponse,
   PaginatedOrdersResponse,
   BannersResponse,
   CreateBannerResponse,
@@ -34,6 +36,15 @@ import type {
   MidtransExpiryResponse,
   UpdateMidtransExpiryPayload,
   SyncResponse,
+  AdminVoucherListResponse,
+  AdminVoucherDetailResponse,
+  CreateVoucherPayload,
+  UpdateVoucherPayload,
+  UpdateVoucherStatusPayload,
+  UpdateVoucherStatusResponse,
+  DeleteVoucherResponse,
+  VoucherUsageResponse,
+  AdminVouchersQueryParams,
 } from "../api/index";
 
 const api = axios.create({
@@ -114,6 +125,8 @@ export const brandService = {
 export const orderService = {
   create: (payload: CreateOrderPayload) =>
     api.post<CreateOrderResponse>("/orders", payload).then((r) => r.data),
+  preview: (payload: CheckoutPreviewRequest) =>
+    api.post<CheckoutPreviewResponse>("/orders/preview", payload).then((r) => r.data),
   getHistory: (page = 1, limit = 10) =>
     api
       .get<PaginatedOrdersResponse>("/orders/my-history", { params: { page, limit } })
@@ -185,6 +198,22 @@ export const adminService = {
     api.post<UploadImageResponse>("/admin/upload", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     }).then((r) => r.data),
+
+  // Vouchers
+  getVouchers: (params: AdminVouchersQueryParams) =>
+    api.get<AdminVoucherListResponse>("/admin/vouchers", { params }).then((r) => r.data),
+  getVoucherById: (id: number) =>
+    api.get<AdminVoucherDetailResponse>(`/admin/vouchers/${id}`).then((r) => r.data),
+  createVoucher: (payload: CreateVoucherPayload) =>
+    api.post<AdminVoucherDetailResponse>("/admin/vouchers", payload).then((r) => r.data),
+  updateVoucher: (id: number, payload: UpdateVoucherPayload) =>
+    api.put<AdminVoucherDetailResponse>(`/admin/vouchers/${id}`, payload).then((r) => r.data),
+  updateVoucherStatus: (id: number, payload: UpdateVoucherStatusPayload) =>
+    api.patch<UpdateVoucherStatusResponse>(`/admin/vouchers/${id}/status`, payload).then((r) => r.data),
+  deleteVoucher: (id: number) =>
+    api.delete<DeleteVoucherResponse>(`/admin/vouchers/${id}`).then((r) => r.data),
+  getVoucherUsage: (id: number, params?: { page?: number; limit?: number }) =>
+    api.get<VoucherUsageResponse>(`/admin/vouchers/${id}/usage`, { params }).then((r) => r.data),
 };
 
 export default api;

@@ -14,6 +14,7 @@ public class OrderService : IOrderService
     private readonly MidtransProvider _midtransProvider;
     private readonly DigiflazzProvider _digiflazzProvider;
     private readonly TelegramProvider _telegramProvider;
+    private readonly IVoucherService _voucherService;
     private readonly ILogger<OrderService> _logger;
     
     public OrderService(
@@ -21,12 +22,14 @@ public class OrderService : IOrderService
         MidtransProvider midtransProvider,
         DigiflazzProvider digiflazzProvider,
         TelegramProvider telegramProvider,
+        IVoucherService voucherService,
         ILogger<OrderService> logger) 
     {
         _db = db;
         _midtransProvider = midtransProvider;
         _digiflazzProvider = digiflazzProvider;
         _telegramProvider = telegramProvider;
+        _voucherService = voucherService;
         _logger = logger;
     }
 
@@ -41,30 +44,30 @@ public class OrderService : IOrderService
         var product = await _db.GameProducts.FindAsync(request.ProductId);
         if (product == null) throw new InvalidOperationException("Produk tidak ditemukan!");
 
-        // Voucher validasi & Diskon validasi
+        // Voucher validasi & Diskon validasi (menggunakan shared logic dari VoucherService)
         decimal discountAmount = 0m;
         Voucher? voucher = null;
 
         if (!string.IsNullOrWhiteSpace(request.VoucherCode))
         {
-            voucher = await ValidateAndReserveVoucherAsync(request.VoucherCode, product.Price);
-            
-            discountAmount = product.Price * (voucher.DiscountPercentage / 100m);
-            if (voucher.MaxDiscountAmount.HasValue && discountAmount > voucher.MaxDiscountAmount.Value)
-            {
-                discountAmount = voucher.MaxDiscountAmount.Value;
-            }
-            
-            if (discountAmount > product.Price)
-            {
-                discountAmount = product.Price;
-            }
+            var (foundVoucher, error) = await _voucherService.ValidateVoucherAsync(
+                request.VoucherCode, product.Price);
+
+            if (error != null)
+                throw new InvalidOperationException(error);
+
+            voucher = foundVoucher!;
+            discountAmount = _voucherService.CalculateDiscount(voucher, product.Price);
         }
 
         decimal finalPrice = product.Price - discountAmount;
         
         if (finalPrice <= 0)
             throw new InvalidOperationException("Harga akhir setelah diskon tidak boleh nol atau negatif.");
+
+        // Hitung snapshot modal & profit
+        decimal profitAmount = product.CustomMargin ?? 0m;
+        decimal costPrice = product.Price - profitAmount;
 
         string generatedOrderNo = $"INV-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..4].ToUpper()}";
 
@@ -77,11 +80,28 @@ public class OrderService : IOrderService
             OrderDate = DateTime.UtcNow,
             CustomerId = customerId,
             VoucherCode = request.VoucherCode,
-            DiscountAmount = discountAmount
+            DiscountAmount = discountAmount,
+
+            // Transaction Snapshot — immutable setelah order dibuat
+            ProductName = product.Name,
+            BuyerSkuCode = product.BuyerSkuCode,
+            BrandName = product.Brand,
+            CategoryName = product.Category,
+            ImageUrl = product.ImageUrl,
+            OriginalPrice = product.Price,
+            TotalPaid = finalPrice,
+            CostPrice = costPrice,
+            ProfitAmount = profitAmount
         };
 
         _db.TopupOrders.Add(order);
         await _db.SaveChangesAsync();
+
+        // Reserve voucher quota AFTER order is persisted
+        if (voucher != null)
+        {
+            await _voucherService.ReserveVoucherAsync(voucher);
+        }
         
         var (token, redirectUrl) = await _midtransProvider.CreateSnapTransactionAsync(
             order.OrderNo, finalPrice, product.Id.ToString(), product.Name, fullPlayerId);
@@ -91,55 +111,17 @@ public class OrderService : IOrderService
         await _db.SaveChangesAsync();
 
         return new OrderResponse(
-            order.Id, order.OrderNo, order.PlayerId, order.Status, product.Name, product.Price, 
-            order.SnapToken, order.RedirectUrl, order.OrderDate, order.Sn, product.ImageUrl,
-            discountAmount, finalPrice
+            order.Id, order.OrderNo, order.PlayerId, order.Status,
+            order.ProductName, order.OriginalPrice, 
+            order.SnapToken, order.RedirectUrl, order.OrderDate, order.Sn, order.ImageUrl,
+            order.DiscountAmount, order.TotalPaid
         );
     }
 
-    private async Task<Voucher> ValidateAndReserveVoucherAsync(string code, decimal transactionAmount)
-    {
-        var voucher = await _db.Vouchers
-            .FirstOrDefaultAsync(v => v.Code.ToUpper() == code.ToUpper());
-
-        if (voucher == null)
-            throw new InvalidOperationException("Kode voucher tidak ditemukan.");
-
-        if (!voucher.IsActive)
-            throw new InvalidOperationException("Voucher ini sudah tidak aktif.");
-
-        if (DateTime.UtcNow > voucher.ValidUntil)
-            throw new InvalidOperationException("Voucher ini sudah kedaluwarsa.");
-
-        if (voucher.Quota <= 0)
-            throw new InvalidOperationException("Kuota voucher ini sudah habis.");
-
-        if (transactionAmount < voucher.MinTransactionAmount)
-            throw new InvalidOperationException(
-                $"Voucher ini membutuhkan minimal transaksi sebesar Rp{voucher.MinTransactionAmount:N0}.");
-        
-        voucher.Quota -= 1;
-        try
-        {
-            await _db.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            await _db.Entry(voucher).ReloadAsync();
-            if (voucher.Quota <= 0)
-                throw new InvalidOperationException("Kuota voucher ini sudah habis (persaingan bersamaan).");
-            
-            voucher.Quota -= 1;
-            await _db.SaveChangesAsync();
-        }
-
-        return voucher;
-    }
-
-    // admin bisa lihat history seluruh transaksi
+    // ── Admin: lihat history seluruh transaksi ──────────────────
     public async Task<PagedResult<OrderResponse>> GetOrdersAsync(int? customerId = null, int page = 1, int limit = 20, string? status = null)
     {
-        var query = _db.TopupOrders.Include(o => o.GameProduct).AsQueryable();
+        var query = _db.TopupOrders.AsNoTracking().AsQueryable();
 
         // Filter berdasarkan Customer
         if (customerId.HasValue)
@@ -158,14 +140,15 @@ public class OrderService : IOrderService
         int totalItems = await query.CountAsync();
         int totalPages = (int)Math.Ceiling(totalItems / (double)limit);
 
+        // Baca dari snapshot — tanpa join Product
         var data = await query
             .OrderByDescending(o => o.OrderDate)
             .Skip((page - 1) * limit) 
             .Take(limit)              
             .Select(o => new OrderResponse(
-                o.Id, o.OrderNo ?? "-", o.PlayerId, o.Status, o.GameProduct!.Name, 
-                o.GameProduct.Price, o.SnapToken, o.RedirectUrl, o.OrderDate, o.Sn,
-                o.GameProduct.ImageUrl, o.DiscountAmount, o.GameProduct.Price - o.DiscountAmount))
+                o.Id, o.OrderNo ?? "-", o.PlayerId, o.Status, o.ProductName, 
+                o.OriginalPrice, o.SnapToken, o.RedirectUrl, o.OrderDate, o.Sn,
+                o.ImageUrl, o.DiscountAmount, o.TotalPaid))
             .ToListAsync();
 
         return new PagedResult<OrderResponse>(data, totalItems, totalPages, page);
@@ -188,9 +171,8 @@ public class OrderService : IOrderService
             throw new Exception("Signature key tidak valid! Data dicurigai palsu.");
         }
 
-        // ambil pesanan
+        // ambil pesanan — tanpa join Product (gunakan snapshot)
         var order = await _db.TopupOrders
-            .Include(o => o.GameProduct)
             .FirstOrDefaultAsync(o => o.OrderNo == notification.order_id);
 
         if (order == null) return;
@@ -239,7 +221,7 @@ public class OrderService : IOrderService
             {
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
                 string? sn = await _digiflazzProvider.TopupAsync(
-                    order.GameProduct!.BuyerSkuCode,
+                    order.BuyerSkuCode,
                     order.PlayerId,
                     order.OrderNo,
                     cts.Token);
@@ -314,7 +296,7 @@ Halo Admin, ada pesanan yang pembayarannya sudah berhasil diterima, tapi pengiri
 
 <b>📝 Detail Pesanan:</b>
 • <b>Invoice:</b> {order.OrderNo}
-• <b>Produk:</b> {order.GameProduct!.Name}
+• <b>Produk:</b> {order.ProductName}
 • <b>ID Tujuan:</b> {order.PlayerId}
 • <b>Keterangan:</b> {reason}
 

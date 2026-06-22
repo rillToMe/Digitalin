@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router";
-import { ChevronLeft, ChevronRight, Gamepad2, Monitor, Smartphone, MoreHorizontal } from "lucide-react";
+import { useNavigate, useLocation, Link } from "react-router";
+import { ChevronLeft, ChevronRight, Gamepad2, Monitor, Smartphone, MoreHorizontal, HelpCircle, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useQuery } from "@tanstack/react-query";
 import { bannerService, brandService } from "../../../services/api";
 import type { BannerItem, BrandItem } from "../../../api/index";
+import { getFeaturedFaqs } from "../../../data/faqs";
+import FaqAccordion from "../../../components/common/FaqAccordion";
 
 const CATEGORIES = [
   { id: "all", label: "Semua", icon: <Gamepad2 size={15} /> },
@@ -125,6 +127,17 @@ function SkeletonCard() {
 
 export default function HomePage() {
   const [category, setCategory] = useState("all");
+  const location = useLocation();
+
+  // Scroll to game list when navigated with #game-list hash
+  useEffect(() => {
+    if (location.hash === "#game-list") {
+      const timer = setTimeout(() => {
+        document.getElementById("game-list")?.scrollIntoView({ behavior: "smooth" });
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [location.hash]);
 
   const { data: banners = [], isLoading: bannersLoading } = useQuery({
     queryKey: ["banners"],
@@ -183,7 +196,7 @@ export default function HomePage() {
       </section>
 
       {/* Game Grid */}
-      <section>
+      <section id="game-list">
         <div className="flex items-center justify-between mb-4">
           <h2 style={{ color: "var(--color-primary, #0F1419)", fontWeight: 700, fontSize: "1.1rem" }}>
             {category === "all" ? "Semua Game" : CATEGORIES.find((c) => c.id === category)?.label}
@@ -224,6 +237,42 @@ export default function HomePage() {
               <p style={{ color: "var(--color-secondary, #4A5568)", fontSize: "0.8rem", marginTop: 4 }}>{item.desc}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* FAQ Preview */}
+      <section className="mt-16">
+        <div className="flex items-center gap-3 mb-2">
+          <HelpCircle size={20} style={{ color: "var(--color-tertiary, #2C5EF5)" }} />
+          <h2 style={{ color: "var(--color-primary, #0F1419)", fontWeight: 700, fontSize: "1.1rem" }}>
+            Pertanyaan yang Sering Ditanyakan
+          </h2>
+        </div>
+        <p style={{ color: "var(--color-secondary, #4A5568)", fontSize: "0.875rem", marginBottom: 16 }}>
+          Berikut beberapa pertanyaan yang paling sering diajukan oleh pengguna Digitalin.
+        </p>
+        <div
+          className="rounded-2xl overflow-hidden"
+          style={{ backgroundColor: "var(--color-surface, #fff)", border: "1px solid rgba(0,0,0,0.07)" }}
+        >
+          <div className="px-5">
+            <FaqAccordion items={getFeaturedFaqs().slice(0, 6)} />
+          </div>
+        </div>
+        <div className="text-center mt-5">
+          <Link
+            to="/faq"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl no-underline transition-colors"
+            style={{
+              backgroundColor: "var(--color-tertiary, #2C5EF5)",
+              color: "#fff",
+              fontWeight: 600,
+              fontSize: "0.875rem",
+            }}
+          >
+            Lihat Semua FAQ
+            <ArrowRight size={15} />
+          </Link>
         </div>
       </section>
     </div>

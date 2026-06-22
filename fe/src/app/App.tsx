@@ -23,12 +23,16 @@ import LoginPage from "../modules/customer/pages/LoginPage";
 import RegisterPage from "../modules/customer/pages/RegisterPage";
 import ProfilePage from "../modules/customer/pages/ProfilePage";
 import HistoryPage from "../modules/customer/pages/HistoryPage";
+import FaqPage from "../modules/customer/pages/FaqPage";
+import ContactPage from "../modules/customer/pages/ContactPage";
+import VouchersPage from "../modules/customer/pages/VouchersPage";
 
 // Admin pages
 import AdminLoginPage from "../modules/admin/pages/AdminLoginPage";
 import DashboardPage from "../modules/admin/pages/DashboardPage";
 import BannersPage from "../modules/admin/pages/BannersPage";
 import MetadataPage from "../modules/admin/pages/MetadataPage";
+import AdminVouchersPage from "../modules/admin/pages/VouchersPage";
 
 function CustomerRoute({ children }: { children: React.ReactNode }) {
   return <CustomerLayout>{children}</CustomerLayout>;
@@ -124,6 +128,9 @@ export default function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/profile" element={<ProtectedCustomerRoute><ProfilePage /></ProtectedCustomerRoute>} />
         <Route path="/history" element={<ProtectedCustomerRoute><HistoryPage /></ProtectedCustomerRoute>} />
+        <Route path="/faq" element={<CustomerRoute><FaqPage /></CustomerRoute>} />
+        <Route path="/contact" element={<CustomerRoute><ContactPage /></CustomerRoute>} />
+        <Route path="/vouchers" element={<CustomerRoute><VouchersPage /></CustomerRoute>} />
 
         {/* Admin routes */}
         <Route path="/admin" element={<AdminEntryRoute />} />
@@ -131,6 +138,7 @@ export default function App() {
         <Route path="/admin/dashboard" element={<ProtectedAdminRoute><DashboardPage /></ProtectedAdminRoute>} />
         <Route path="/admin/banners" element={<ProtectedAdminRoute><BannersPage /></ProtectedAdminRoute>} />
         <Route path="/admin/metadata" element={<ProtectedAdminRoute><MetadataPage /></ProtectedAdminRoute>} />
+        <Route path="/admin/vouchers" element={<ProtectedAdminRoute><AdminVouchersPage /></ProtectedAdminRoute>} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />

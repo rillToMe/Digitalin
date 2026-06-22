@@ -4,22 +4,34 @@ public class Voucher
 {
     public int Id { get; set; }
     
-    // Contoh: "MAINBARENGD2C"
-    public string Code { get; set; } = string.Empty; 
+    // Contoh: "HEMAT20", "NEWUSER50" — unik, case-insensitive
+    public string Code { get; set; } = string.Empty;
     
-    // Contoh: 1 (untuk 1%)
-    public decimal DiscountPercentage { get; set; } 
+    // "Percentage" atau "FixedAmount"
+    public string DiscountType { get; set; } = "Percentage";
     
-    // Contoh: 25000
-    public decimal MinTransactionAmount { get; set; } 
+    // Untuk Percentage: 10 = 10%. Untuk FixedAmount: 5000 = Rp5.000
+    public decimal DiscountValue { get; set; }
     
-    // Contoh: null (kalau tidak terbatas) atau 10000 (maksimal diskon 10rb)
-    public decimal? MaxDiscountAmount { get; set; } 
+    // Minimal harga order untuk bisa pakai voucher ini
+    public decimal MinimumTransaction { get; set; }
     
-    public DateTime ValidUntil { get; set; }
+    // Cap diskon (khusus Percentage). null = tanpa batas
+    public decimal? MaximumDiscount { get; set; }
     
-    // Opsional tapi penting: Buat ngebatesin cuma bisa dipakai 100 orang
-    public int Quota { get; set; } = 100; 
+    // Maksimal total pemakaian voucher
+    public int UsageLimit { get; set; } = 100;
     
+    // Berapa kali sudah dipakai (incremented by system)
+    public int UsedCount { get; set; }
+    
+    // Tanggal kedaluwarsa
+    public DateTime ExpiredAt { get; set; }
+    
+    // Status aktif (bisa dinonaktifkan tanpa dihapus)
     public bool IsActive { get; set; } = true;
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

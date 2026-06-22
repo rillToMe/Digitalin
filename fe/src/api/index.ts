@@ -16,6 +16,10 @@ export type OrderStatus =
 
 export type ChartRange = "today" | "yesterday" | "7days" | "30days" | "custom";
 
+export type DiscountType = "Percentage" | "FixedAmount";
+
+export type VoucherStatus = "Active" | "Disabled" | "Expired" | "QuotaExceeded";
+
 // Auth
 
 export interface RequestOtpPayload {
@@ -161,6 +165,29 @@ export interface OrderResponse {
 
 export interface CreateOrderResponse extends OrderResponse {}
 
+// Checkout Preview
+
+export interface CheckoutPreviewRequest {
+  productId: number;
+  voucherCode?: string | null;
+}
+
+export interface CheckoutPreviewResponse {
+  productId: number;
+  productName: string;
+  imageUrl: string | null;
+  gameCode: string;
+  originalPrice: number;
+  discountAmount: number;
+  finalPrice: number;
+  currency: string;
+  isVoucherApplied: boolean;
+  voucherCode: string | null;
+  discountType: DiscountType | null;
+  discountValue: number | null;
+  maximumDiscount: number | null;
+}
+
 export interface PaginatedOrdersResponse {
   data: OrderResponse[];
   totalItems: number;
@@ -256,6 +283,23 @@ export interface CleanDummyResponse {
   message: string;
 }
 
+// Search
+
+export interface GameSearchResult {
+  id: number;
+  brand: string;
+  slug: string;
+  imageUrl: string | null;
+  inputType: InputType;
+}
+
+export type SearchGamesResponse = GameSearchResult[];
+
+export interface SearchGamesParams {
+  q?: string;
+  limit?: number;
+}
+
 // Generic API Responses
 
 export interface MessageResponse {
@@ -280,4 +324,83 @@ export interface PaginationParams {
 
 export interface AdminProductsQueryParams extends PaginationParams {
   search?: string;
+}
+
+// Vouchers
+
+export interface AdminVoucherItem {
+  id: number;
+  code: string;
+  discountType: DiscountType;
+  discountValue: number;
+  minimumTransaction: number;
+  maximumDiscount: number | null;
+  usageLimit: number;
+  usedCount: number;
+  expiredAt: string;
+  isActive: boolean;
+  status: VoucherStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AdminVoucherDetailResponse = AdminVoucherItem;
+
+export interface AdminVoucherListResponse {
+  items: AdminVoucherItem[];
+  totalCount: number;
+  currentPage: number;
+  totalPages: number;
+}
+
+export interface CreateVoucherPayload {
+  code: string;
+  discountType: DiscountType;
+  discountValue: number;
+  minimumTransaction: number;
+  maximumDiscount: number | null;
+  usageLimit: number;
+  expiredAt: string;
+  isActive: boolean;
+}
+
+export type UpdateVoucherPayload = CreateVoucherPayload;
+
+export interface UpdateVoucherStatusPayload {
+  isActive: boolean;
+}
+
+export interface UpdateVoucherStatusResponse {
+  message: string;
+  isActive: boolean;
+}
+
+export interface DeleteVoucherResponse {
+  message: string;
+}
+
+export interface VoucherUsageInfo {
+  orderId: number;
+  orderNo: string;
+  customerName: string | null;
+  productName: string;
+  price: number;
+  discountAmount: number;
+  finalPrice: number;
+  orderDate: string;
+  orderStatus: string;
+}
+
+export interface VoucherUsageResponse {
+  items: VoucherUsageInfo[];
+  totalCount: number;
+  currentPage: number;
+  totalPages: number;
+}
+
+export interface AdminVouchersQueryParams extends PaginationParams {
+  search?: string;
+  status?: VoucherStatus;
+  sortBy?: "code" | "createdAt" | "expiredAt" | "discountValue";
+  sortOrder?: "asc" | "desc";
 }

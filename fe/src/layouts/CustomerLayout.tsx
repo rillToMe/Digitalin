@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import { Link, useNavigate } from "react-router";
-import { User, ShoppingBag, LogOut, ChevronDown, Zap, Menu, X, History } from "lucide-react";
+import { Link, useNavigate, useLocation } from "react-router";
+import { User, ShoppingBag, LogOut, ChevronDown, Zap, Menu, X, History, Search } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useAuthStore } from "../store/authStore";
+import SearchBar from "../components/common/SearchBar";
 
 interface CustomerLayoutProps {
   children: React.ReactNode;
@@ -11,9 +12,13 @@ interface CustomerLayoutProps {
 export function CustomerLayout({ children }: CustomerLayoutProps) {
   const { isAuthenticated, user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const mobileSearchRef = useRef<HTMLDivElement>(null);
+  const mobileToggleRef = useRef(false);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -31,10 +36,31 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
     navigate("/");
   };
 
+  // Close mobile search overlay when route changes
+  useEffect(() => {
+    setMobileSearchOpen(false);
+  }, [location.pathname]);
+
+  // Click outside handler for mobile search overlay
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      // Skip if the click was on the toggle button (handled by its own onClick)
+      if (mobileToggleRef.current) {
+        mobileToggleRef.current = false;
+        return;
+      }
+      if (mobileSearchRef.current && !mobileSearchRef.current.contains(e.target as Node)) {
+        setMobileSearchOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
     <div style={{ fontFamily: "Inter, sans-serif", backgroundColor: "var(--color-neutral, #F1F3F5)", minHeight: "100vh" }}>
       {/* Navbar */}
-      <nav style={{ backgroundColor: "var(--color-surface, #fff)", borderBottom: "1px solid rgba(0,0,0,0.08)" }} className="sticky top-0 z-50">
+      <nav style={{ backgroundColor: "var(--color-surface, #fff)", borderBottom: "1px solid rgba(0,0,0,0.08)" }} className="sticky top-0 z-50 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
@@ -47,8 +73,12 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
               </span>
             </Link>
 
-            {/* Desktop Nav */}
-            <div className="hidden md:flex items-center gap-4">
+            {/* Desktop Nav + Search */}
+            <div className="hidden md:flex items-center gap-3" style={{ flexShrink: 0 }}>
+              {/* Expandable Search */}
+              <SearchBar variant="expandable" />
+
+              {/* Auth area */}
               {isAuthenticated() ? (
                 <div className="relative" ref={dropdownRef}>
                   <button
@@ -102,12 +132,53 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
               )}
             </div>
 
-            {/* Mobile menu button */}
-            <button className="md:hidden p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} style={{ color: "var(--color-primary, #0F1419)" }}>
-              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
+            {/* Mobile buttons */}
+            <div className="flex items-center gap-1 md:hidden">
+              <button
+                className="p-2 rounded-lg transition-colors"
+                style={{ color: "var(--color-primary, #0F1419)" }}
+                onMouseDown={() => { mobileToggleRef.current = true; }}
+                onClick={() => setMobileSearchOpen((prev) => !prev)}
+                aria-label={mobileSearchOpen ? "Tutup pencarian" : "Buka pencarian"}
+              >
+                <Search size={20} />
+              </button>
+              <button className="p-2" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} style={{ color: "var(--color-primary, #0F1419)" }}>
+                {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>
+            </div>
           </div>
         </div>
+
+        {/* Mobile search overlay */}
+        <AnimatePresence>
+          {mobileSearchOpen && (
+            <motion.div
+              ref={mobileSearchRef}
+              initial={{ opacity: 0, y: -12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.15 }}
+              className="md:hidden"
+              style={{
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                right: 0,
+                backgroundColor: "var(--color-surface, #fff)",
+                borderBottom: "1px solid rgba(0,0,0,0.08)",
+                padding: "12px 16px",
+                zIndex: 60,
+                boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+              }}
+            >
+              <SearchBar
+                variant="overlay"
+                onClose={() => setMobileSearchOpen(false)}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Mobile menu */}
         <AnimatePresence>
@@ -164,15 +235,35 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
               <div>
                 <p style={{ color: "#fff", fontWeight: 600, fontSize: "0.9rem", marginBottom: 8 }}>Layanan</p>
                 <ul className="space-y-2" style={{ fontSize: "0.85rem", listStyle: "none", padding: 0 }}>
-                  <li>Top Up Game</li>
-                  <li>Voucher Digital</li>
+                  <li>
+                    <a
+                      href="/#game-list"
+                      className="no-underline transition-opacity hover:opacity-80"
+                      style={{ color: "rgba(255,255,255,0.7)" }}
+                    >
+                      Top Up Game
+                    </a>
+                  </li>
+                  <li>
+                    <Link to="/vouchers" className="no-underline transition-opacity hover:opacity-80" style={{ color: "rgba(255,255,255,0.7)" }}>
+                      Voucher Digital
+                    </Link>
+                  </li>
                 </ul>
               </div>
               <div>
                 <p style={{ color: "#fff", fontWeight: 600, fontSize: "0.9rem", marginBottom: 8 }}>Bantuan</p>
                 <ul className="space-y-2" style={{ fontSize: "0.85rem", listStyle: "none", padding: 0 }}>
-                  <li>FAQ</li>
-                  <li>Kontak</li>
+                  <li>
+                    <Link to="/faq" className="no-underline transition-opacity hover:opacity-80" style={{ color: "rgba(255,255,255,0.7)" }}>
+                      FAQ
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/contact" className="no-underline transition-opacity hover:opacity-80" style={{ color: "rgba(255,255,255,0.7)" }}>
+                      Kontak
+                    </Link>
+                  </li>
                 </ul>
               </div>
             </div>

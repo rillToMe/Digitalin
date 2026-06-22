@@ -5,4 +5,30 @@
   --color-neutral: #F1F3F5;
   --color-surface: #FFFFFF;
   --color-on-primary: #FFFFFF;
+
+  /* Borders */
+  --color-border: rgba(0, 0, 0, 0.10);
+  --color-border-light: rgba(0, 0, 0, 0.07);
+  --color-border-lighter: rgba(0, 0, 0, 0.05);
+  --color-border-input: rgba(0, 0, 0, 0.12);
+
+  /* Semantic colors */
+  --color-success: #15803d;
+  --color-success-bg: #dcfce7;
+  --color-danger: #ef4444;
+  --color-danger-bg: #fee2e2;
+  --color-warning: #92400e;
+  --color-warning-bg: #fef3c7;
+  --color-info: #3730a3;
+  --color-info-bg: #e0e7ff;
+
+  /* UI elements */
+  --color-overlay: rgba(0, 0, 0, 0.4);
+  --color-skeleton: var(--color-neutral);
+  --color-danger-muted: rgba(239, 68, 68, 0.3);
+
+  /* Hover backgrounds */
+  --color-hover-danger: #fef2f2;
+  --color-hover-info: #eff6ff;
+  --color-hover-neutral: #f9fafb;
 }

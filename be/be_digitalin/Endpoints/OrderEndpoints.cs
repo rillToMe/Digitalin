@@ -48,6 +48,22 @@ public static class OrderEndpoints
             }
         });
         
+        // POST /orders/preview — Checkout simulation (no order created)
+        publicGroup.MapPost("/preview", async (
+            [FromBody] CheckoutPreviewRequest req,
+            [FromServices] ICheckoutService checkoutService) =>
+        {
+            try
+            {
+                var result = await checkoutService.PreviewAsync(req);
+                return Results.Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
+        });
+
         // GET /orders/my-history
         publicGroup.MapGet("/my-history", async (
             [FromQuery] int? page, 
@@ -84,9 +100,8 @@ public static class OrderEndpoints
         {
             var logger = loggerFactory.CreateLogger("OrderRetry");
 
-            // Cari data order & produknya
+            // Cari data order — tanpa join Product (gunakan snapshot)
             var order = await db.TopupOrders
-                .Include(o => o.GameProduct)
                 .FirstOrDefaultAsync(o => o.OrderNo == orderNo);
 
             if (order == null) 
@@ -101,7 +116,7 @@ public static class OrderEndpoints
                 try
                 {
                     var (upstreamStatus, upstreamSn, _) = await digiflazzProvider.CheckStatusAsync(
-                        order.GameProduct!.BuyerSkuCode, order.PlayerId, order.OrderNo);
+                        order.BuyerSkuCode, order.PlayerId, order.OrderNo);
 
                     if (upstreamStatus == AppConstants.DigiflazzStatus.Sukses)
                     {
@@ -125,8 +140,8 @@ public static class OrderEndpoints
                 order.Status = AppConstants.OrderStatus.Processing;
                 await db.SaveChangesAsync();
 
-                // Tembak ulang API Digiflazz
-                string? sn = await digiflazzProvider.TopupAsync(order.GameProduct!.BuyerSkuCode, order.PlayerId, order.OrderNo);
+                // Tembak ulang API Digiflazz — gunakan snapshot BuyerSkuCode
+                string? sn = await digiflazzProvider.TopupAsync(order.BuyerSkuCode, order.PlayerId, order.OrderNo);
                 
                 // Jika entah kenapa Digiflazz ngasih SN secara instan saat itu juga
                 if (!string.IsNullOrEmpty(sn))

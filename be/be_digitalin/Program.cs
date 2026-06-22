@@ -51,6 +51,10 @@ builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IBannerService, BannerService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
+builder.Services.AddScoped<ISearchService, SearchService>();
+builder.Services.AddScoped<IVoucherService, VoucherService>();
+builder.Services.AddScoped<ICheckoutService, CheckoutService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 
 // EmailSettings
 builder.Services.Configure<be_digitalin.Config.EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
@@ -159,7 +163,7 @@ builder.Services.AddCors(options =>
                 "http://127.0.0.1:5173",  // loopback IP fallback for dev
                 "http://localhost:3000")
             .WithHeaders("Authorization", "Content-Type", "Accept")   
-            .WithMethods("GET", "POST", "PUT", "DELETE")               
+            .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE")               
             .AllowCredentials();
     });
 });
@@ -205,6 +209,8 @@ app.MapAuthEndpoints();
 app.MapProductEndpoints();
 app.MapOrderEndpoints();
 app.MapBannerEndpoints();
+app.MapSearchEndpoints();
+app.MapVoucherEndpoints();
 
 //admin
 app.MapDashboardEndpoints();

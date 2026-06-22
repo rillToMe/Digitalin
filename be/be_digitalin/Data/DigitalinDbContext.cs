@@ -42,21 +42,36 @@ public class DigitalinDbContext : DbContext
             // Nominal Diskon Order
             entity.Property(o => o.DiscountAmount)
                 .HasPrecision(18, 2);
+
+            // Snapshot Harga
+            entity.Property(o => o.OriginalPrice)
+                .HasPrecision(18, 2);
+            entity.Property(o => o.TotalPaid)
+                .HasPrecision(18, 2);
+
+            // Snapshot Modal & Profit
+            entity.Property(o => o.CostPrice)
+                .HasPrecision(18, 2);
+            entity.Property(o => o.ProfitAmount)
+                .HasPrecision(18, 2);
         });
 
         // VOUCHER 
         modelBuilder.Entity<Voucher>(entity =>
         {
-            // Persentase diskon (Contoh: 12.50 untuk 12.5%)
-            entity.Property(v => v.DiscountPercentage)
-                .HasPrecision(5, 2);
+            // Code harus unik
+            entity.HasIndex(v => v.Code).IsUnique();
 
-            // Minimal Transaksi untuk klaim voucher
-            entity.Property(v => v.MinTransactionAmount)
+            // Nilai diskon (Contoh: 12.50 untuk 12.5% atau 5000.00 untuk FixedAmount)
+            entity.Property(v => v.DiscountValue)
                 .HasPrecision(18, 2);
 
-            // Maksimal potongan diskon voucher
-            entity.Property(v => v.MaxDiscountAmount)
+            // Minimal Transaksi untuk klaim voucher
+            entity.Property(v => v.MinimumTransaction)
+                .HasPrecision(18, 2);
+
+            // Maksimal potongan diskon voucher (khusus Percentage)
+            entity.Property(v => v.MaximumDiscount)
                 .HasPrecision(18, 2);
         });
     }
