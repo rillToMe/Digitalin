@@ -5,6 +5,7 @@ using be_digitalin.Config;
 using be_digitalin.Constants;
 using be_digitalin.Workers;
 using be_digitalin.Providers;
+using be_digitalin.Middleware;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.Abstractions;
 using Microsoft.AspNetCore.RateLimiting;
@@ -24,6 +25,10 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 var serverVersion = new MariaDbServerVersion(new Version(10, 11, 0)); 
 builder.Services.AddDbContext<DigitalinDbContext>(options =>
     options.UseMySql(connectionString, serverVersion));
+
+// IDbContextFactory — required by AppSettingsService (called from Middleware, which is singleton-ish)
+builder.Services.AddDbContextFactory<DigitalinDbContext>(options =>
+    options.UseMySql(connectionString, serverVersion), ServiceLifetime.Scoped);
 
 builder.Services.Configure<DigiflazzSettings>(builder.Configuration.GetSection("Digiflazz"));
 
@@ -55,6 +60,9 @@ builder.Services.AddScoped<ISearchService, SearchService>();
 builder.Services.AddScoped<IVoucherService, VoucherService>();
 builder.Services.AddScoped<ICheckoutService, CheckoutService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IOtpService, OtpService>();
+builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
+builder.Services.AddScoped<IAppSettingsService, AppSettingsService>();
 
 // EmailSettings
 builder.Services.Configure<be_digitalin.Config.EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
@@ -205,6 +213,9 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Maintenance Mode — runs AFTER Auth so that JWT is parsed and we can check Admin role
+app.UseMaintenanceMode();
+
 app.MapAuthEndpoints();
 app.MapProductEndpoints();
 app.MapOrderEndpoints();
@@ -214,6 +225,7 @@ app.MapVoucherEndpoints();
 
 //admin
 app.MapDashboardEndpoints();
+app.MapSettingsEndpoints();
 
 // Endpoint ping-db untuk testing
 app.MapGet("/ping-db", async (DigitalinDbContext db) => {
@@ -221,5 +233,27 @@ app.MapGet("/ping-db", async (DigitalinDbContext db) => {
         ? Results.Ok("Koneksi Database via EF Core Sukses! ") 
         : Results.Problem("Gagal terhubung.");
 });
+
+// ── Seed default Maintenance AppSettings (idempotent — only inserts if missing) ──
+await using (var seedScope = app.Services.CreateAsyncScope())
+{
+    var db = seedScope.ServiceProvider.GetRequiredService<DigitalinDbContext>();
+    var defaults = new Dictionary<string, string>
+    {
+        [AppConstants.SystemSettings.MaintenanceKeys.Enabled]         = "false",
+        [AppConstants.SystemSettings.MaintenanceKeys.Title]           = "Website Sedang Maintenance",
+        [AppConstants.SystemSettings.MaintenanceKeys.Message]         = "Kami sedang melakukan peningkatan sistem. Silakan kembali beberapa saat lagi.",
+        [AppConstants.SystemSettings.MaintenanceKeys.EstimatedFinish] = "",
+        [AppConstants.SystemSettings.MaintenanceKeys.AllowAdmin]      = "true",
+    };
+    foreach (var (key, value) in defaults)
+    {
+        if (!await db.AppSettings.AnyAsync(s => s.Key == key))
+        {
+            db.AppSettings.Add(new be_digitalin.Models.AppSetting { Key = key, Value = value });
+        }
+    }
+    await db.SaveChangesAsync();
+}
 
 app.Run();

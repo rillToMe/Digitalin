@@ -1,4 +1,4 @@
-﻿namespace be_digitalin.Constants;
+namespace be_digitalin.Constants;
 
 public static class AppConstants
 {
@@ -12,6 +12,16 @@ public static class AppConstants
     public static class SystemSettings
     {
         public const string MidtransExpiry = "MIDRANS_EXPIRY";
+        
+        /// <summary>Keys for Maintenance Mode stored in AppSettings table.</summary>
+        public static class MaintenanceKeys
+        {
+            public const string Enabled          = "MAINTENANCE_MODE";
+            public const string Title            = "MAINTENANCE_TITLE";
+            public const string Message          = "MAINTENANCE_MESSAGE";
+            public const string EstimatedFinish  = "MAINTENANCE_ESTIMATED_FINISH";
+            public const string AllowAdmin       = "ALLOW_ADMIN_DURING_MAINTENANCE";
+        }
     }
     
     public static class SecurityPrefixes

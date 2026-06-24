@@ -1,22 +1,24 @@
 import { useState } from "react";
-import { Package, ChevronLeft, ChevronRight, Clock } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Package, ChevronLeft, ChevronRight, Clock, ChevronDown, ChevronUp, CreditCard, Gamepad2 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { orderService } from "../../../services/api";
 import type { OrderStatus } from "../../../api/index";
+import { ImageWithFallback } from "../../../app/components/figma/ImageWithFallback";
 
 const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: string }> = {
-  PENDING:    { label: "Menunggu",   color: "#b45309", bg: "#fef3c7" },
-  PAID:       { label: "Dibayar",    color: "#1d4ed8", bg: "#dbeafe" },
-  PROCESSING: { label: "Diproses",   color: "#6d28d9", bg: "#ede9fe" },
-  COMPLETED:  { label: "Selesai",    color: "#15803d", bg: "#dcfce7" },
-  NEEDS_ACTION: { label: "Perlu Aksi", color: "#c2410c", bg: "#ffedd5" },
-  FAILED:     { label: "Gagal",      color: "#b91c1c", bg: "#fee2e2" },
-  EXPIRED:    { label: "Expired",    color: "#6b7280", bg: "#f3f4f6" },
-  REFUNDED:   { label: "Refunded",   color: "#0369a1", bg: "#e0f2fe" },
+  PENDING:      { label: "Menunggu",   color: "var(--color-warning)",   bg: "var(--color-warning-bg)" },
+  PAID:         { label: "Dibayar",    color: "var(--color-info)",      bg: "var(--color-info-bg)" },
+  PROCESSING:   { label: "Diproses",   color: "var(--color-info)",      bg: "var(--color-info-bg)" },
+  COMPLETED:    { label: "Selesai",    color: "var(--color-success)",   bg: "var(--color-success-bg)" },
+  NEEDS_ACTION: { label: "Perlu Aksi", color: "var(--color-warning)",   bg: "var(--color-warning-bg)" },
+  FAILED:       { label: "Gagal",      color: "var(--color-danger)",    bg: "var(--color-danger-bg)" },
+  EXPIRED:      { label: "Expired",    color: "var(--color-secondary)", bg: "var(--color-neutral)" },
+  REFUNDED:     { label: "Refunded",   color: "var(--color-info)",      bg: "var(--color-info-bg)" },
 };
 
 function StatusBadge({ status }: { status: OrderStatus }) {
-  const cfg = STATUS_CONFIG[status] ?? { label: status, color: "#6b7280", bg: "#f3f4f6" };
+  const cfg = STATUS_CONFIG[status] ?? { label: status, color: "var(--color-secondary)", bg: "var(--color-neutral)" };
   return (
     <span className="px-2.5 py-1 rounded-full" style={{ backgroundColor: cfg.bg, color: cfg.color, fontSize: "0.75rem", fontWeight: 600 }}>
       {cfg.label}
@@ -30,6 +32,8 @@ function formatRp(n: number) {
 
 export default function HistoryPage() {
   const [page, setPage] = useState(1);
+  const [expandedOrders, setExpandedOrders] = useState<Record<number, boolean>>({});
+  const queryClient = useQueryClient();
 
   const { data, isLoading: loading } = useQuery({
     queryKey: ["orders", page],
@@ -38,6 +42,34 @@ export default function HistoryPage() {
 
   const orders = data?.data ?? [];
   const totalPages = data?.totalPages ?? 1;
+
+  const toggleExpand = (id: number) => {
+    setExpandedOrders((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const handlePayment = (e: React.MouseEvent, snapToken: string) => {
+    e.stopPropagation();
+    if (window.snap) {
+      window.snap.pay(snapToken, {
+        onSuccess: () => {
+          toast.success("Pembayaran Berhasil!");
+          queryClient.invalidateQueries({ queryKey: ["orders"] });
+        },
+        onPending: () => {
+          toast.info("Pembayaran Sedang Diproses.");
+          queryClient.invalidateQueries({ queryKey: ["orders"] });
+        },
+        onError: () => {
+          toast.error("Pembayaran Gagal. Silakan coba lagi.");
+        },
+        onClose: () => {
+          toast.warning("Pembayaran belum diselesaikan.");
+        },
+      });
+    } else {
+      toast.error("Sistem pembayaran belum siap. Silakan hubungi admin.");
+    }
+  };
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
@@ -56,34 +88,149 @@ export default function HistoryPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {orders.map((order) => (
-            <div key={order.id} className="rounded-2xl p-5" style={{ backgroundColor: "var(--color-surface,#fff)", border: "1px solid rgba(0,0,0,0.07)" }}>
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <p style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.75rem", fontFamily: "monospace" }}>{order.orderNo}</p>
-                  <p style={{ color: "var(--color-primary,#0F1419)", fontWeight: 600, fontSize: "0.95rem", marginTop: 2 }}>{order.productName}</p>
-                </div>
-                <StatusBadge status={order.status} />
-              </div>
+          {orders.map((order) => {
+            const isExpanded = !!expandedOrders[order.id];
+            return (
+              <div
+                key={order.id}
+                className="rounded-2xl p-5 cursor-pointer transition-all hover:shadow-sm"
+                style={{
+                  backgroundColor: "var(--color-surface,#fff)",
+                  border: "1px solid var(--color-border-light, rgba(0,0,0,0.07))",
+                }}
+                onClick={() => toggleExpand(order.id)}
+              >
+                {/* Header Summary */}
+                <div className="flex items-start gap-4">
+                  {/* Thumbnail Image */}
+                  <div
+                    className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center"
+                    style={{ backgroundColor: "var(--color-neutral, #F1F3F5)" }}
+                  >
+                    {order.imageUrl ? (
+                      <ImageWithFallback
+                        src={order.imageUrl}
+                        alt={order.productName}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Gamepad2 size={20} style={{ color: "var(--color-tertiary)" }} />
+                    )}
+                  </div>
 
-              <div className="flex items-center justify-between pt-3" style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}>
-                <div className="flex items-center gap-1.5" style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.8rem" }}>
-                  <Clock size={13} />
-                  {new Date(order.orderDate).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                </div>
-                <span style={{ color: "var(--color-tertiary,#2C5EF5)", fontWeight: 700, fontSize: "0.95rem" }}>
-                  {formatRp(order.finalPrice)}
-                </span>
-              </div>
+                  {/* Summary Information */}
+                  <div className="flex-1 min-w-0">
+                    <p style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.75rem", fontFamily: "monospace" }}>
+                      {order.orderNo}
+                    </p>
+                    <h3
+                      style={{ color: "var(--color-primary,#0F1419)", fontWeight: 600, fontSize: "0.95rem", marginTop: 2 }}
+                      className="truncate"
+                    >
+                      {order.productName}
+                    </h3>
+                    <div className="flex items-center gap-1.5 mt-1.5" style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.78rem" }}>
+                      <Clock size={12} />
+                      <span>
+                        {new Date(order.orderDate).toLocaleDateString("id-ID", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                  </div>
 
-              {order.sn && (
-                <div className="mt-3 px-3 py-2 rounded-lg" style={{ backgroundColor: "var(--color-neutral,#F1F3F5)" }}>
-                  <p style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.75rem" }}>Serial Number</p>
-                  <p style={{ color: "var(--color-primary,#0F1419)", fontWeight: 600, fontSize: "0.85rem", fontFamily: "monospace" }}>{order.sn}</p>
+                  {/* Badges and Price */}
+                  <div className="text-right flex-shrink-0 flex flex-col items-end gap-1.5">
+                    <StatusBadge status={order.status} />
+                    <span style={{ color: "var(--color-primary,#0F1419)", fontWeight: 700, fontSize: "0.95rem" }}>
+                      {formatRp(order.finalPrice)}
+                    </span>
+                    <div style={{ color: "var(--color-secondary)", padding: 2 }}>
+                      {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
-          ))}
+
+                {/* Collapsible Details */}
+                {isExpanded && (
+                  <div
+                    className="mt-4 pt-4 space-y-3"
+                    style={{ borderTop: "1px solid var(--color-border-lighter, rgba(0,0,0,0.05))" }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <h4 style={{ color: "var(--color-primary)", fontWeight: 600, fontSize: "0.85rem", marginBottom: 8 }}>
+                      Detail Transaksi
+                    </h4>
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center" style={{ fontSize: "0.82rem" }}>
+                        <span style={{ color: "var(--color-secondary)" }}>Player ID</span>
+                        <span style={{ color: "var(--color-primary)", fontWeight: 500, fontFamily: "monospace" }}>
+                          {order.playerId}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center" style={{ fontSize: "0.82rem" }}>
+                        <span style={{ color: "var(--color-secondary)" }}>Harga Item</span>
+                        <span style={{ color: "var(--color-primary)" }}>{formatRp(order.price)}</span>
+                      </div>
+
+                      {order.discountAmount > 0 && (
+                        <div className="flex justify-between items-center" style={{ fontSize: "0.82rem" }}>
+                          <span style={{ color: "var(--color-success)" }}>Potongan Voucher</span>
+                          <span style={{ color: "var(--color-success)", fontWeight: 600 }}>
+                            -{formatRp(order.discountAmount)}
+                          </span>
+                        </div>
+                      )}
+
+                      <div
+                        className="flex justify-between items-center pt-2"
+                        style={{ borderTop: "1px dashed var(--color-border)", fontSize: "0.85rem" }}
+                      >
+                        <span style={{ color: "var(--color-primary)", fontWeight: 600 }}>Total Pembayaran</span>
+                        <span style={{ color: "var(--color-tertiary)", fontWeight: 700 }}>
+                          {formatRp(order.finalPrice)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {order.sn && (
+                      <div className="mt-3 p-3 rounded-xl" style={{ backgroundColor: "var(--color-neutral,#F1F3F5)" }}>
+                        <p style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.75rem" }}>Serial Number / Kode Voucher</p>
+                        <p style={{ color: "var(--color-primary,#0F1419)", fontWeight: 600, fontSize: "0.85rem", fontFamily: "monospace", marginTop: 2 }}>
+                          {order.sn}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Pay Button for Pending Orders */}
+                    {order.status === "PENDING" && order.snapToken && (
+                      <div className="pt-2">
+                        <button
+                          onClick={(e) => handlePayment(e, order.snapToken!)}
+                          className="w-full py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all hover:opacity-90"
+                          style={{
+                            backgroundColor: "var(--color-tertiary, #2C5EF5)",
+                            color: "var(--color-on-primary, #fff)",
+                            fontWeight: 600,
+                            fontSize: "0.85rem",
+                          }}
+                        >
+                          <CreditCard size={15} />
+                          Bayar Sekarang
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -102,3 +249,4 @@ export default function HistoryPage() {
     </div>
   );
 }
+

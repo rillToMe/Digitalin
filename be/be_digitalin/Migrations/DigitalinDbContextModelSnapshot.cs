@@ -98,6 +98,39 @@ namespace be_digitalin.Migrations
                     b.ToTable("Customers");
                 });
 
+            modelBuilder.Entity("be_digitalin.Models.CustomerOtp", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("OtpCode")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId", "Purpose")
+                        .IsUnique();
+
+                    b.ToTable("CustomerOtps");
+                });
+
             modelBuilder.Entity("be_digitalin.Models.GameMetadata", b =>
                 {
                     b.Property<int>("Id")
@@ -318,6 +351,17 @@ namespace be_digitalin.Migrations
                         .IsUnique();
 
                     b.ToTable("Vouchers");
+                });
+
+            modelBuilder.Entity("be_digitalin.Models.CustomerOtp", b =>
+                {
+                    b.HasOne("be_digitalin.Models.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
                 });
 
             modelBuilder.Entity("be_digitalin.Models.TopupOrder", b =>

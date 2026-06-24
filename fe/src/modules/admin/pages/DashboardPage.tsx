@@ -17,12 +17,12 @@ const RANGE_OPTIONS: { value: ChartRange; label: string }[] = [
   { value: "30days", label: "30 Hari" },
 ];
 
-function StatCard({ icon, label, value, color, className }: { icon: React.ReactNode; label: string; value: string; color: string; className?: string }) {
+function StatCard({ icon, label, value, color, bg, className }: { icon: React.ReactNode; label: string; value: string; color: string; bg: string; className?: string }) {
   return (
     <div className={`rounded-2xl p-5 ${className ?? ""}`} style={{ backgroundColor: "var(--color-surface,#fff)", border: "1px solid rgba(0,0,0,0.07)" }}>
       <div className="flex items-center justify-between mb-4">
         <span style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.85rem" }}>{label}</span>
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${color}18` }}>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: bg }}>
           <span style={{ color }}>{icon}</span>
         </div>
       </div>
@@ -53,7 +53,7 @@ export default function DashboardPage() {
     <AdminLayout title="Dashboard" breadcrumb={["Admin", "Dashboard"]}>
       {hasError ? (
         <div className="rounded-2xl p-10 text-center" style={{ backgroundColor: "var(--color-surface,#fff)", border: "1px solid rgba(0,0,0,0.07)" }}>
-          <AlertTriangle size={40} style={{ color: "#ef4444", margin: "0 auto 16px" }} />
+          <AlertTriangle size={40} style={{ color: "var(--color-danger)", margin: "0 auto 16px" }} />
           <h3 style={{ color: "var(--color-primary,#0F1419)", fontWeight: 700, fontSize: "1.1rem", marginBottom: 8 }}>Gagal memuat data dashboard</h3>
           <p style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.9rem", marginBottom: 4 }}>
             Server mengembalikan error internal (500). Pastikan backend sudah berjalan dengan benar.
@@ -85,12 +85,12 @@ export default function DashboardPage() {
       ) : stats ? (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4 mb-8">
-            <StatCard icon={<DollarSign size={18} />} label="Revenue Hari Ini" value={formatRp(stats.totalRevenueToday)} color="#2C5EF5" className="col-span-2" />
-            <StatCard icon={<TrendingUp size={18} />} label="Profit Hari Ini" value={formatRp(stats.totalProfitToday)} color="#22c55e" className="col-span-2" />
-            <StatCard icon={<ShoppingCart size={18} />} label="Total Order" value={stats.totalOrdersToday.toString()} color="#8b5cf6" />
-            <StatCard icon={<CheckCircle size={18} />} label="Order Sukses" value={stats.successOrdersToday.toString()} color="#22c55e" />
-            <StatCard icon={<Clock size={18} />} label="Order Pending" value={stats.pendingOrdersToday.toString()} color="#f59e0b" />
-            <StatCard icon={<XCircle size={18} />} label="Order Gagal" value={stats.failedOrdersToday.toString()} color="#ef4444" />
+            <StatCard icon={<DollarSign size={18} />} label="Revenue Hari Ini" value={formatRp(stats.totalRevenueToday)} color="var(--color-tertiary)" bg="var(--color-info-bg)" className="col-span-2" />
+            <StatCard icon={<TrendingUp size={18} />} label="Profit Hari Ini" value={formatRp(stats.totalProfitToday)} color="var(--color-success)" bg="var(--color-success-bg)" className="col-span-2" />
+            <StatCard icon={<ShoppingCart size={18} />} label="Total Order" value={stats.totalOrdersToday.toString()} color="var(--color-info)" bg="var(--color-info-bg)" />
+            <StatCard icon={<CheckCircle size={18} />} label="Order Sukses" value={stats.successOrdersToday.toString()} color="var(--color-success)" bg="var(--color-success-bg)" />
+            <StatCard icon={<Clock size={18} />} label="Order Pending" value={stats.pendingOrdersToday.toString()} color="var(--color-warning)" bg="var(--color-warning-bg)" />
+            <StatCard icon={<XCircle size={18} />} label="Order Gagal" value={stats.failedOrdersToday.toString()} color="var(--color-danger)" bg="var(--color-danger-bg)" />
           </div>
 
           {/* Chart */}
@@ -120,12 +120,12 @@ export default function DashboardPage() {
               <AreaChart data={chart} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="pendapatan" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2C5EF5" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#2C5EF5" stopOpacity={0} />
+                    <stop offset="5%" stopColor="var(--color-tertiary)" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="var(--color-tertiary)" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="profit" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#22c55e" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                    <stop offset="5%" stopColor="var(--color-success)" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="var(--color-success)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
@@ -136,8 +136,8 @@ export default function DashboardPage() {
                   contentStyle={{ borderRadius: 12, border: "1px solid rgba(0,0,0,0.1)", fontSize: 13 }}
                 />
                 <Legend />
-                <Area type="monotone" dataKey="pendapatan" stroke="#2C5EF5" fill="url(#pendapatan)" strokeWidth={2} name="Pendapatan" />
-                <Area type="monotone" dataKey="profit" stroke="#22c55e" fill="url(#profit)" strokeWidth={2} name="Profit" />
+                <Area type="monotone" dataKey="pendapatan" stroke="var(--color-tertiary)" fill="url(#pendapatan)" strokeWidth={2} name="Pendapatan" />
+                <Area type="monotone" dataKey="profit" stroke="var(--color-success)" fill="url(#profit)" strokeWidth={2} name="Profit" />
               </AreaChart>
             </ResponsiveContainer>
           </div>

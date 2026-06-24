@@ -18,18 +18,18 @@ function formatFullRp(n: number) {
 }
 
 const STATUS_BADGE: Record<OrderStatus, { label: string; color: string; bg: string }> = {
-  PENDING:      { label: "Menunggu",   color: "#b45309", bg: "#fef3c7" },
-  PAID:         { label: "Dibayar",    color: "#1d4ed8", bg: "#dbeafe" },
-  PROCESSING:   { label: "Diproses",   color: "#6d28d9", bg: "#ede9fe" },
-  COMPLETED:    { label: "Sukses",     color: "#15803d", bg: "#dcfce7" },
-  NEEDS_ACTION: { label: "Perlu Aksi", color: "#c2410c", bg: "#ffedd5" },
-  FAILED:       { label: "Gagal",      color: "#b91c1c", bg: "#fee2e2" },
-  EXPIRED:      { label: "Expired",    color: "#6b7280", bg: "#f3f4f6" },
-  REFUNDED:     { label: "Refunded",   color: "#0369a1", bg: "#e0f2fe" },
+  PENDING:      { label: "Menunggu",   color: "var(--color-warning)",   bg: "var(--color-warning-bg)" },
+  PAID:         { label: "Dibayar",    color: "var(--color-info)",      bg: "var(--color-info-bg)" },
+  PROCESSING:   { label: "Diproses",   color: "var(--color-info)",      bg: "var(--color-info-bg)" },
+  COMPLETED:    { label: "Sukses",     color: "var(--color-success)",   bg: "var(--color-success-bg)" },
+  NEEDS_ACTION: { label: "Perlu Aksi", color: "var(--color-warning)",   bg: "var(--color-warning-bg)" },
+  FAILED:       { label: "Gagal",      color: "var(--color-danger)",    bg: "var(--color-danger-bg)" },
+  EXPIRED:      { label: "Expired",    color: "var(--color-secondary)", bg: "var(--color-neutral)" },
+  REFUNDED:     { label: "Refunded",   color: "var(--color-info)",      bg: "var(--color-info-bg)" },
 };
 
 function StatusBadge({ status }: { status: OrderStatus }) {
-  const cfg = STATUS_BADGE[status] ?? { label: status, color: "#6b7280", bg: "#f3f4f6" };
+  const cfg = STATUS_BADGE[status] ?? { label: status, color: "var(--color-secondary)", bg: "var(--color-neutral)" };
   return (
     <span className="px-2 py-0.5 rounded-full" style={{ backgroundColor: cfg.bg, color: cfg.color, fontSize: "0.7rem", fontWeight: 600 }}>
       {cfg.label}

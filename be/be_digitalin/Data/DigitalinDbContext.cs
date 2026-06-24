@@ -1,4 +1,4 @@
-﻿using be_digitalin.Models;
+using be_digitalin.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace be_digitalin.Data;
@@ -14,6 +14,7 @@ public class DigitalinDbContext : DbContext
     public DbSet<Customer> Customers { get; set; }
     public DbSet<AppSetting> AppSettings { get; set; }
     public DbSet<Voucher> Vouchers { get; set; }
+    public DbSet<CustomerOtp> CustomerOtps { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -54,6 +55,18 @@ public class DigitalinDbContext : DbContext
                 .HasPrecision(18, 2);
             entity.Property(o => o.ProfitAmount)
                 .HasPrecision(18, 2);
+        });
+
+        // CUSTOMER OTP
+        modelBuilder.Entity<CustomerOtp>(entity =>
+        {
+            // One active OTP per customer per purpose (upsert overwrite logic)
+            entity.HasIndex(o => new { o.CustomerId, o.Purpose }).IsUnique();
+
+            entity.HasOne(o => o.Customer)
+                .WithMany()
+                .HasForeignKey(o => o.CustomerId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // VOUCHER 

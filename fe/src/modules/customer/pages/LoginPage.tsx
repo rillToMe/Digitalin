@@ -93,6 +93,21 @@ export default function LoginPage() {
               </div>
             </div>
 
+            <div className="text-right">
+              <Link
+                to="/forgot-password"
+                style={{
+                  color: "var(--color-tertiary,#2C5EF5)",
+                  fontSize: "0.82rem",
+                  fontWeight: 500,
+                  textDecoration: "none",
+                }}
+                className="hover:underline"
+              >
+                Lupa Password?
+              </Link>
+            </div>
+
             <button
               type="submit"
               disabled={anyLoading}

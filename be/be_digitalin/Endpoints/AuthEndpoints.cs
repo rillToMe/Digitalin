@@ -1,4 +1,5 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+using System.IdentityModel.Tokens.Jwt;
+using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -6,6 +7,7 @@ using be_digitalin.Config;
 using be_digitalin.Constants;
 using be_digitalin.Services;
 using be_digitalin.Providers; // <-- Jangan lupa Provider Email
+using be_digitalin.DTOs.Requests;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc; 
 using Microsoft.Extensions.Options;
@@ -72,6 +74,51 @@ public static class AuthEndpoints
         {
             var token = await service.LoginAsync(req.Email, req.Password);
             return token != null ? Results.Ok(new { token }) : Results.Unauthorized();
+        });
+
+        // ENDPOINT REQUEST RESET PASSWORD
+        localAuthGroup.MapPost("/request-password-reset", async (
+            [FromBody] RequestPasswordResetRequest req,
+            [FromServices] IPasswordResetService passwordResetService) =>
+        {
+            // Manual validation (Minimal API doesn't auto-validate DataAnnotations)
+            var validationResults = new List<ValidationResult>();
+            if (!Validator.TryValidateObject(req, new ValidationContext(req), validationResults, validateAllProperties: true))
+            {
+                return Results.BadRequest(new { message = validationResults[0].ErrorMessage });
+            }
+
+            var success = await passwordResetService.RequestPasswordResetAsync(req.Email);
+
+            if (!success)
+            {
+                return Results.BadRequest(new { message = "Email tidak terdaftar." });
+            }
+
+            return Results.Ok(new { message = "Kode OTP reset password berhasil dikirim." });
+        }).RequireRateLimiting("OtpPolicy");
+
+        // ENDPOINT RESET PASSWORD
+        localAuthGroup.MapPost("/reset-password", async (
+            [FromBody] ResetPasswordRequest req,
+            [FromServices] IPasswordResetService passwordResetService) =>
+        {
+            // Manual validation
+            var validationResults = new List<ValidationResult>();
+            if (!Validator.TryValidateObject(req, new ValidationContext(req), validationResults, validateAllProperties: true))
+            {
+                return Results.BadRequest(new { message = validationResults[0].ErrorMessage });
+            }
+
+            var result = await passwordResetService.ResetPasswordAsync(req.Email, req.OtpCode, req.NewPassword);
+
+            return result switch
+            {
+                PasswordResetResult.Success      => Results.Ok(new { message = "Password berhasil diubah." }),
+                PasswordResetResult.EmailNotFound => Results.BadRequest(new { message = "Email tidak terdaftar." }),
+                PasswordResetResult.InvalidOtp    => Results.BadRequest(new { message = "Kode OTP salah atau sudah kedaluwarsa." }),
+                _                                => Results.Problem("Terjadi kesalahan yang tidak diketahui.")
+            };
         });
 
         // GOOGLE LOGIN ENDPOINT

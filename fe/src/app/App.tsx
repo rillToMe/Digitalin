@@ -21,6 +21,8 @@ import HomePage from "../modules/customer/pages/HomePage";
 import GameDetailPage from "../modules/customer/pages/GameDetailPage";
 import LoginPage from "../modules/customer/pages/LoginPage";
 import RegisterPage from "../modules/customer/pages/RegisterPage";
+import ForgotPasswordPage from "../modules/customer/pages/ForgotPasswordPage";
+import MaintenancePage from "../modules/customer/pages/MaintenancePage";
 import ProfilePage from "../modules/customer/pages/ProfilePage";
 import HistoryPage from "../modules/customer/pages/HistoryPage";
 import FaqPage from "../modules/customer/pages/FaqPage";
@@ -30,9 +32,11 @@ import VouchersPage from "../modules/customer/pages/VouchersPage";
 // Admin pages
 import AdminLoginPage from "../modules/admin/pages/AdminLoginPage";
 import DashboardPage from "../modules/admin/pages/DashboardPage";
+import OrdersPage from "../modules/admin/pages/OrdersPage";
 import BannersPage from "../modules/admin/pages/BannersPage";
 import MetadataPage from "../modules/admin/pages/MetadataPage";
 import AdminVouchersPage from "../modules/admin/pages/VouchersPage";
+import SettingsPage from "../modules/admin/pages/settings/SettingsPage";
 
 function CustomerRoute({ children }: { children: React.ReactNode }) {
   return <CustomerLayout>{children}</CustomerLayout>;
@@ -126,6 +130,8 @@ export default function App() {
         <Route path="/game/:slug" element={<CustomerRoute><GameDetailPage /></CustomerRoute>} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/maintenance" element={<MaintenancePage />} />
         <Route path="/profile" element={<ProtectedCustomerRoute><ProfilePage /></ProtectedCustomerRoute>} />
         <Route path="/history" element={<ProtectedCustomerRoute><HistoryPage /></ProtectedCustomerRoute>} />
         <Route path="/faq" element={<CustomerRoute><FaqPage /></CustomerRoute>} />
@@ -136,9 +142,11 @@ export default function App() {
         <Route path="/admin" element={<AdminEntryRoute />} />
         <Route path="/admin/login" element={<AdminLoginRoute />} />
         <Route path="/admin/dashboard" element={<ProtectedAdminRoute><DashboardPage /></ProtectedAdminRoute>} />
+        <Route path="/admin/orders" element={<ProtectedAdminRoute><OrdersPage /></ProtectedAdminRoute>} />
         <Route path="/admin/banners" element={<ProtectedAdminRoute><BannersPage /></ProtectedAdminRoute>} />
         <Route path="/admin/metadata" element={<ProtectedAdminRoute><MetadataPage /></ProtectedAdminRoute>} />
         <Route path="/admin/vouchers" element={<ProtectedAdminRoute><AdminVouchersPage /></ProtectedAdminRoute>} />
+        <Route path="/admin/settings" element={<ProtectedAdminRoute><SettingsPage /></ProtectedAdminRoute>} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />

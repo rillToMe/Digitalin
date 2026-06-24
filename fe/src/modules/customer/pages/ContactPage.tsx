@@ -1,12 +1,6 @@
 import { Mail, Send, MessageCircle, Clock } from "lucide-react";
 
-interface ContactItem {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  link?: string;
-  description: string;
-}
+import type { ContactItem } from "../../../api/index";
 
 const CONTACT_DATA: ContactItem[] = [
   {

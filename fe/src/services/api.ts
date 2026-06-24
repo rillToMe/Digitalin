@@ -1,6 +1,7 @@
 import axios from "axios";
 import { toast } from "sonner";
 import { useAuthStore } from "../store/authStore";
+import { useMaintenanceStore } from "../store/maintenanceStore";
 import type {
   AuthTokenResponse,
   LoginPayload,
@@ -45,6 +46,13 @@ import type {
   DeleteVoucherResponse,
   VoucherUsageResponse,
   AdminVouchersQueryParams,
+  PaginationParams,
+  RetryOrderResponse,
+  RefundOrderResponse,
+  RequestPasswordResetPayload,
+  ResetPasswordPayload,
+  MaintenanceStatusResponse,
+  UpdateMaintenancePayload,
 } from "../api/index";
 
 const api = axios.create({
@@ -85,6 +93,21 @@ api.interceptors.response.use(
           window.location.href = "/login";
         }
       }
+    } else if (error.response?.status === 503) {
+      const data = error.response.data;
+      if (data && data.maintenance === true) {
+        const requestUrl: string = error.config?.url ?? "";
+        const isAdminRequest = requestUrl.startsWith("/admin") || window.location.pathname.startsWith("/admin");
+        
+        if (!isAdminRequest) {
+          const { setMaintenance } = useMaintenanceStore.getState();
+          setMaintenance(true, data.title, data.message, data.estimatedFinish);
+          
+          if (!window.location.pathname.includes("/maintenance")) {
+            window.location.href = "/maintenance";
+          }
+        }
+      }
     }
     return Promise.reject(error);
   }
@@ -105,6 +128,10 @@ export const authService = {
     api.get<ProfileResponse>("/auth/profile").then((r) => r.data),
   updateProfile: (payload: UpdateProfilePayload) =>
     api.put<MessageResponse>("/auth/profile", payload).then((r) => r.data),
+  requestPasswordReset: (payload: RequestPasswordResetPayload) =>
+    api.post<MessageResponse>("/auth/local/request-password-reset", payload).then((r) => r.data),
+  resetPassword: (payload: ResetPasswordPayload) =>
+    api.post<MessageResponse>("/auth/local/reset-password", payload).then((r) => r.data),
 };
 
 // Admin auth
@@ -214,6 +241,20 @@ export const adminService = {
     api.delete<DeleteVoucherResponse>(`/admin/vouchers/${id}`).then((r) => r.data),
   getVoucherUsage: (id: number, params?: { page?: number; limit?: number }) =>
     api.get<VoucherUsageResponse>(`/admin/vouchers/${id}/usage`, { params }).then((r) => r.data),
+
+  // Orders
+  getOrders: (params: PaginationParams) =>
+    api.get<PaginatedOrdersResponse>("/admin/orders", { params }).then((r) => r.data),
+  retryOrder: (orderNo: string) =>
+    api.post<RetryOrderResponse>(`/admin/orders/${orderNo}/retry`).then((r) => r.data),
+  refundOrder: (orderNo: string) =>
+    api.post<RefundOrderResponse>(`/admin/orders/${orderNo}/refund`).then((r) => r.data),
+
+  // Maintenance Mode
+  getMaintenance: () =>
+    api.get<MaintenanceStatusResponse>("/admin/settings/maintenance").then((r) => r.data),
+  updateMaintenance: (payload: UpdateMaintenancePayload) =>
+    api.put<MaintenanceStatusResponse>("/admin/settings/maintenance", payload).then((r) => r.data),
 };
 
 export default api;

@@ -1,19 +1,7 @@
 import { useState } from "react";
 import { Pencil, X, Loader2, Save, DollarSign } from "lucide-react";
-import type { AdminProductResponse } from "../../../../api/index";
+import type { AdminProductResponse, ProductMarginListProps } from "../../../../api/index";
 import { formatRp } from "./utils";
-
-interface ProductMarginListProps {
-  products: AdminProductResponse[];
-  brand: string;
-  marginMutation: {
-    mutate: (vars: { id: number; margin: number | null }) => void;
-    isPending: boolean;
-  };
-  loading: boolean;
-  error: Error | null;
-  totalCount: number;
-}
 
 export function ProductMarginList({ products, brand, marginMutation, loading, error, totalCount }: ProductMarginListProps) {
   const [editingId, setEditingId] = useState<number | null>(null);

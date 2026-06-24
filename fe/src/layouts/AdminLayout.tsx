@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router";
-import { LayoutDashboard, Image, Settings, LogOut, Menu, Zap, ChevronRight, Ticket } from "lucide-react";
+import { LayoutDashboard, Image, Settings, LogOut, Menu, Zap, ChevronRight, Ticket, ClipboardList, Cog } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 
 interface AdminLayoutProps {
@@ -11,9 +11,11 @@ interface AdminLayoutProps {
 
 const MENU = [
   { label: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
+  { label: "Orders", path: "/admin/orders", icon: ClipboardList },
   { label: "Banners", path: "/admin/banners", icon: Image },
   { label: "Metadata", path: "/admin/metadata", icon: Settings },
   { label: "Vouchers", path: "/admin/vouchers", icon: Ticket },
+  { label: "Settings", path: "/admin/settings", icon: Cog },
 ];
 
 export function AdminLayout({ children, title, breadcrumb }: AdminLayoutProps) {
@@ -29,8 +31,7 @@ export function AdminLayout({ children, title, breadcrumb }: AdminLayoutProps) {
 
   const Sidebar = () => (
     <aside
-      style={{ backgroundColor: "var(--color-primary, #0F1419)", width: 240, minHeight: "100vh", flexShrink: 0 }}
-      className="flex flex-col"
+      style={{ backgroundColor: "var(--color-primary, #0F1419)", width: 240, flexShrink: 0, height: "100vh", position: "sticky", top: 0, display: "flex", flexDirection: "column", overflowY: "auto" }}
     >
       {/* Logo */}
       <div className="flex items-center gap-2 px-6 py-5" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
@@ -82,9 +83,8 @@ export function AdminLayout({ children, title, breadcrumb }: AdminLayoutProps) {
   );
 
   return (
-    <div style={{ fontFamily: "Inter, sans-serif", display: "flex", minHeight: "100vh", backgroundColor: "var(--color-neutral, #F1F3F5)" }}>
-      {/* Desktop Sidebar */}
-      <div className="hidden md:flex">
+    <div style={{ fontFamily: "Inter, sans-serif", display: "flex", height: "100vh", overflow: "hidden", backgroundColor: "var(--color-neutral, #F1F3F5)" }}>
+      <div className="hidden md:block" style={{ flexShrink: 0 }}>
         <Sidebar />
       </div>
 
@@ -99,7 +99,7 @@ export function AdminLayout({ children, title, breadcrumb }: AdminLayoutProps) {
       )}
 
       {/* Main */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0" style={{ height: "100vh", overflow: "hidden" }}>
         {/* Header */}
         <header style={{ backgroundColor: "var(--color-surface, #fff)", borderBottom: "1px solid rgba(0,0,0,0.07)" }} className="px-4 sm:px-8 py-4 flex items-center gap-4 sticky top-0 z-40">
           <button className="md:hidden" onClick={() => setSidebarOpen(true)} style={{ color: "var(--color-primary, #0F1419)" }}>
@@ -131,7 +131,7 @@ export function AdminLayout({ children, title, breadcrumb }: AdminLayoutProps) {
         </header>
 
         {/* Content */}
-        <main className="flex-1 p-4 sm:p-8">{children}</main>
+        <main className="flex-1 p-4 sm:p-8" style={{ overflowY: "auto" }}>{children}</main>
       </div>
     </div>
   );

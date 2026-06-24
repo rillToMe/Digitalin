@@ -1,3 +1,5 @@
+import type { ReactNode, FormEvent } from "react";
+
 // Digitalin - TypeScript Type Definitions
 // Never use `any`. Always reference these types.
 
@@ -163,7 +165,7 @@ export interface OrderResponse {
   finalPrice: number;
 }
 
-export interface CreateOrderResponse extends OrderResponse {}
+export interface CreateOrderResponse extends OrderResponse { }
 
 // Checkout Preview
 
@@ -403,4 +405,135 @@ export interface AdminVouchersQueryParams extends PaginationParams {
   status?: VoucherStatus;
   sortBy?: "code" | "createdAt" | "expiredAt" | "discountValue";
   sortOrder?: "asc" | "desc";
+}
+
+// Password Reset
+export interface RequestPasswordResetPayload {
+  email: string;
+}
+
+export interface ResetPasswordPayload {
+  email: string;
+  otpCode: string;
+  newPassword: string;
+}
+
+// Maintenance Mode
+export interface MaintenanceStatusResponse {
+  enabled: boolean;
+  title: string;
+  message: string;
+  estimatedFinish: string | null;
+  allowAdmin: boolean;
+}
+
+export interface UpdateMaintenancePayload {
+  enabled: boolean;
+  title: string;
+  message: string;
+  estimatedFinish: string | null;
+  allowAdmin: boolean;
+}
+
+export interface MaintenancePayload {
+  enabled: boolean;
+  title: string;
+  message: string;
+  estimatedFinish: string | null;
+  allowAdmin: boolean;
+}
+
+export interface PaymentExpiryPayload {
+  expiry: number;
+}
+
+// --- UI Component & Page Types ---
+
+export interface SettingToggleProps {
+  checked: boolean;
+  onChange: () => void;
+  disabled?: boolean;
+  isLoading?: boolean;
+  activeColor?: string;
+  inactiveColor?: string;
+  size?: "sm" | "md";
+  title?: string;
+}
+
+export type ModalTab = "info" | "products";
+
+export interface GameEditModalProps {
+  item: GameMetadataItem;
+  form: { inputType: InputType; serverList: string };
+  setForm: (form: { inputType: InputType; serverList: string }) => void;
+  activeTab: ModalTab;
+  setActiveTab: (tab: ModalTab) => void;
+  coverFile: File | null;
+  setCoverFile: (file: File | null) => void;
+  coverPreview: string | null;
+  setCoverPreview: (url: string | null) => void;
+  products: AdminProductResponse[];
+  productsLoading: boolean;
+  productsError: Error | null;
+  totalProducts: number;
+  updateMutation: {
+    mutate: (vars: { id: number; payload: { inputType: InputType; serverList: string | null } }) => void;
+    isPending: boolean;
+  };
+  coverMutation: {
+    mutate: (vars: { id: number; formData: FormData }) => void;
+    isPending: boolean;
+  };
+  marginMutation: {
+    mutate: (vars: { id: number; margin: number | null }) => void;
+    isPending: boolean;
+  };
+  onClose: () => void;
+}
+
+export interface ProductMarginListProps {
+  products: AdminProductResponse[];
+  brand: string;
+  marginMutation: {
+    mutate: (vars: { id: number; margin: number | null }) => void;
+    isPending: boolean;
+  };
+  loading: boolean;
+  error: Error | null;
+  totalCount: number;
+}
+
+export interface ForgotPasswordEmailStepProps {
+  email: string;
+  setEmail: (val: string) => void;
+  onSubmit: (e: FormEvent) => void;
+  isPending: boolean;
+}
+
+export interface ForgotPasswordOtpStepProps {
+  email: string;
+  otpCode: string;
+  setOtpCode: (val: string) => void;
+  onSubmit: (e: FormEvent) => void;
+  isPending: boolean;
+  onResendOtp: () => Promise<void>;
+  isResending: boolean;
+}
+
+export interface ForgotPasswordSuccessStepProps {
+  onBackToLogin: () => void;
+}
+
+export interface OtpInputProps {
+  value: string;
+  onChange: (val: string) => void;
+  length?: number;
+}
+
+export interface ContactItem {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  link?: string;
+  description: string;
 }

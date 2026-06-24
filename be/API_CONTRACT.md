@@ -344,6 +344,93 @@ interface AdminLoginResponse {
 
 ---
 
+### POST /auth/local/request-password-reset
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `POST` |
+| Path | `/auth/local/request-password-reset` |
+| Description | Sends a 6-digit OTP to the user's email for password reset |
+| Auth | None (Public) |
+| Rate Limit | 3 requests per 10 minutes per IP (shared with OtpPolicy) |
+
+#### REQUEST PAYLOAD
+
+| Field Name | Data Type | Required/Optional | Description & Constraints |
+|------------|-----------|-------------------|---------------------------|
+| `email` | `string` | Required | Valid email address; must be already registered |
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK
+interface RequestPasswordResetResponse {
+  message: "Kode OTP reset password berhasil dikirim.";
+}
+```
+
+#### BUSINESS RULES & EDGE CASES
+
+- Email wajib diisi dan harus format email valid → Error 400
+- Email tidak terdaftar → Error 400: `"Email tidak terdaftar."`
+- OTP terdiri dari 6 digit angka acak (cryptographically secure)
+- OTP berlaku selama 5 menit sejak diterbitkan
+- Jika sudah ada OTP reset password aktif untuk akun yang sama, OTP lama akan otomatis ditimpa
+- Rate limit: 3 request per 10 menit per IP → HTTP 429: `"Terlalu banyak permintaan OTP. Coba lagi dalam beberapa menit."`
+- OTP dikirim via email dengan template khusus reset password (subject: "Reset Password — Kode OTP Digitalin")
+- OTP disimpan di database pada tabel `CustomerOtp` (bukan in-memory), bertahan antar restart server
+
+---
+
+### POST /auth/local/reset-password
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `POST` |
+| Path | `/auth/local/reset-password` |
+| Description | Validates OTP and updates the customer's password |
+| Auth | None (Public) |
+
+#### REQUEST PAYLOAD
+
+| Field Name | Data Type | Required/Optional | Description & Constraints |
+|------------|-----------|-------------------|---------------------------|
+| `email` | `string` | Required | Valid email address |
+| `otpCode` | `string` | Required | 6-digit OTP received via email |
+| `newPassword` | `string` | Required | New password, minimum 8 characters |
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK
+interface ResetPasswordResponse {
+  message: "Password berhasil diubah.";
+}
+```
+
+#### VALIDATION
+
+| Field | Rule | Error |
+|-------|------|-------|
+| `email` | Required, valid format | 400: `"Email wajib diisi."` / `"Format email tidak valid."` |
+| `otpCode` | Required | 400: `"Kode OTP wajib diisi."` |
+| `newPassword` | Required, min 8 chars | 400: `"Password baru wajib diisi."` / `"Password baru minimal 8 karakter."` |
+
+#### BUSINESS RULES & EDGE CASES
+
+- Email tidak terdaftar → Error 400: `"Email tidak terdaftar."`
+- OTP salah → Error 400: `"Kode OTP salah atau sudah kedaluwarsa."`
+- OTP sudah expired → Error 400: `"Kode OTP salah atau sudah kedaluwarsa."`
+- OTP langsung dihapus setelah percobaan validasi (baik berhasil maupun gagal) — OTP hanya dapat digunakan **satu kali**
+- Jika OTP valid, password baru di-hash menggunakan BCrypt sebelum disimpan
+- Setelah reset berhasil, user harus login ulang menggunakan password baru
+
+---
+
 ## 2. Products / Catalog
 
 ---
@@ -1447,7 +1534,118 @@ interface UploadGameCoverResponse {
 
 ---
 
+### GET /admin/settings/maintenance
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `GET` |
+| Path | `/admin/settings/maintenance` |
+| Description | Returns the current Maintenance Mode configuration |
+| Auth | Bearer JWT — Admin only |
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK
+interface MaintenanceStatusResponse {
+  enabled: boolean;           // true = maintenance is active
+  title: string;              // Displayed title on maintenance page
+  message: string;            // Displayed message on maintenance page
+  estimatedFinish: string | null; // ISO 8601 datetime or null if unknown
+  allowAdmin: boolean;        // true = admin JWT holders bypass the block
+}
+```
+
+#### BUSINESS RULES & EDGE CASES
+
+- If no settings have been seeded yet, the server seeds defaults on first startup
+- Default: `enabled = false`, `allowAdmin = true`
+- Returns current values from the `AppSettings` table (via 30-second cache)
+
+---
+
+### PUT /admin/settings/maintenance
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `PUT` |
+| Path | `/admin/settings/maintenance` |
+| Description | Enables or disables Maintenance Mode and updates all related configuration |
+| Auth | Bearer JWT — Admin only |
+
+#### REQUEST PAYLOAD
+
+| Field Name | Data Type | Required/Optional | Description & Constraints |
+|------------|-----------|-------------------|---------------------------|
+| `enabled` | `boolean` | Required | `true` to activate maintenance, `false` to deactivate |
+| `title` | `string` | Required | Short title shown to users, max 200 chars |
+| `message` | `string` | Required | Full message shown to users, max 1000 chars |
+| `estimatedFinish` | `string \| null` | Optional | ISO 8601 datetime string for when maintenance ends; `null` or empty if unknown |
+| `allowAdmin` | `boolean` | Required | `true` = admin JWT holders can still access all endpoints |
+
+```json
+// Example request
+{
+  "enabled": true,
+  "title": "Website Sedang Maintenance",
+  "message": "Kami sedang melakukan peningkatan sistem. Silakan kembali beberapa saat lagi.",
+  "estimatedFinish": "2026-06-25T13:00:00",
+  "allowAdmin": true
+}
+```
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK — returns the updated configuration
+interface MaintenanceStatusResponse {
+  enabled: boolean;
+  title: string;
+  message: string;
+  estimatedFinish: string | null;
+  allowAdmin: boolean;
+}
+```
+
+#### VALIDATION
+
+| Field | Rule | Error |
+|-------|------|-------|
+| `title` | Required, max 200 chars | 400: `"Title wajib diisi."` / `"Title maksimal 200 karakter."` |
+| `message` | Required, max 1000 chars | 400: `"Message wajib diisi."` / `"Message maksimal 1000 karakter."` |
+
+#### BUSINESS RULES & EDGE CASES
+
+- All five values are persisted to the `AppSettings` table (upsert)
+- Cache for each key is invalidated immediately after save; new requests see the update within 30 seconds
+- When `enabled = true` and `allowAdmin = true`: authenticated admin JWT holders bypass the 503 block on all endpoints
+- When `enabled = true` and `allowAdmin = false`: **even admins** are blocked (use with caution — you may lock yourself out)
+- The following paths are **always whitelisted** regardless of maintenance state:
+  - `/admin/*` — admin panel
+  - `/auth/local/login` — user login
+  - `/auth/google` — Google OAuth
+  - `/auth/local/request-password-reset` — password recovery
+  - `/auth/local/reset-password` — password recovery
+  - `/health`, `/swagger`, `/ping-db` — dev/ops tools
+
+#### ERROR RESPONSES
+
+```json
+// 400 — Validation error
+{ "message": "Title wajib diisi." }
+
+// 401 — Missing or invalid JWT
+// 403 — Valid JWT but not ADMIN role
+```
+
+---
+
 ## 7. Search
+
 
 ---
 

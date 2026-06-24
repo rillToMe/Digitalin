@@ -1,38 +1,8 @@
 import { useRef } from "react";
 import { X, Loader2, Save, Upload, Image } from "lucide-react";
 import { toast } from "sonner";
-import type { GameMetadataItem, InputType, AdminProductResponse } from "../../../../api/index";
-import type { ModalTab } from "./utils";
+import type { InputType, GameEditModalProps, ModalTab } from "../../../../api/index";
 import { ProductMarginList } from "./ProductMarginList";
-
-interface GameEditModalProps {
-  item: GameMetadataItem;
-  form: { inputType: InputType; serverList: string };
-  setForm: (form: { inputType: InputType; serverList: string }) => void;
-  activeTab: ModalTab;
-  setActiveTab: (tab: ModalTab) => void;
-  coverFile: File | null;
-  setCoverFile: (file: File | null) => void;
-  coverPreview: string | null;
-  setCoverPreview: (url: string | null) => void;
-  products: AdminProductResponse[];
-  productsLoading: boolean;
-  productsError: Error | null;
-  totalProducts: number;
-  updateMutation: {
-    mutate: (vars: { id: number; payload: { inputType: InputType; serverList: string | null } }) => void;
-    isPending: boolean;
-  };
-  coverMutation: {
-    mutate: (vars: { id: number; formData: FormData }) => void;
-    isPending: boolean;
-  };
-  marginMutation: {
-    mutate: (vars: { id: number; margin: number | null }) => void;
-    isPending: boolean;
-  };
-  onClose: () => void;
-}
 
 export function GameEditModal({
   item, form, setForm, activeTab, setActiveTab,
