@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router";
-import { LayoutDashboard, Image, Settings, LogOut, Menu, Zap, ChevronRight, Ticket, ClipboardList, Cog } from "lucide-react";
+import {
+  LayoutDashboard, Image, Settings, LogOut, Menu, Zap,
+  ChevronRight, Ticket, ClipboardList, Cog, ShieldCheck,
+} from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 
 interface AdminLayoutProps {
@@ -9,20 +12,24 @@ interface AdminLayoutProps {
   breadcrumb?: string[];
 }
 
-const MENU = [
-  { label: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
-  { label: "Orders", path: "/admin/orders", icon: ClipboardList },
-  { label: "Banners", path: "/admin/banners", icon: Image },
-  { label: "Metadata", path: "/admin/metadata", icon: Settings },
-  { label: "Vouchers", path: "/admin/vouchers", icon: Ticket },
-  { label: "Settings", path: "/admin/settings", icon: Cog },
+const MENU_BASE = [
+  { label: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard, superAdminOnly: false },
+  { label: "Orders", path: "/admin/orders", icon: ClipboardList, superAdminOnly: false },
+  { label: "Banners", path: "/admin/banners", icon: Image, superAdminOnly: false },
+  { label: "Metadata", path: "/admin/metadata", icon: Settings, superAdminOnly: false },
+  { label: "Vouchers", path: "/admin/vouchers", icon: Ticket, superAdminOnly: false },
+  { label: "Kelola Admin", path: "/admin/admins", icon: ShieldCheck, superAdminOnly: true },
+  { label: "Settings", path: "/admin/settings", icon: Cog, superAdminOnly: false },
 ];
 
 export function AdminLayout({ children, title, breadcrumb }: AdminLayoutProps) {
-  const { adminLogout } = useAuthStore();
+  const { adminLogout, isSuperAdmin } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const superAdmin = isSuperAdmin();
+  const MENU = MENU_BASE.filter((item) => !item.superAdminOnly || superAdmin);
 
   const handleLogout = () => {
     adminLogout();
@@ -31,16 +38,34 @@ export function AdminLayout({ children, title, breadcrumb }: AdminLayoutProps) {
 
   const Sidebar = () => (
     <aside
-      style={{ backgroundColor: "var(--color-primary, #0F1419)", width: 240, flexShrink: 0, height: "100vh", position: "sticky", top: 0, display: "flex", flexDirection: "column", overflowY: "auto" }}
+      style={{
+        backgroundColor: "var(--color-primary, #0F1419)",
+        width: 240,
+        flexShrink: 0,
+        height: "100vh",
+        position: "sticky",
+        top: 0,
+        display: "flex",
+        flexDirection: "column",
+        overflowY: "auto",
+      }}
     >
       {/* Logo */}
-      <div className="flex items-center gap-2 px-6 py-5" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
-        <div style={{ backgroundColor: "var(--color-tertiary, #2C5EF5)", borderRadius: 7 }} className="w-8 h-8 flex items-center justify-center">
+      <div
+        className="flex items-center gap-2 px-6 py-5"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}
+      >
+        <div
+          style={{ backgroundColor: "var(--color-tertiary, #2C5EF5)", borderRadius: 7 }}
+          className="w-8 h-8 flex items-center justify-center"
+        >
           <Zap size={15} color="#fff" fill="#fff" />
         </div>
         <div>
           <div style={{ color: "#fff", fontWeight: 700, fontSize: "0.95rem" }}>Digitalin</div>
-          <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.7rem" }}>Admin Panel</div>
+          <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.7rem" }}>
+            {superAdmin ? "Super Admin" : "Admin Panel"}
+          </div>
         </div>
       </div>
 
@@ -58,11 +83,15 @@ export function AdminLayout({ children, title, breadcrumb }: AdminLayoutProps) {
               style={{
                 color: active ? "#fff" : "rgba(255,255,255,0.55)",
                 backgroundColor: active ? "rgba(44,94,245,0.25)" : "transparent",
-                borderLeft: active ? "3px solid var(--color-tertiary, #2C5EF5)" : "3px solid transparent",
+                borderLeft: active
+                  ? "3px solid var(--color-tertiary, #2C5EF5)"
+                  : "3px solid transparent",
               }}
             >
               <Icon size={17} />
-              <span style={{ fontSize: "0.9rem", fontWeight: active ? 600 : 400 }}>{item.label}</span>
+              <span style={{ fontSize: "0.9rem", fontWeight: active ? 600 : 400 }}>
+                {item.label}
+              </span>
             </Link>
           );
         })}
@@ -83,7 +112,15 @@ export function AdminLayout({ children, title, breadcrumb }: AdminLayoutProps) {
   );
 
   return (
-    <div style={{ fontFamily: "Inter, sans-serif", display: "flex", height: "100vh", overflow: "hidden", backgroundColor: "var(--color-neutral, #F1F3F5)" }}>
+    <div
+      style={{
+        fontFamily: "Inter, sans-serif",
+        display: "flex",
+        height: "100vh",
+        overflow: "hidden",
+        backgroundColor: "var(--color-neutral, #F1F3F5)",
+      }}
+    >
       <div className="hidden md:block" style={{ flexShrink: 0 }}>
         <Sidebar />
       </div>
@@ -101,18 +138,40 @@ export function AdminLayout({ children, title, breadcrumb }: AdminLayoutProps) {
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0" style={{ height: "100vh", overflow: "hidden" }}>
         {/* Header */}
-        <header style={{ backgroundColor: "var(--color-surface, #fff)", borderBottom: "1px solid rgba(0,0,0,0.07)" }} className="px-4 sm:px-8 py-4 flex items-center gap-4 sticky top-0 z-40">
-          <button className="md:hidden" onClick={() => setSidebarOpen(true)} style={{ color: "var(--color-primary, #0F1419)" }}>
+        <header
+          style={{
+            backgroundColor: "var(--color-surface, #fff)",
+            borderBottom: "1px solid rgba(0,0,0,0.07)",
+          }}
+          className="px-4 sm:px-8 py-4 flex items-center gap-4 sticky top-0 z-40"
+        >
+          <button
+            className="md:hidden"
+            onClick={() => setSidebarOpen(true)}
+            style={{ color: "var(--color-primary, #0F1419)" }}
+          >
             <Menu size={20} />
           </button>
           <div className="flex-1">
-            <h1 style={{ color: "var(--color-primary, #0F1419)", fontSize: "1.1rem", fontWeight: 700 }}>{title}</h1>
+            <h1 style={{ color: "var(--color-primary, #0F1419)", fontSize: "1.1rem", fontWeight: 700 }}>
+              {title}
+            </h1>
             {breadcrumb && (
               <div className="flex items-center gap-1 mt-0.5">
                 {breadcrumb.map((crumb, i) => (
                   <span key={i} className="flex items-center gap-1">
-                    {i > 0 && <ChevronRight size={12} style={{ color: "var(--color-secondary, #4A5568)" }} />}
-                    <span style={{ color: i === breadcrumb.length - 1 ? "var(--color-tertiary, #2C5EF5)" : "var(--color-secondary, #4A5568)", fontSize: "0.78rem" }}>
+                    {i > 0 && (
+                      <ChevronRight size={12} style={{ color: "var(--color-secondary, #4A5568)" }} />
+                    )}
+                    <span
+                      style={{
+                        color:
+                          i === breadcrumb.length - 1
+                            ? "var(--color-tertiary, #2C5EF5)"
+                            : "var(--color-secondary, #4A5568)",
+                        fontSize: "0.78rem",
+                      }}
+                    >
                       {crumb}
                     </span>
                   </span>
@@ -131,7 +190,9 @@ export function AdminLayout({ children, title, breadcrumb }: AdminLayoutProps) {
         </header>
 
         {/* Content */}
-        <main className="flex-1 p-4 sm:p-8" style={{ overflowY: "auto" }}>{children}</main>
+        <main className="flex-1 p-4 sm:p-8" style={{ overflowY: "auto" }}>
+          {children}
+        </main>
       </div>
     </div>
   );

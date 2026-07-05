@@ -1,0 +1,61 @@
+DIGITALIN FRONTEND RULES - BACA SEBELUM IMPLEMENTASI APA PUN
+
+SEBELUM MULAI
+- Baca RULES.txt, API_CONTRACT.md, lalu analisis struktur project
+- Cari reusable component yang sudah ada sebelum buat yang baru
+- Jangan langsung coding tanpa analisis
+
+MCP CONTEXT MODE
+- Gunakan MCP Context Mode sebagai metode utama saat membaca source code atau memahami project
+- Jangan baca seluruh project jika Context Mode bisa digunakan, tujuannya hemat token dan ambil konteks yang relevan saja
+
+MCP CONTEXT7
+- Gunakan MCP Context7 untuk mengambil dokumentasi terbaru saat menggunakan library atau framework yang baru atau sering berubah
+- Wajib digunakan untuk: React, Next.js, TanStack Query, Axios, Tailwind, Radix UI, Zod, dan library sejenis
+- Jika tidak yakin dengan API suatu library, cari referensi di Context7 dulu sebelum nulis implementasi
+- Tujuannya menghindari halusinasi dan penggunaan API yang sudah deprecated
+
+API CONTRACT
+- API_CONTRACT.md adalah Single Source of Truth untuk semua API
+- Jangan pernah tebak endpoint, request, response, atau business rules
+- Jika endpoint tidak ada di API_CONTRACT.md: STOP, laporan ke user, jangan buat sendiri
+- Jangan buat URL sendiri, mock API, atau request dummy
+
+TYPE SYSTEM
+- src/api/index.ts adalah Single Source of Truth untuk SEMUA type TypeScript di project ini
+- Dilarang membuat interface atau type di file lain, seluruh type harus didefinisikan dan diexport dari src/api/index.ts
+- Jika butuh type baru, tambahkan ke src/api/index.ts terlebih dahulu baru gunakan
+- Jika API Contract berubah, perbarui src/api/index.ts dulu baru implementasi
+- Dilarang menggunakan "any", project pakai TypeScript Strict
+
+SERVICE LAYER
+- Semua komunikasi API harus melalui src/services/api.ts atau service khusus
+- Dilarang fetch() atau axios langsung di component
+- Gunakan TanStack Query (React Query) untuk semua data fetching, jangan kelola async manual
+
+ARSITEKTUR
+- Ikuti struktur dan pola yang sudah ada, jangan buat pola baru jika sudah ada yang konsisten
+- Pisahkan tanggung jawab: pages, components, hooks, services, utils
+- Jangan buat satu file yang campur UI, API, business logic, state, dan utility
+
+COMPONENT
+- Reuse component yang sudah ada: Button, Table, Modal, Badge, Pagination, Dialog, Search, Form, Input
+- Component hanya bertanggung jawab untuk layout, structure, behavior
+- Component TIDAK boleh mengetahui warna, shadow, border, overlay, skeleton, status color
+
+DESAIN DAN STYLING
+- Semua warna WAJIB dari CSS Variables di src/styles/globals.css, contoh: var(--color-primary)
+- Dilarang hardcode warna: #FFF, rgba(), rgb(), hsl(), atau nilai warna apa pun
+- Pastikan mobile-first: cek overflow, spacing, typography, touch target, scrolling di desktop/tablet/mobile
+- Perhatikan accessibility: keyboard navigation, focus state, aria-label, semantic HTML
+
+KODE
+- Jangan duplikasi logic, pindahkan ke hooks, utils, atau reusable component
+- Hindari nested code berlebihan, gunakan penamaan yang konsisten
+- Jangan merusak fitur yang sudah ada, periksa seluruh flow yang berkaitan sebelum ubah implementasi
+- Buat implementasi yang scalable, pertimbangkan pengembangan ke depan
+
+OUTPUT SETELAH TASK SELESAI
+- File yang ditambahkan
+- File yang diubah + alasan + dampak ke fitur lain
+- Potensi breaking changes (jika ada)

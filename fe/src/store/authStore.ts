@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { ProfileResponse } from "../api/index";
+import type { ProfileResponse, AdminRole } from "../api/index";
 
 /** Decode a JWT payload and return the parsed JSON (no verification, just base64 decode). */
 function decodeJwt(token: string): Record<string, unknown> | null {
@@ -21,6 +21,22 @@ function isTokenValid(token: string | null): boolean {
   return payload.exp * 1000 > Date.now() + 10_000;
 }
 
+/**
+ * Extract the role from the admin JWT.
+ * ASP.NET Core serialises ClaimTypes.Role as the long-form URI in the JWT.
+ * Fallback to the short "role" key for flexibility.
+ */
+function extractAdminRole(token: string | null): AdminRole | null {
+  if (!token) return null;
+  const payload = decodeJwt(token);
+  if (!payload) return null;
+  const role =
+    payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] ??
+    payload["role"];
+  if (role === "ADMIN" || role === "SUPER_ADMIN") return role;
+  return null;
+}
+
 interface AuthState {
   token: string | null;
   adminToken: string | null;
@@ -29,6 +45,10 @@ interface AuthState {
   isAuthenticated: () => boolean;
   isAdmin: () => boolean;
   isAdminTokenValid: () => boolean;
+  /** Returns "ADMIN" | "SUPER_ADMIN" | null decoded from the JWT. */
+  getAdminRole: () => AdminRole | null;
+  /** True only when the JWT role claim is "SUPER_ADMIN". */
+  isSuperAdmin: () => boolean;
   setToken: (token: string) => void;
   setAdminToken: (token: string) => void;
   setUser: (user: ProfileResponse) => void;
@@ -46,6 +66,8 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: () => !!get().token,
       isAdmin: () => !!get().adminToken,
       isAdminTokenValid: () => isTokenValid(get().adminToken),
+      getAdminRole: () => extractAdminRole(get().adminToken),
+      isSuperAdmin: () => extractAdminRole(get().adminToken) === "SUPER_ADMIN",
       setToken: (token) => {
         localStorage.setItem("token", token);
         set({ token });

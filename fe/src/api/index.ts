@@ -537,3 +537,31 @@ export interface ContactItem {
   link?: string;
   description: string;
 }
+
+// Admin Management (SuperAdminOnly)
+
+export type AdminRole = "ADMIN" | "SUPER_ADMIN";
+
+export interface AdminListItem {
+  id: number;
+  username: string;
+  role: AdminRole;
+  createdAt: string;
+  lastLoginAt: string | null;
+}
+
+export type AdminListResponse = AdminListItem[];
+
+export interface CreateAdminPayload {
+  username: string;
+  password: string;
+  role: AdminRole;
+}
+
+export interface UpdateAdminRolePayload {
+  role: AdminRole;
+}
+
+export interface ResetAdminPasswordPayload {
+  newPassword: string;
+}

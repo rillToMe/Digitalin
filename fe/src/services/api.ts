@@ -53,6 +53,10 @@ import type {
   ResetPasswordPayload,
   MaintenanceStatusResponse,
   UpdateMaintenancePayload,
+  AdminListResponse,
+  CreateAdminPayload,
+  UpdateAdminRolePayload,
+  ResetAdminPasswordPayload,
 } from "../api/index";
 
 const api = axios.create({
@@ -255,6 +259,20 @@ export const adminService = {
     api.get<MaintenanceStatusResponse>("/admin/settings/maintenance").then((r) => r.data),
   updateMaintenance: (payload: UpdateMaintenancePayload) =>
     api.put<MaintenanceStatusResponse>("/admin/settings/maintenance", payload).then((r) => r.data),
+};
+
+// Admin Management (SuperAdminOnly)
+export const adminManagementService = {
+  getAll: () =>
+    api.get<AdminListResponse>("/admin/admins").then((r) => r.data),
+  create: (payload: CreateAdminPayload) =>
+    api.post<MessageResponse>("/admin/admins", payload).then((r) => r.data),
+  updateRole: (id: number, payload: UpdateAdminRolePayload) =>
+    api.put<MessageResponse>(`/admin/admins/${id}/role`, payload).then((r) => r.data),
+  resetPassword: (id: number, payload: ResetAdminPasswordPayload) =>
+    api.put<MessageResponse>(`/admin/admins/${id}/password`, payload).then((r) => r.data),
+  deleteAdmin: (id: number) =>
+    api.delete<MessageResponse>(`/admin/admins/${id}`).then((r) => r.data),
 };
 
 export default api;

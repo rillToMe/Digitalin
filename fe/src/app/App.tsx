@@ -37,6 +37,7 @@ import BannersPage from "../modules/admin/pages/BannersPage";
 import MetadataPage from "../modules/admin/pages/MetadataPage";
 import AdminVouchersPage from "../modules/admin/pages/VouchersPage";
 import SettingsPage from "../modules/admin/pages/settings/SettingsPage";
+import AdminManagementPage from "../modules/admin/pages/AdminManagementPage";
 
 function CustomerRoute({ children }: { children: React.ReactNode }) {
   return <CustomerLayout>{children}</CustomerLayout>;
@@ -101,6 +102,23 @@ function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/**
+ * Protects routes that require SUPER_ADMIN role.
+ * Redirects ADMIN-only users to /admin/dashboard (not login).
+ */
+function ProtectedSuperAdminRoute({ children }: { children: React.ReactNode }) {
+  const { isAdmin, isAdminTokenValid, isSuperAdmin, adminLogout, hasHydrated } = useAuthStore();
+  if (!hasHydrated) return null;
+  // No valid admin token at all → login
+  if (!isAdmin() || !isAdminTokenValid()) {
+    if (isAdmin()) adminLogout();
+    return <Navigate to="/admin/login" replace />;
+  }
+  // Valid admin token but not SUPER_ADMIN → back to dashboard
+  if (!isSuperAdmin()) return <Navigate to="/admin/dashboard" replace />;
+  return <>{children}</>;
+}
+
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
 function AppProviders({ children }: { children: React.ReactNode }) {
@@ -147,6 +165,7 @@ export default function App() {
         <Route path="/admin/metadata" element={<ProtectedAdminRoute><MetadataPage /></ProtectedAdminRoute>} />
         <Route path="/admin/vouchers" element={<ProtectedAdminRoute><AdminVouchersPage /></ProtectedAdminRoute>} />
         <Route path="/admin/settings" element={<ProtectedAdminRoute><SettingsPage /></ProtectedAdminRoute>} />
+        <Route path="/admin/admins" element={<ProtectedSuperAdminRoute><AdminManagementPage /></ProtectedSuperAdminRoute>} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
