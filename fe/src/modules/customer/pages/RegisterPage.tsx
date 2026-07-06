@@ -4,11 +4,15 @@ import { Eye, EyeOff, Zap, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation } from "@tanstack/react-query";
 import { authService } from "../../../services/api";
+import { useRecaptcha } from "../../../hooks/useRecaptcha";
+import { useAuthStore } from "../../../store/authStore";
 import type { RequestOtpPayload } from "../../../api/index";
 import GoogleLoginButton, { googleClientId } from "../../../components/common/GoogleLoginButton";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
+  const { executeRecaptcha } = useRecaptcha();
+  const { setToken } = useAuthStore();
   const [form, setForm] = useState({ email: "", password: "", fullName: "", otpCode: "" });
   const [showPass, setShowPass] = useState(false);
   const [step, setStep] = useState<"form" | "otp">("form");
@@ -27,23 +31,45 @@ export default function RegisterPage() {
   });
 
   const registerMutation = useMutation({
-    // API contract: POST /auth/local/register returns { message } only (no token).
-    // After success, redirect to /login so user authenticates properly.
-    mutationFn: (payload: { email: string; password: string; fullName: string; otpCode: string }) =>
-      authService.register(payload),
-    onSuccess: () => {
-      toast.success("Registrasi berhasil! Silakan masuk dengan akun baru kamu.");
-      navigate("/login");
+    mutationFn: (payload: {
+      email: string;
+      password: string;
+      fullName: string;
+      otpCode: string;
+    }) => authService.register(payload),
+
+    onSuccess: (res) => {
+      setToken(res.token);
+      toast.success("Registrasi berhasil!");
+      navigate("/");
     },
+
     onError: (err: { response?: { data?: { message?: string } } }) => {
-      const msg = err?.response?.data?.message ?? "Registrasi gagal";
+      const msg =
+        err?.response?.data?.message ?? "Registrasi gagal";
+
       toast.error(msg);
     },
   });
 
-  const sendOtp = () => {
-    if (!form.email) { toast.error("Masukkan email terlebih dahulu"); return; }
-    otpMutation.mutate({ email: form.email });
+  const sendOtp = async () => {
+    if (!form.email) {
+      toast.error("Masukkan email terlebih dahulu");
+      return;
+    }
+
+    try {
+      const captchaToken = await executeRecaptcha(
+        "register_request_otp",
+      );
+
+      otpMutation.mutate({
+        email: form.email,
+        captchaToken,
+      });
+    } catch {
+      toast.error("Verifikasi keamanan gagal. Silakan coba lagi.");
+    }
   };
 
   const handleRegister = (e: React.FormEvent) => {

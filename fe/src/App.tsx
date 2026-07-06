@@ -1,10 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router";
 import { Toaster } from "sonner";
-import ScrollToTop from "./components/ScrollToTop";
+import ScrollToTop from "./app/components/ScrollToTop";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GoogleOAuthProvider } from "@react-oauth/google";
-import { useAuthStore } from "../store/authStore";
-import { CustomerLayout } from "../layouts/CustomerLayout";
+import { useAuthStore } from "./store/authStore";
+import { CustomerLayout } from "./layouts/CustomerLayout";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -17,27 +17,27 @@ const queryClient = new QueryClient({
 });
 
 // Customer pages
-import HomePage from "../modules/customer/pages/HomePage";
-import GameDetailPage from "../modules/customer/pages/GameDetailPage";
-import LoginPage from "../modules/customer/pages/LoginPage";
-import RegisterPage from "../modules/customer/pages/RegisterPage";
-import ForgotPasswordPage from "../modules/customer/pages/ForgotPasswordPage";
-import MaintenancePage from "../modules/customer/pages/MaintenancePage";
-import ProfilePage from "../modules/customer/pages/ProfilePage";
-import HistoryPage from "../modules/customer/pages/HistoryPage";
-import FaqPage from "../modules/customer/pages/FaqPage";
-import ContactPage from "../modules/customer/pages/ContactPage";
-import VouchersPage from "../modules/customer/pages/VouchersPage";
+import HomePage from "./modules/customer/pages/HomePage";
+import GameDetailPage from "./modules/customer/pages/GameDetailPage";
+import LoginPage from "./modules/customer/pages/LoginPage";
+import RegisterPage from "./modules/customer/pages/RegisterPage";
+import ForgotPasswordPage from "./modules/customer/pages/ForgotPasswordPage";
+import MaintenancePage from "./modules/customer/pages/MaintenancePage";
+import ProfilePage from "./modules/customer/pages/ProfilePage";
+import HistoryPage from "./modules/customer/pages/HistoryPage";
+import FaqPage from "./modules/customer/pages/FaqPage";
+import ContactPage from "./modules/customer/pages/ContactPage";
+import VouchersPage from "./modules/customer/pages/VouchersPage";
 
 // Admin pages
-import AdminLoginPage from "../modules/admin/pages/AdminLoginPage";
-import DashboardPage from "../modules/admin/pages/DashboardPage";
-import OrdersPage from "../modules/admin/pages/OrdersPage";
-import BannersPage from "../modules/admin/pages/BannersPage";
-import MetadataPage from "../modules/admin/pages/MetadataPage";
-import AdminVouchersPage from "../modules/admin/pages/VouchersPage";
-import SettingsPage from "../modules/admin/pages/settings/SettingsPage";
-import AdminManagementPage from "../modules/admin/pages/AdminManagementPage";
+import AdminLoginPage from "./modules/admin/pages/AdminLoginPage";
+import DashboardPage from "./modules/admin/pages/DashboardPage";
+import OrdersPage from "./modules/admin/pages/OrdersPage";
+import BannersPage from "./modules/admin/pages/BannersPage";
+import MetadataPage from "./modules/admin/pages/MetadataPage";
+import AdminVouchersPage from "./modules/admin/pages/VouchersPage";
+import SettingsPage from "./modules/admin/pages/settings/SettingsPage";
+import AdminManagementPage from "./modules/admin/pages/AdminManagementPage";
 
 function CustomerRoute({ children }: { children: React.ReactNode }) {
   return <CustomerLayout>{children}</CustomerLayout>;

@@ -5,13 +5,15 @@ import { toast } from "sonner";
 import { useMutation } from "@tanstack/react-query";
 import { useAuthStore } from "../../../store/authStore";
 import { authService } from "../../../services/api";
+import { useRecaptcha } from "../../../hooks/useRecaptcha";
 import type { LoginPayload } from "../../../api/index";
 import GoogleLoginButton, { googleClientId } from "../../../components/common/GoogleLoginButton";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { setToken } = useAuthStore();
-  const [form, setForm] = useState<LoginPayload>({ email: "", password: "" });
+  const { executeRecaptcha } = useRecaptcha();
+  const [form, setForm] = useState({ email: "", password: "", });
   const [showPass, setShowPass] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
@@ -28,13 +30,25 @@ export default function LoginPage() {
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!form.email || !form.password) {
       toast.error("Isi semua field");
       return;
     }
-    loginMutation.mutate(form);
+
+    try {
+      const captchaToken = await executeRecaptcha("login");
+
+      loginMutation.mutate({
+        email: form.email,
+        password: form.password,
+        captchaToken,
+      });
+    } catch {
+      toast.error("Verifikasi keamanan gagal. Silakan coba lagi.");
+    }
   };
 
   const loading = loginMutation.isPending;

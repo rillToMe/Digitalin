@@ -69,7 +69,6 @@ export const useAuthStore = create<AuthState>()(
       getAdminRole: () => extractAdminRole(get().adminToken),
       isSuperAdmin: () => extractAdminRole(get().adminToken) === "SUPER_ADMIN",
       setToken: (token) => {
-        localStorage.setItem("token", token);
         set({ token });
       },
       setAdminToken: (token) => {
@@ -78,7 +77,6 @@ export const useAuthStore = create<AuthState>()(
       },
       setUser: (user) => set({ user }),
       logout: () => {
-        localStorage.removeItem("token");
         set({ token: null, user: null });
       },
       adminLogout: () => {

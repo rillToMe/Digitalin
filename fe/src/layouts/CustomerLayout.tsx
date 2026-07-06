@@ -10,7 +10,11 @@ interface CustomerLayoutProps {
 }
 
 export function CustomerLayout({ children }: CustomerLayoutProps) {
-  const { isAuthenticated, user, logout } = useAuthStore();
+  const token = useAuthStore((state) => state.token);
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
+
+  const isAuthenticated = !!token;
   const navigate = useNavigate();
   const location = useLocation();
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -79,7 +83,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
               <SearchBar variant="expandable" />
 
               {/* Auth area */}
-              {isAuthenticated() ? (
+              {isAuthenticated ? (
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setDropdownOpen(!dropdownOpen)}
@@ -191,7 +195,7 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
               style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}
             >
               <div className="px-4 py-3 space-y-1" style={{ backgroundColor: "var(--color-surface, #fff)" }}>
-                {isAuthenticated() ? (
+                {isAuthenticated ? (
                   <>
                     <Link to="/profile" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-lg no-underline" style={{ color: "var(--color-primary, #0F1419)" }}>
                       <User size={16} /><span>Profile</span>

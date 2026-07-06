@@ -26,6 +26,7 @@ export type VoucherStatus = "Active" | "Disabled" | "Expired" | "QuotaExceeded";
 
 export interface RequestOtpPayload {
   email: string;
+  captchaToken: string;
 }
 
 export interface RegisterPayload {
@@ -35,22 +36,20 @@ export interface RegisterPayload {
   otpCode: string;
 }
 
-/**
- * POST /auth/local/register returns only a success message.
- * Use LoginPayload + /auth/local/login to obtain a JWT after registration.
- */
 export interface RegisterResponse {
-  message: string;
+  token: string;
 }
 
 export interface LoginPayload {
   email: string;
   password: string;
+  captchaToken: string;
 }
 
 export interface AdminLoginPayload {
   username: string;
   password: string;
+  captchaToken: string;
 }
 
 export interface GoogleLoginPayload {
