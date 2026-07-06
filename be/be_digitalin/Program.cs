@@ -40,13 +40,15 @@ builder.Services.AddScoped<CloudflareR2Provider>();
 builder.Services.Configure<GoogleAuthSettings>(builder.Configuration.GetSection("GoogleAuth"));
 builder.Services.AddScoped<GoogleProvider>();
 builder.Services.AddScoped<IGoogleAuthService, GoogleAuthService>();
-
+builder.Services.Configure<RecaptchaSettings>(
+    builder.Configuration.GetSection("Recaptcha"));
+builder.Services.AddScoped<IAdminAuthService, AdminAuthService>();
 builder.Services.AddHttpClient();
 
 builder.Services.AddScoped<MidtransProvider>();
 builder.Services.AddScoped<DigiflazzProvider>();
 builder.Services.AddScoped<TelegramProvider>();
-
+builder.Services.AddHttpClient<RecaptchaProvider>();
 // Worker
 
 // builder.Services.AddHostedService<DigiflazzSyncWorker>();
@@ -63,7 +65,7 @@ builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 builder.Services.AddScoped<IAppSettingsService, AppSettingsService>();
-
+builder.Services.AddScoped<IRecaptchaService, RecaptchaService>();
 // EmailSettings
 builder.Services.Configure<be_digitalin.Config.EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 
@@ -73,18 +75,6 @@ builder.Services.AddSingleton<be_digitalin.Providers.EmailProvider>();
 builder.Services.AddMemoryCache();
 
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
-
-// Auto-hash admin password if stored as plaintext 
-{
-    var jwtConfig = builder.Configuration.GetSection("Jwt").Get<JwtSettings>();
-    if (jwtConfig != null && !string.IsNullOrEmpty(jwtConfig.AdminPass)
-        && !jwtConfig.AdminPass.StartsWith("$2"))
-    {
-        jwtConfig.AdminPass = BCrypt.Net.BCrypt.HashPassword(jwtConfig.AdminPass, workFactor: 11);
-        // Re-bind the hashed value so IOptions<JwtSettings> picks it up
-        builder.Services.PostConfigure<JwtSettings>(s => s.AdminPass = jwtConfig.AdminPass);
-    }
-}
 
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -108,10 +98,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // Authorization Policies
 builder.Services.AddAuthorization(options =>
 {
+    // AdminOnly: accessible by both ADMIN and SUPER_ADMIN
     options.AddPolicy("AdminOnly", policy =>
     {
         policy.RequireAuthenticatedUser();
-        policy.RequireRole(AppConstants.Roles.Admin);
+        policy.RequireRole(AppConstants.Roles.Admin, AppConstants.Roles.SuperAdmin);
+    });
+
+    // SuperAdminOnly: restricted to SUPER_ADMIN exclusively
+    options.AddPolicy("SuperAdminOnly", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole(AppConstants.Roles.SuperAdmin);
     });
 });
 
@@ -226,6 +224,7 @@ app.MapVoucherEndpoints();
 //admin
 app.MapDashboardEndpoints();
 app.MapSettingsEndpoints();
+app.MapAdminManagementEndpoints();
 
 // Endpoint ping-db untuk testing
 app.MapGet("/ping-db", async (DigitalinDbContext db) => {
@@ -254,6 +253,19 @@ await using (var seedScope = app.Services.CreateAsyncScope())
         }
     }
     await db.SaveChangesAsync();
+
+    // ── Seed default SUPER_ADMIN (idempotent — only inserts if no admins exist) ──
+    if (!await db.Admins.AnyAsync())
+    {
+        db.Admins.Add(new be_digitalin.Models.Admin
+        {
+            Username     = "superadmin",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("ChangeMe123!", workFactor: 11),
+            Role         = AppConstants.Roles.SuperAdmin,
+            CreatedAt    = DateTime.UtcNow,
+        });
+        await db.SaveChangesAsync();
+    }
 }
 
 app.Run();

@@ -5,11 +5,13 @@ using System.Security.Cryptography;
 using System.Text;
 using be_digitalin.Config;
 using be_digitalin.Constants;
+using be_digitalin.Data;
 using be_digitalin.Services;
 using be_digitalin.Providers; // <-- Jangan lupa Provider Email
 using be_digitalin.DTOs.Requests;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc; 
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
@@ -28,52 +30,58 @@ public static class AuthEndpoints
 
         // ENDPOINT MINTA OTP
         localAuthGroup.MapPost("/request-otp", async (
-            [FromBody] RequestOtpRequest req, 
-            [FromServices] EmailProvider emailProvider, 
-            [FromServices] ICustomerService service,
-            [FromServices] IMemoryCache cache) =>
+            HttpContext httpContext,
+            [FromBody] RequestOtpRequest req,
+            [FromServices] ICustomerService service) =>
         {
-            var emailSudahTerpakai = await service.CheckEmailExistsAsync(req.Email);
-            if (emailSudahTerpakai)
-            {
-                return Results.BadRequest(new { message = "Email sudah terdaftar. Silakan login." });
-            }
+            var result = await service.RequestRegistrationOtpAsync(
+                req.Email,
+                req.CaptchaToken,
+                httpContext.Connection.RemoteIpAddress?.ToString(),
+                httpContext.RequestAborted);
 
-            int otpNumber = RandomNumberGenerator.GetInt32(100_000, 999_999);
-            string otpCode = otpNumber.ToString();
-
-            cache.Set($"OTP_{req.Email}", otpCode, TimeSpan.FromMinutes(5));
-            await emailProvider.SendOtpEmailAsync(req.Email, otpCode);
-            return Results.Ok(new { message = "Kode OTP berhasil dikirim ke email Anda. Berlaku 5 menit." });
+            return result.Success
+                ? Results.Ok(new { message = result.Message })
+                : Results.BadRequest(new { message = result.Message });
         }).RequireRateLimiting("OtpPolicy");
 
         // ENDPOINT REGISTER
         localAuthGroup.MapPost("/register", async (
-            [FromBody] RegisterRequest req, 
-            [FromServices] ICustomerService service, 
-            [FromServices] IMemoryCache cache) =>
+            HttpContext httpContext,
+            [FromBody] RegisterRequest req,
+            [FromServices] ICustomerService service) =>
         {
-            // Cek OTP di RAM
-            if (!cache.TryGetValue($"OTP_{req.Email}", out string? savedOtp) || savedOtp != req.OtpCode)
-            {
-                return Results.BadRequest(new { message = "Kode OTP salah atau sudah kedaluwarsa." });
-            }
+            var token = await service.RegisterAsync(
+                req.Email,
+                req.Password,
+                req.FullName,
+                req.OtpCode,
+                httpContext.RequestAborted);
 
-            var user = await service.RegisterAsync(req.Email, req.Password, req.FullName);
-            if (user != null) 
-            {
-                cache.Remove($"OTP_{req.Email}"); // Bersihkan memori
-                return Results.Ok(new { message = "Registrasi sukses!" });
-            }
-            
-            return Results.BadRequest(new { message = "Email sudah terdaftar." });
+            return token != null
+                ? Results.Ok(new { token })
+                : Results.BadRequest(new
+                {
+                    message = "Kode OTP tidak valid atau email sudah terdaftar."
+                });
         });
 
         // ENDPOINT LOGIN CUSTOMER
-        localAuthGroup.MapPost("/login", async ([FromBody] CustomerLoginRequest req, [FromServices] ICustomerService service) =>
+        localAuthGroup.MapPost("/login", async (
+            HttpContext httpContext,
+            [FromBody] CustomerLoginRequest req,
+            [FromServices] ICustomerService service) =>
         {
-            var token = await service.LoginAsync(req.Email, req.Password);
-            return token != null ? Results.Ok(new { token }) : Results.Unauthorized();
+            var token = await service.LoginAsync(
+                req.Email,
+                req.Password,
+                req.CaptchaToken,
+                httpContext.Connection.RemoteIpAddress?.ToString(),
+                httpContext.RequestAborted);
+
+            return token != null
+                ? Results.Ok(new { token })
+                : Results.Unauthorized();
         });
 
         // ENDPOINT REQUEST RESET PASSWORD
@@ -200,52 +208,46 @@ public static class AuthEndpoints
             return Results.Ok(new { message = "Email tersedia." });
         });
         
-        // AREA ADMIN 
+        // AREA ADMIN
         var group = app.MapGroup("/admin/auth")
             .WithTags("Otentikasi (Admin)")
             .RequireAuthorization("AdminOnly");
 
-        // Admin login
-        group.MapPost("/login", (
-            [FromBody] LoginRequest request, 
-            [FromServices] IOptions<JwtSettings> jwtOptions) =>
+        // POST /admin/auth/login — Admin login via database
+        group.MapPost("/login", async (
+            HttpContext httpContext,
+            [FromBody] LoginRequest request,
+            [FromServices] IAdminAuthService service) =>
         {
-            var settings = jwtOptions.Value;
+            var token = await service.LoginAsync(
+                request.Username,
+                request.Password,
+                request.CaptchaToken,
+                httpContext.Connection.RemoteIpAddress?.ToString(),
+                httpContext.RequestAborted);
 
-            if (request.Username != settings.AdminUser ||
-                !BCrypt.Net.BCrypt.Verify(request.Password, settings.AdminPass))
-            {
-                return Results.Unauthorized();
-            }
-
-            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(settings.Key));
-            var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
-            
-            var tokenDescriptor = new SecurityTokenDescriptor
-            {
-                Issuer = settings.Issuer,
-                Audience = settings.Audience,
-                Subject = new ClaimsIdentity(new[]
-                {
-                    new Claim(ClaimTypes.Name, request.Username),
-                    new Claim(ClaimTypes.Role, AppConstants.Roles.Admin)
-                }),
-                Expires = DateTime.UtcNow.AddHours(12),
-                SigningCredentials = credentials
-            };
-
-            var handler = new JsonWebTokenHandler();
-            var tokenString = handler.CreateToken(tokenDescriptor);
-
-            return Results.Ok(new { token = tokenString });
-        }).AllowAnonymous(); 
+            return token != null
+                ? Results.Ok(new { token })
+                : Results.Unauthorized();
+        }).AllowAnonymous();
     }
 }
 
 // DTO
-public record LoginRequest(string Username, string Password);
-public record CustomerLoginRequest(string Email, string Password);
-public record RequestOtpRequest(string Email);
+public record LoginRequest(
+    string Username,
+    string Password,
+    string CaptchaToken);
+
+public record CustomerLoginRequest(
+    string Email,
+    string Password,
+    string CaptchaToken);
+
+public record RequestOtpRequest(
+    string Email,
+    string CaptchaToken);
+
 public record RegisterRequest(string Email, string Password, string FullName, string OtpCode);
 public record UpdateProfileRequest(string FullName, string? NewPassword);
 public record GoogleLoginRequest(string IdToken);

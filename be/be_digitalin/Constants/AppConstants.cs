@@ -5,8 +5,17 @@ public static class AppConstants
     // Role
     public static class Roles
     {
+        public const string SuperAdmin = "SUPER_ADMIN";
         public const string Admin = "ADMIN";
         public const string Customer = "CUSTOMER";
+    }
+    
+    // reCAPTCHA Actions
+    public static class RecaptchaActions
+    {
+        public const string Login = "login";
+        public const string RegisterRequestOtp = "register_request_otp";
+        public const string AdminLogin = "admin_login";
     }
     
     public static class SystemSettings

@@ -34,7 +34,8 @@
 | Role | JWT Claim | Token Lifetime | Issued By |
 |------|-----------|----------------|-----------|
 | CUSTOMER | `ClaimTypes.NameIdentifier` = customerId, `ClaimTypes.Role` = "CUSTOMER" | 24 hours | `POST /auth/local/login` |
-| ADMIN | `ClaimTypes.Name` = username, `ClaimTypes.Role` = "ADMIN" | 12 hours | `POST /admin/auth/login` |
+| ADMIN | `ClaimTypes.Name` = username, `ClaimTypes.Role` = `"ADMIN"` | 12 hours | `POST /admin/auth/login` |
+| SUPER_ADMIN | `ClaimTypes.Name` = username, `ClaimTypes.Role` = `"SUPER_ADMIN"` | 12 hours | `POST /admin/auth/login` |
 
 ### Endpoint Protection Levels
 
@@ -44,7 +45,8 @@
 | `GET /banners/` | No | Public |
 | `POST /orders/`, `POST /orders/preview` | Optional | Any (customerId extracted if present) |
 | `GET /auth/profile`, `PUT /auth/profile`, `GET /orders/my-history` | Yes | CUSTOMER |
-| `/admin/*` | Yes | ADMIN |
+| `/admin/*` (`AdminOnly`) | Yes | ADMIN, SUPER_ADMIN |
+| `/admin/admins/*` (`SuperAdminOnly`) | Yes | SUPER_ADMIN only |
 | `/webhooks/*` | No (signature-validated) | N/A |
 
 ---
@@ -91,6 +93,47 @@ PENDING ──(payment received)──► PAID ──(Digiflazz called)──►
 ---
 
 ## 1. Authentication
+
+---
+
+### POST /admin/auth/login
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `POST` |
+| Path | `/admin/auth/login` |
+| Description | Authenticate admin using database credentials and receive JWT |
+| Auth | None (Public) |
+
+#### REQUEST PAYLOAD
+
+| Field Name | Data Type | Required/Optional | Description & Constraints |
+|------------|-----------|-------------------|---------------------------|
+| `username` | `string` | Required | Admin username (stored in `Admins` table) |
+| `password` | `string` | Required | Admin password (verified via BCrypt) |
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK
+interface AdminLoginResponse {
+  token: string; // JWT, expires in 12 hours
+}
+```
+
+#### BUSINESS RULES & EDGE CASES
+
+- Admin credentials are stored in the `Admins` database table — **NOT** in `appsettings.json`
+- Username lookup is case-sensitive (direct DB query)
+- Password is verified using BCrypt (`workFactor: 11`)
+- On successful login, `LastLoginAt` column is updated to `DateTime.UtcNow`
+- Error 401: Username not found or password mismatch (no detail to prevent enumeration)
+- JWT claims: `ClaimTypes.Name` = admin username, `ClaimTypes.Role` = actual DB role (`"ADMIN"` or `"SUPER_ADMIN"`)
+- `SUPER_ADMIN` token is accepted by both `AdminOnly` and `SuperAdminOnly` policies
+- `ADMIN` token is accepted only by `AdminOnly` policy
+- Default seed account: `superadmin` / `ChangeMe123!` (created on first app startup if no admins exist)
 
 ---
 
@@ -310,39 +353,7 @@ interface UpdateProfileResponse {
 
 ---
 
-### POST /admin/auth/login
 
-#### ENDPOINT SUMMARY
-
-| Property | Value |
-|----------|-------|
-| Method | `POST` |
-| Path | `/admin/auth/login` |
-| Description | Authenticate admin and receive JWT |
-| Auth | None (Public) |
-
-#### REQUEST PAYLOAD
-
-| Field Name | Data Type | Required/Optional | Description & Constraints |
-|------------|-----------|-------------------|---------------------------|
-| `username` | `string` | Required | Admin username |
-| `password` | `string` | Required | Admin password |
-
-#### RESPONSE PAYLOAD
-
-```typescript
-// 200 OK
-interface AdminLoginResponse {
-  token: string; // JWT, expires in 12 hours
-}
-```
-
-#### BUSINESS RULES & EDGE CASES
-
-- Error 401: Invalid credentials
-- JWT claims: `Name` = username, `Role` = "ADMIN"
-
----
 
 ### POST /auth/local/request-password-reset
 
@@ -430,6 +441,184 @@ interface ResetPasswordResponse {
 - Setelah reset berhasil, user harus login ulang menggunakan password baru
 
 ---
+
+---
+
+## 1.1. Admin Management
+
+> Auth: **SuperAdminOnly** (`SUPER_ADMIN` role required for all endpoints below)
+
+---
+
+### GET /admin/admins
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `GET` |
+| Path | `/admin/admins` |
+| Description | Retrieve list of all admins |
+| Auth | SuperAdminOnly (SUPER_ADMIN) |
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK
+interface AdminListItem {
+  id: number;
+  username: string;
+  role: "ADMIN" | "SUPER_ADMIN";
+  createdAt: string; // ISO 8601
+  lastLoginAt: string | null; // ISO 8601 or null
+}
+type AdminListResponse = AdminListItem[];
+```
+
+#### BUSINESS RULES & EDGE CASES
+
+- Returns all admins ordered by Id ascending
+- `lastLoginAt` is `null` if the admin has never logged in
+- PasswordHash is **never** included in the response
+
+---
+
+### POST /admin/admins
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `POST` |
+| Path | `/admin/admins` |
+| Description | Create a new admin account |
+| Auth | SuperAdminOnly (SUPER_ADMIN) |
+
+#### REQUEST PAYLOAD
+
+| Field Name | Data Type | Required/Optional | Description & Constraints |
+|------------|-----------|-------------------|--------------------------|
+| `username` | `string` | Required | Unique admin username |
+| `password` | `string` | Required | Plaintext password — hashed with BCrypt (workFactor: 11) before storing |
+| `role` | `string` | Required | `"ADMIN"` or `"SUPER_ADMIN"` |
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK
+interface CreateAdminResponse {
+  message: "Admin berhasil dibuat.";
+}
+```
+
+#### VALIDATION
+
+| Field | Rule | Error |
+|-------|------|-------|
+| `username` | Required, non-empty | 400: `"Username wajib diisi."` |
+| `password` | Required, non-empty | 400: `"Password wajib diisi."` |
+| `role` | Must be `ADMIN` or `SUPER_ADMIN` | 400: `"Role tidak valid. Gunakan ADMIN atau SUPER_ADMIN."` |
+| `username` | Must be unique in `Admins` table | 400: `"Username sudah digunakan."` |
+
+---
+
+### PUT /admin/admins/{id}/role
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `PUT` |
+| Path | `/admin/admins/{id}/role` |
+| Description | Update the role of an existing admin |
+| Auth | SuperAdminOnly (SUPER_ADMIN) |
+
+#### REQUEST PAYLOAD
+
+| Field Name | Data Type | Required/Optional | Description & Constraints |
+|------------|-----------|-------------------|--------------------------|
+| `role` | `string` | Required | `"ADMIN"` or `"SUPER_ADMIN"` |
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK
+interface UpdateRoleResponse {
+  message: "Role berhasil diperbarui.";
+}
+```
+
+#### VALIDATION & ERRORS
+
+| Condition | Response |
+|-----------|----------|
+| `role` not `ADMIN` / `SUPER_ADMIN` | 400: `"Role tidak valid. Gunakan ADMIN atau SUPER_ADMIN."` |
+| Admin with `{id}` not found | 404: `"Admin tidak ditemukan."` |
+| Caller attempts to change own role | 400: `"Tidak dapat mengubah role diri sendiri."` |
+
+---
+
+### PUT /admin/admins/{id}/password
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `PUT` |
+| Path | `/admin/admins/{id}/password` |
+| Description | Reset password for an existing admin |
+| Auth | SuperAdminOnly (SUPER_ADMIN) |
+
+#### REQUEST PAYLOAD
+
+| Field Name | Data Type | Required/Optional | Description & Constraints |
+|------------|-----------|-------------------|--------------------------|
+| `newPassword` | `string` | Required | Plaintext new password — hashed with BCrypt (workFactor: 11) before storing |
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK
+interface ResetAdminPasswordResponse {
+  message: "Password berhasil diperbarui.";
+}
+```
+
+#### VALIDATION & ERRORS
+
+| Condition | Response |
+|-----------|----------|
+| `newPassword` empty or missing | 400: `"Password baru wajib diisi."` |
+| Admin with `{id}` not found | 404: `"Admin tidak ditemukan."` |
+
+---
+
+### DELETE /admin/admins/{id}
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `DELETE` |
+| Path | `/admin/admins/{id}` |
+| Description | Permanently delete an admin account |
+| Auth | SuperAdminOnly (SUPER_ADMIN) |
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK
+interface DeleteAdminResponse {
+  message: "Admin berhasil dihapus.";
+}
+```
+
+#### VALIDATION & ERRORS
+
+| Condition | Response |
+|-----------|----------|
+| Admin with `{id}` not found | 404: `"Admin tidak ditemukan."` |
+| Caller attempts to delete own account | 400: `"Tidak dapat menghapus akun diri sendiri."` |
 
 ## 2. Products / Catalog
 

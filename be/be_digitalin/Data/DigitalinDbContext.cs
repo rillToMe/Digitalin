@@ -15,6 +15,7 @@ public class DigitalinDbContext : DbContext
     public DbSet<AppSetting> AppSettings { get; set; }
     public DbSet<Voucher> Vouchers { get; set; }
     public DbSet<CustomerOtp> CustomerOtps { get; set; }
+    public DbSet<Admin> Admins { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -86,6 +87,25 @@ public class DigitalinDbContext : DbContext
             // Maksimal potongan diskon voucher (khusus Percentage)
             entity.Property(v => v.MaximumDiscount)
                 .HasPrecision(18, 2);
+        });
+
+        // ADMIN
+        modelBuilder.Entity<Admin>(entity =>
+        {
+            entity.Property(a => a.Username)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            entity.Property(a => a.PasswordHash)
+                .IsRequired()
+                .HasMaxLength(255);
+
+            entity.Property(a => a.Role)
+                .IsRequired()
+                .HasMaxLength(50);
+
+            entity.HasIndex(a => a.Username)
+                .IsUnique();
         });
     }
 }

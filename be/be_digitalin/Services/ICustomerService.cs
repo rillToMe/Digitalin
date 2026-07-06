@@ -5,12 +5,20 @@ namespace be_digitalin.Services;
 
 public interface ICustomerService
 {
-    Task<Customer?> RegisterAsync(string email, string password, string fullName);
-    Task<string?> LoginAsync(string email, string password);
+    Task<string?> RegisterAsync(
+        string email,
+        string password,
+        string fullName,
+        string otpCode,
+        CancellationToken cancellationToken = default);
+    Task<(bool Success, string Message)> RequestRegistrationOtpAsync(
+        string email,
+        string captchaToken,
+        string? remoteIp = null,
+        CancellationToken cancellationToken = default);
+    Task<string?> LoginAsync(string email, string password, string captchaToken, string? remoteIp = null, CancellationToken cancellationToken = default);
     Task<PagedResult<OrderResponse>> GetCustomerHistoryAsync(int customerId, int page = 1, int limit = 20);
-    
     Task<Customer?> GetProfileAsync(int id);
     Task<bool> UpdateProfileAsync(int id, string fullName, string? newPassword);
-    
     Task<bool> CheckEmailExistsAsync(string email);
 }
