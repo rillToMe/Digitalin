@@ -29,7 +29,7 @@ export default function FaqAccordion({ items }: FaqAccordionProps) {
               onClick={() => toggle(item.id)}
               className="w-full flex items-center justify-between text-left py-4 px-1 transition-colors"
               style={{
-                color: "var(--color-primary, #0F1419)",
+                color: "var(--color-brand-primary, #0F1419)",
                 cursor: "pointer",
                 background: "none",
                 border: "none",
@@ -42,7 +42,7 @@ export default function FaqAccordion({ items }: FaqAccordionProps) {
               <ChevronDown
                 size={18}
                 style={{
-                  color: "var(--color-secondary, #4A5568)",
+                  color: "var(--color-brand-secondary, #4A5568)",
                   flexShrink: 0,
                   transition: "transform 200ms",
                   transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
@@ -60,7 +60,7 @@ export default function FaqAccordion({ items }: FaqAccordionProps) {
                 >
                   <p
                     style={{
-                      color: "var(--color-secondary, #4A5568)",
+                      color: "var(--color-brand-secondary, #4A5568)",
                       fontSize: "0.875rem",
                       paddingBottom: 16,
                       paddingLeft: 1,

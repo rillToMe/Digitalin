@@ -4,9 +4,9 @@ import { ArrowLeft, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation } from "@tanstack/react-query";
 import { authService } from "../../../services/api";
-import ForgotPasswordEmailStep from "../components/auth/ForgotPasswordEmailStep";
-import ForgotPasswordOtpStep from "../components/auth/ForgotPasswordOtpStep";
-import ForgotPasswordSuccessStep from "../components/auth/ForgotPasswordSuccessStep";
+import ForgotPasswordEmailStep from "../../../components/auth/ForgotPasswordEmailStep";
+import ForgotPasswordOtpStep from "../../../components/auth/ForgotPasswordOtpStep";
+import ForgotPasswordSuccessStep from "../../../components/auth/ForgotPasswordSuccessStep";
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
@@ -72,12 +72,12 @@ export default function ForgotPasswordPage() {
         {/* Brand Logo */}
         <div className="flex justify-center items-center gap-2 mb-6">
           <div
-            style={{ backgroundColor: "var(--color-tertiary)", borderRadius: 8 }}
+            style={{ backgroundColor: "var(--color-brand-tertiary)", borderRadius: 8 }}
             className="w-9 h-9 flex items-center justify-center"
           >
             <Zap size={18} color="#fff" fill="#fff" />
           </div>
-          <span style={{ color: "var(--color-primary)", fontWeight: 800, fontSize: "1.35rem" }}>
+          <span style={{ color: "var(--color-brand-primary)", fontWeight: 800, fontSize: "1.35rem" }}>
             Digitalin
           </span>
         </div>
@@ -96,7 +96,7 @@ export default function ForgotPasswordPage() {
             <button
               onClick={() => (step === 2 ? setStep(1) : navigate("/login"))}
               className="absolute left-6 top-6 flex items-center gap-1 text-xs font-semibold focus:outline-none"
-              style={{ color: "var(--color-secondary)" }}
+              style={{ color: "var(--color-brand-secondary)" }}
             >
               <ArrowLeft size={13} />
               {step === 2 ? "Kembali" : "Login"}
@@ -105,10 +105,10 @@ export default function ForgotPasswordPage() {
 
           {/* Form Header */}
           <div className="text-center mb-8 pt-4">
-            <h2 style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: "1.2rem" }}>
+            <h2 style={{ color: "var(--color-brand-primary)", fontWeight: 700, fontSize: "1.2rem" }}>
               Lupa Password
             </h2>
-            <p style={{ color: "var(--color-secondary)", fontSize: "0.82rem", marginTop: 4 }}>
+            <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.82rem", marginTop: 4 }}>
               {step === 1 && "Langkah 1: Masukkan alamat email terdaftar Anda"}
               {step === 2 && "Langkah 2: Masukkan OTP dan password baru"}
               {step === 3 && "Selesai"}

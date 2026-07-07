@@ -66,14 +66,19 @@ const api = axios.create({
 
 // Request interceptor - attach appropriate token based on route
 api.interceptors.request.use((config) => {
+  const store = useAuthStore.getState();
   const isAdminRequest = config.url?.startsWith("/admin") ?? false;
+
   const token = isAdminRequest
-    ? localStorage.getItem("adminToken")
-    : localStorage.getItem("token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+    ? store.adminToken
+    : store.token;
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
   return config;
 });
-
 // Response interceptor - error handling
 api.interceptors.response.use(
   (res) => res,

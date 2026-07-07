@@ -10,7 +10,7 @@ export default function SettingsPage() {
         <div>
           <h2
             style={{
-              color: "var(--color-primary)",
+              color: "var(--color-brand-primary)",
               fontWeight: 700,
               fontSize: "1.25rem",
             }}
@@ -19,7 +19,7 @@ export default function SettingsPage() {
           </h2>
           <p
             style={{
-              color: "var(--color-secondary)",
+              color: "var(--color-brand-secondary)",
               fontSize: "0.85rem",
               marginTop: 2,
             }}

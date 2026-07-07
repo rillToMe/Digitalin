@@ -61,12 +61,12 @@ export default function MaintenanceCard({
       <div className="space-y-4">
         <div className="flex justify-center items-center gap-2">
           <div
-            style={{ backgroundColor: "var(--color-tertiary)", borderRadius: 8 }}
+            style={{ backgroundColor: "var(--color-brand-tertiary)", borderRadius: 8 }}
             className="w-8 h-8 flex items-center justify-center"
           >
             <Zap size={16} color="#fff" fill="#fff" />
           </div>
-          <span style={{ color: "var(--color-primary)", fontWeight: 800, fontSize: "1.2rem" }}>
+          <span style={{ color: "var(--color-brand-primary)", fontWeight: 800, fontSize: "1.2rem" }}>
             Digitalin
           </span>
         </div>
@@ -83,10 +83,10 @@ export default function MaintenanceCard({
 
       {/* Title & Description */}
       <div className="space-y-2">
-        <h2 style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: "1.25rem" }}>
+        <h2 style={{ color: "var(--color-brand-primary)", fontWeight: 700, fontSize: "1.25rem" }}>
           {title || "Website Sedang Maintenance"}
         </h2>
-        <p style={{ color: "var(--color-secondary)", fontSize: "0.88rem", lineHeight: 1.5 }}>
+        <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.88rem", lineHeight: 1.5 }}>
           {message || "Kami sedang melakukan peningkatan sistem untuk memberikan layanan yang lebih baik."}
         </p>
       </div>
@@ -94,13 +94,13 @@ export default function MaintenanceCard({
       {/* Estimated Finish Date */}
       {est && !isEstPast && (
         <div className="p-4 rounded-xl space-y-1" style={{ backgroundColor: "var(--color-neutral)" }}>
-          <p style={{ color: "var(--color-secondary)", fontSize: "0.78rem", fontWeight: 500 }}>
+          <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.78rem", fontWeight: 500 }}>
             Estimasi Selesai
           </p>
-          <p style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: "0.9rem" }}>
+          <p style={{ color: "var(--color-brand-primary)", fontWeight: 700, fontSize: "0.9rem" }}>
             {est.dateStr}
           </p>
-          <p style={{ color: "var(--color-tertiary)", fontWeight: 600, fontSize: "0.82rem" }}>
+          <p style={{ color: "var(--color-brand-tertiary)", fontWeight: 600, fontSize: "0.82rem" }}>
             {est.timeStr}
           </p>
         </div>
@@ -109,18 +109,18 @@ export default function MaintenanceCard({
       {/* Fallback when estimated finish is stale / in the past */}
       {est && isEstPast && (
         <div className="p-4 rounded-xl space-y-1" style={{ backgroundColor: "var(--color-neutral)" }}>
-          <p style={{ color: "var(--color-secondary)", fontSize: "0.78rem", fontWeight: 500 }}>
+          <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.78rem", fontWeight: 500 }}>
             Estimasi Selesai
           </p>
-          <p style={{ color: "var(--color-secondary)", fontWeight: 600, fontSize: "0.85rem" }}>
+          <p style={{ color: "var(--color-brand-secondary)", fontWeight: 600, fontSize: "0.85rem" }}>
             Maintenance masih berlangsung.
           </p>
         </div>
       )}
 
       {/* {countdown > 0 && (
-        <p style={{ color: "var(--color-secondary)", fontSize: "0.78rem" }}>
-          Mencoba kembali dalam <span className="font-semibold" style={{ color: "var(--color-tertiary)" }}>{countdown} detik</span>
+        <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.78rem" }}>
+          Mencoba kembali dalam <span className="font-semibold" style={{ color: "var(--color-brand-tertiary)" }}>{countdown} detik</span>
         </p>
       )}
 
@@ -129,7 +129,7 @@ export default function MaintenanceCard({
         disabled={isChecking || countdown > 0}
         className="w-full py-3 rounded-xl flex items-center justify-center gap-2 font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         style={{
-          backgroundColor: "var(--color-tertiary)",
+          backgroundColor: "var(--color-brand-tertiary)",
           cursor: isChecking || countdown > 0 ? "not-allowed" : "pointer",
         }}
       >

@@ -21,12 +21,12 @@ function StatCard({ icon, label, value, color, bg, className }: { icon: React.Re
   return (
     <div className={`rounded-2xl p-5 ${className ?? ""}`} style={{ backgroundColor: "var(--color-surface,#fff)", border: "1px solid rgba(0,0,0,0.07)" }}>
       <div className="flex items-center justify-between mb-4">
-        <span style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.85rem" }}>{label}</span>
+        <span style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.85rem" }}>{label}</span>
         <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: bg }}>
           <span style={{ color }}>{icon}</span>
         </div>
       </div>
-      <p style={{ color: "var(--color-primary,#0F1419)", fontWeight: 700, fontSize: "1.4rem" }}>{value}</p>
+      <p style={{ color: "var(--color-brand-primary,#0F1419)", fontWeight: 700, fontSize: "1.4rem" }}>{value}</p>
     </div>
   );
 }
@@ -54,24 +54,24 @@ export default function DashboardPage() {
       {hasError ? (
         <div className="rounded-2xl p-10 text-center" style={{ backgroundColor: "var(--color-surface,#fff)", border: "1px solid rgba(0,0,0,0.07)" }}>
           <AlertTriangle size={40} style={{ color: "var(--color-danger)", margin: "0 auto 16px" }} />
-          <h3 style={{ color: "var(--color-primary,#0F1419)", fontWeight: 700, fontSize: "1.1rem", marginBottom: 8 }}>Gagal memuat data dashboard</h3>
-          <p style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.9rem", marginBottom: 4 }}>
+          <h3 style={{ color: "var(--color-brand-primary,#0F1419)", fontWeight: 700, fontSize: "1.1rem", marginBottom: 8 }}>Gagal memuat data dashboard</h3>
+          <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.9rem", marginBottom: 4 }}>
             Server mengembalikan error internal (500). Pastikan backend sudah berjalan dengan benar.
           </p>
           {(statsErr as { message?: string })?.message && (
-            <p style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.8rem", fontFamily: "monospace", marginBottom: 4 }}>
+            <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.8rem", fontFamily: "monospace", marginBottom: 4 }}>
               stats: {(statsErr as { message?: string }).message}
             </p>
           )}
           {(chartErr as { message?: string })?.message && (
-            <p style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.8rem", fontFamily: "monospace", marginBottom: 16 }}>
+            <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.8rem", fontFamily: "monospace", marginBottom: 16 }}>
               chart: {(chartErr as { message?: string }).message}
             </p>
           )}
           <button
             onClick={() => { refetchStats(); refetchChart(); }}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl mt-4"
-            style={{ backgroundColor: "var(--color-tertiary,#2C5EF5)", color: "#fff", fontWeight: 600, fontSize: "0.9rem" }}
+            style={{ backgroundColor: "var(--color-brand-tertiary,#2C5EF5)", color: "#fff", fontWeight: 600, fontSize: "0.9rem" }}
           >
             <RefreshCw size={15} /> Coba Lagi
           </button>
@@ -85,7 +85,7 @@ export default function DashboardPage() {
       ) : stats ? (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4 mb-8">
-            <StatCard icon={<DollarSign size={18} />} label="Revenue Hari Ini" value={formatRp(stats.totalRevenueToday)} color="var(--color-tertiary)" bg="var(--color-info-bg)" className="col-span-2" />
+            <StatCard icon={<DollarSign size={18} />} label="Revenue Hari Ini" value={formatRp(stats.totalRevenueToday)} color="var(--color-brand-tertiary)" bg="var(--color-info-bg)" className="col-span-2" />
             <StatCard icon={<TrendingUp size={18} />} label="Profit Hari Ini" value={formatRp(stats.totalProfitToday)} color="var(--color-success)" bg="var(--color-success-bg)" className="col-span-2" />
             <StatCard icon={<ShoppingCart size={18} />} label="Total Order" value={stats.totalOrdersToday.toString()} color="var(--color-info)" bg="var(--color-info-bg)" />
             <StatCard icon={<CheckCircle size={18} />} label="Order Sukses" value={stats.successOrdersToday.toString()} color="var(--color-success)" bg="var(--color-success-bg)" />
@@ -96,7 +96,7 @@ export default function DashboardPage() {
           {/* Chart */}
           <div className="rounded-2xl p-6" style={{ backgroundColor: "var(--color-surface,#fff)", border: "1px solid rgba(0,0,0,0.07)" }}>
             <div className="flex items-center justify-between mb-5">
-              <h3 style={{ color: "var(--color-primary,#0F1419)", fontWeight: 600, fontSize: "1rem" }}>Grafik Pendapatan & Profit</h3>
+              <h3 style={{ color: "var(--color-brand-primary,#0F1419)", fontWeight: 600, fontSize: "1rem" }}>Grafik Pendapatan & Profit</h3>
               <div className="flex gap-2">
                 {RANGE_OPTIONS.map((opt) => (
                   <button
@@ -104,8 +104,8 @@ export default function DashboardPage() {
                     onClick={() => setChartRange(opt.value)}
                     className="px-3 py-1.5 rounded-lg transition-all"
                     style={{
-                      backgroundColor: chartRange === opt.value ? "var(--color-tertiary,#2C5EF5)" : "transparent",
-                      color: chartRange === opt.value ? "#fff" : "var(--color-secondary,#4A5568)",
+                      backgroundColor: chartRange === opt.value ? "var(--color-brand-tertiary,#2C5EF5)" : "transparent",
+                      color: chartRange === opt.value ? "#fff" : "var(--color-brand-secondary,#4A5568)",
                       border: chartRange === opt.value ? "none" : "1px solid rgba(0,0,0,0.1)",
                       fontSize: "0.8rem",
                       fontWeight: chartRange === opt.value ? 600 : 400,
@@ -120,8 +120,8 @@ export default function DashboardPage() {
               <AreaChart data={chart} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="pendapatan" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-tertiary)" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="var(--color-tertiary)" stopOpacity={0} />
+                    <stop offset="5%" stopColor="var(--color-brand-tertiary)" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="var(--color-brand-tertiary)" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="profit" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="var(--color-success)" stopOpacity={0.2} />
@@ -136,7 +136,7 @@ export default function DashboardPage() {
                   contentStyle={{ borderRadius: 12, border: "1px solid rgba(0,0,0,0.1)", fontSize: 13 }}
                 />
                 <Legend />
-                <Area type="monotone" dataKey="pendapatan" stroke="var(--color-tertiary)" fill="url(#pendapatan)" strokeWidth={2} name="Pendapatan" />
+                <Area type="monotone" dataKey="pendapatan" stroke="var(--color-brand-tertiary)" fill="url(#pendapatan)" strokeWidth={2} name="Pendapatan" />
                 <Area type="monotone" dataKey="profit" stroke="var(--color-success)" fill="url(#profit)" strokeWidth={2} name="Profit" />
               </AreaChart>
             </ResponsiveContainer>

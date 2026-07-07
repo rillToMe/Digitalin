@@ -28,7 +28,7 @@ const STATUS_STYLES: Record<OrderStatus, { bg: string; text: string; label: stri
   COMPLETED:    { bg: "var(--color-success-bg)",   text: "var(--color-success)",   label: "Selesai" },
   NEEDS_ACTION: { bg: "var(--color-warning-bg)",   text: "var(--color-warning)",   label: "Perlu Aksi" },
   FAILED:       { bg: "var(--color-danger-bg)",    text: "var(--color-danger)",    label: "Gagal" },
-  EXPIRED:      { bg: "var(--color-neutral)",      text: "var(--color-secondary)", label: "Expired" },
+  EXPIRED:      { bg: "var(--color-neutral)",      text: "var(--color-brand-secondary)", label: "Expired" },
   REFUNDED:     { bg: "var(--color-info-bg)",      text: "var(--color-info)",      label: "Refunded" },
 };
 
@@ -152,13 +152,13 @@ export default function OrdersPage() {
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3 mb-5">
         <div className="flex-1 relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-secondary)" }} />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-brand-secondary)" }} />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari order no, player ID, atau nama produk..."
             className="w-full pl-9 pr-4 py-2.5 rounded-xl outline-none"
-            style={{ border: "1.5px solid var(--color-border)", fontSize: "0.9rem", backgroundColor: "var(--color-surface)", color: "var(--color-primary)" }}
+            style={{ border: "1.5px solid var(--color-border)", fontSize: "0.9rem", backgroundColor: "var(--color-surface)", color: "var(--color-brand-primary)" }}
           />
         </div>
       </div>
@@ -170,7 +170,7 @@ export default function OrdersPage() {
             <thead>
               <tr style={{ borderBottom: "1px solid var(--color-border-light)", backgroundColor: "var(--color-neutral)" }}>
                 {["Invoice", "Tanggal", "Player ID", "Produk", "Harga Asli", "Diskon", "Total Bayar", "Status", "SN / Token", "Aksi"].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left" style={{ color: "var(--color-secondary)", fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</th>
+                  <th key={h} className="px-4 py-3 text-left" style={{ color: "var(--color-brand-secondary)", fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -186,28 +186,28 @@ export default function OrdersPage() {
                   </tr>
                 ))
               ) : orders.map((o) => {
-                const styleCfg = STATUS_STYLES[o.status] ?? { bg: "var(--color-neutral)", text: "var(--color-secondary)", label: o.status };
+                const styleCfg = STATUS_STYLES[o.status] ?? { bg: "var(--color-neutral)", text: "var(--color-brand-secondary)", label: o.status };
                 return (
                   <tr key={o.id} style={{ borderBottom: "1px solid var(--color-border-lighter)" }}>
                     <td className="px-4 py-3">
-                      <span style={{ fontFamily: "monospace", fontSize: "0.85rem", color: "var(--color-primary)", fontWeight: 600 }}>{o.orderNo}</span>
+                      <span style={{ fontFamily: "monospace", fontSize: "0.85rem", color: "var(--color-brand-primary)", fontWeight: 600 }}>{o.orderNo}</span>
                     </td>
-                    <td className="px-4 py-3" style={{ color: "var(--color-secondary)", fontSize: "0.82rem" }}>
+                    <td className="px-4 py-3" style={{ color: "var(--color-brand-secondary)", fontSize: "0.82rem" }}>
                       {formatDate(o.orderDate)}
                     </td>
                     <td className="px-4 py-3">
-                      <span style={{ fontFamily: "monospace", fontSize: "0.85rem", color: "var(--color-primary)" }}>{o.playerId}</span>
+                      <span style={{ fontFamily: "monospace", fontSize: "0.85rem", color: "var(--color-brand-primary)" }}>{o.playerId}</span>
                     </td>
-                    <td className="px-4 py-3" style={{ color: "var(--color-primary)", fontSize: "0.85rem", fontWeight: 500 }}>
+                    <td className="px-4 py-3" style={{ color: "var(--color-brand-primary)", fontSize: "0.85rem", fontWeight: 500 }}>
                       {o.productName}
                     </td>
-                    <td className="px-4 py-3" style={{ color: "var(--color-secondary)", fontSize: "0.85rem" }}>
+                    <td className="px-4 py-3" style={{ color: "var(--color-brand-secondary)", fontSize: "0.85rem" }}>
                       {formatRp(o.price)}
                     </td>
-                    <td className="px-4 py-3" style={{ color: o.discountAmount > 0 ? "var(--color-success)" : "var(--color-secondary)", fontSize: "0.85rem", fontWeight: o.discountAmount > 0 ? 600 : 400 }}>
+                    <td className="px-4 py-3" style={{ color: o.discountAmount > 0 ? "var(--color-success)" : "var(--color-brand-secondary)", fontSize: "0.85rem", fontWeight: o.discountAmount > 0 ? 600 : 400 }}>
                       {o.discountAmount > 0 ? `-${formatRp(o.discountAmount)}` : "-"}
                     </td>
-                    <td className="px-4 py-3" style={{ color: "var(--color-tertiary)", fontSize: "0.9rem", fontWeight: 700 }}>
+                    <td className="px-4 py-3" style={{ color: "var(--color-brand-tertiary)", fontSize: "0.9rem", fontWeight: 700 }}>
                       {formatRp(o.finalPrice)}
                     </td>
                     <td className="px-4 py-3">
@@ -222,9 +222,9 @@ export default function OrdersPage() {
                     </td>
                     <td className="px-4 py-3">
                       {o.sn ? (
-                        <span style={{ fontFamily: "monospace", fontSize: "0.82rem", color: "var(--color-secondary)" }} className="block max-w-[150px] truncate" title={o.sn}>{o.sn}</span>
+                        <span style={{ fontFamily: "monospace", fontSize: "0.82rem", color: "var(--color-brand-secondary)" }} className="block max-w-[150px] truncate" title={o.sn}>{o.sn}</span>
                       ) : (
-                        <span style={{ color: "var(--color-secondary)", fontSize: "0.78rem" }}>-</span>
+                        <span style={{ color: "var(--color-brand-secondary)", fontSize: "0.78rem" }}>-</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -232,7 +232,7 @@ export default function OrdersPage() {
                         <button
                           onClick={() => setDetailTarget(o)}
                           className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-                          style={{ color: "var(--color-secondary)" }}
+                          style={{ color: "var(--color-brand-secondary)" }}
                           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--color-hover-neutral)"; }}
                           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
                           aria-label="Detail Order"
@@ -245,7 +245,7 @@ export default function OrdersPage() {
                             <button
                               onClick={() => setRetryTarget(o)}
                               className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-                              style={{ color: "var(--color-tertiary)" }}
+                              style={{ color: "var(--color-brand-tertiary)" }}
                               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--color-hover-info)"; }}
                               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
                               aria-label="Retry Order"
@@ -273,7 +273,7 @@ export default function OrdersPage() {
               })}
               {!loading && orders.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center" style={{ color: "var(--color-secondary)" }}>Tidak ada order ditemukan</td>
+                  <td colSpan={10} className="px-4 py-12 text-center" style={{ color: "var(--color-brand-secondary)" }}>Tidak ada order ditemukan</td>
                 </tr>
               )}
             </tbody>
@@ -283,12 +283,12 @@ export default function OrdersPage() {
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3" style={{ borderTop: "1px solid var(--color-border-light)" }}>
-            <span style={{ color: "var(--color-secondary)", fontSize: "0.85rem" }}>Total {totalCount} order</span>
+            <span style={{ color: "var(--color-brand-secondary)", fontSize: "0.85rem" }}>Total {totalCount} order</span>
             <div className="flex items-center gap-2">
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ border: "1px solid var(--color-border)" }}>
                 <ChevronLeft size={15} />
               </button>
-              <span style={{ fontSize: "0.85rem", color: "var(--color-primary)" }}>{page}/{totalPages}</span>
+              <span style={{ fontSize: "0.85rem", color: "var(--color-brand-primary)" }}>{page}/{totalPages}</span>
               <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ border: "1px solid var(--color-border)" }}>
                 <ChevronRight size={15} />
               </button>
@@ -302,8 +302,8 @@ export default function OrdersPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "var(--color-overlay)" }}>
           <div className="w-full max-w-lg rounded-2xl p-6" style={{ backgroundColor: "var(--color-surface)", maxHeight: "90vh", overflowY: "auto" }}>
             <div className="flex items-center justify-between mb-5">
-              <h3 style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: "1rem" }}>Detail Transaksi Snapshot</h3>
-              <button ref={detailCloseRef} onClick={() => setDetailTarget(null)} style={{ color: "var(--color-secondary)" }} aria-label="Close modal"><X size={20} /></button>
+              <h3 style={{ color: "var(--color-brand-primary)", fontWeight: 700, fontSize: "1rem" }}>Detail Transaksi Snapshot</h3>
+              <button ref={detailCloseRef} onClick={() => setDetailTarget(null)} style={{ color: "var(--color-brand-secondary)" }} aria-label="Close modal"><X size={20} /></button>
             </div>
             
             <div className="flex items-center gap-4 p-4 rounded-xl mb-4" style={{ backgroundColor: "var(--color-neutral)" }}>
@@ -311,36 +311,36 @@ export default function OrdersPage() {
                 {detailTarget.imageUrl ? (
                   <ImageWithFallback src={detailTarget.imageUrl} alt={detailTarget.productName} className="w-full h-full object-cover" />
                 ) : (
-                  <Clock size={24} style={{ color: "var(--color-secondary)" }} />
+                  <Clock size={24} style={{ color: "var(--color-brand-secondary)" }} />
                 )}
               </div>
               <div>
                 <span className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{
                   backgroundColor: STATUS_STYLES[detailTarget.status]?.bg ?? "var(--color-neutral)",
-                  color: STATUS_STYLES[detailTarget.status]?.text ?? "var(--color-secondary)",
+                  color: STATUS_STYLES[detailTarget.status]?.text ?? "var(--color-brand-secondary)",
                 }}>
                   {STATUS_STYLES[detailTarget.status]?.label ?? detailTarget.status}
                 </span>
-                <h4 style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: "0.95rem", marginTop: 4 }}>{detailTarget.productName}</h4>
-                <p style={{ color: "var(--color-secondary)", fontSize: "0.8rem", fontFamily: "monospace" }}>{detailTarget.orderNo}</p>
+                <h4 style={{ color: "var(--color-brand-primary)", fontWeight: 700, fontSize: "0.95rem", marginTop: 4 }}>{detailTarget.productName}</h4>
+                <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.8rem", fontFamily: "monospace" }}>{detailTarget.orderNo}</p>
               </div>
             </div>
 
             <div className="space-y-3 mb-6">
               <div className="flex justify-between" style={{ fontSize: "0.85rem" }}>
-                <span style={{ color: "var(--color-secondary)" }}>Tanggal Transaksi</span>
-                <span style={{ color: "var(--color-primary)", fontWeight: 500 }}>{formatDate(detailTarget.orderDate)}</span>
+                <span style={{ color: "var(--color-brand-secondary)" }}>Tanggal Transaksi</span>
+                <span style={{ color: "var(--color-brand-primary)", fontWeight: 500 }}>{formatDate(detailTarget.orderDate)}</span>
               </div>
               <div className="flex justify-between" style={{ fontSize: "0.85rem" }}>
-                <span style={{ color: "var(--color-secondary)" }}>Player ID</span>
-                <span style={{ color: "var(--color-primary)", fontWeight: 600, fontFamily: "monospace" }}>{detailTarget.playerId}</span>
+                <span style={{ color: "var(--color-brand-secondary)" }}>Player ID</span>
+                <span style={{ color: "var(--color-brand-primary)", fontWeight: 600, fontFamily: "monospace" }}>{detailTarget.playerId}</span>
               </div>
               
               <div className="pt-2" style={{ borderTop: "1px dashed var(--color-border-light)" }} />
 
               <div className="flex justify-between" style={{ fontSize: "0.85rem" }}>
-                <span style={{ color: "var(--color-secondary)" }}>Harga Snapshot</span>
-                <span style={{ color: "var(--color-primary)" }}>{formatRp(detailTarget.price)}</span>
+                <span style={{ color: "var(--color-brand-secondary)" }}>Harga Snapshot</span>
+                <span style={{ color: "var(--color-brand-primary)" }}>{formatRp(detailTarget.price)}</span>
               </div>
               {detailTarget.discountAmount > 0 && (
                 <div className="flex justify-between" style={{ fontSize: "0.85rem" }}>
@@ -349,14 +349,14 @@ export default function OrdersPage() {
                 </div>
               )}
               <div className="flex justify-between pt-2" style={{ borderTop: "1px solid var(--color-border-light)", fontSize: "0.9rem" }}>
-                <span style={{ color: "var(--color-primary)", fontWeight: 600 }}>Total Dibayar</span>
-                <span style={{ color: "var(--color-tertiary)", fontWeight: 700 }}>{formatRp(detailTarget.finalPrice)}</span>
+                <span style={{ color: "var(--color-brand-primary)", fontWeight: 600 }}>Total Dibayar</span>
+                <span style={{ color: "var(--color-brand-tertiary)", fontWeight: 700 }}>{formatRp(detailTarget.finalPrice)}</span>
               </div>
 
               {detailTarget.sn && (
                 <div className="mt-4 p-3 rounded-xl" style={{ backgroundColor: "var(--color-neutral)" }}>
-                  <p style={{ color: "var(--color-secondary)", fontSize: "0.75rem" }}>Serial Number / Token</p>
-                  <p style={{ color: "var(--color-primary)", fontWeight: 600, fontSize: "0.85rem", fontFamily: "monospace", marginTop: 2 }}>{detailTarget.sn}</p>
+                  <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.75rem" }}>Serial Number / Token</p>
+                  <p style={{ color: "var(--color-brand-primary)", fontWeight: 600, fontSize: "0.85rem", fontFamily: "monospace", marginTop: 2 }}>{detailTarget.sn}</p>
                 </div>
               )}
             </div>
@@ -367,7 +367,7 @@ export default function OrdersPage() {
                   <button
                     onClick={() => { setRetryTarget(detailTarget); }}
                     className="flex-1 py-3 rounded-xl flex items-center justify-center gap-2 text-white font-semibold transition-opacity hover:opacity-90"
-                    style={{ backgroundColor: "var(--color-tertiary)" }}
+                    style={{ backgroundColor: "var(--color-brand-tertiary)" }}
                   >
                     <RefreshCw size={15} /> Retry
                   </button>
@@ -380,7 +380,7 @@ export default function OrdersPage() {
                   </button>
                 </>
               )}
-              <button onClick={() => setDetailTarget(null)} className="flex-1 py-3 rounded-xl border font-semibold" style={{ borderColor: "var(--color-border)", color: "var(--color-secondary)" }}>
+              <button onClick={() => setDetailTarget(null)} className="flex-1 py-3 rounded-xl border font-semibold" style={{ borderColor: "var(--color-border)", color: "var(--color-brand-secondary)" }}>
                 Tutup
               </button>
             </div>
@@ -395,8 +395,8 @@ export default function OrdersPage() {
             <div className="w-12 h-12 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ backgroundColor: "var(--color-info-bg)" }}>
               <RefreshCw size={20} style={{ color: "var(--color-info)" }} />
             </div>
-            <h3 style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: "1.1rem", marginBottom: 8 }}>Retry Order</h3>
-            <p style={{ color: "var(--color-secondary)", fontSize: "0.88rem", marginBottom: 20 }}>
+            <h3 style={{ color: "var(--color-brand-primary)", fontWeight: 700, fontSize: "1.1rem", marginBottom: 8 }}>Retry Order</h3>
+            <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.88rem", marginBottom: 20 }}>
               Order <strong style={{ fontFamily: "monospace" }}>{retryTarget.orderNo}</strong> ini akan dikirim ulang ke Digiflazz.<br />Apakah Anda yakin ingin melanjutkan?
             </p>
             <div className="flex gap-3">
@@ -405,7 +405,7 @@ export default function OrdersPage() {
                 onClick={handleRetrySubmit}
                 disabled={retryMutation.isPending}
                 className="flex-1 py-3 rounded-xl flex items-center justify-center gap-2 text-white font-semibold transition-opacity hover:opacity-90"
-                style={{ backgroundColor: "var(--color-tertiary)" }}
+                style={{ backgroundColor: "var(--color-brand-tertiary)" }}
               >
                 {retryMutation.isPending && <Loader2 size={15} className="animate-spin" />}
                 {retryMutation.isPending ? "Memproses..." : "Retry"}
@@ -414,7 +414,7 @@ export default function OrdersPage() {
                 onClick={() => setRetryTarget(null)}
                 disabled={retryMutation.isPending}
                 className="flex-1 py-3 rounded-xl border font-semibold"
-                style={{ borderColor: "var(--color-border)", color: "var(--color-secondary)" }}
+                style={{ borderColor: "var(--color-border)", color: "var(--color-brand-secondary)" }}
               >
                 Batal
               </button>
@@ -430,8 +430,8 @@ export default function OrdersPage() {
             <div className="w-12 h-12 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ backgroundColor: "var(--color-danger-bg)" }}>
               <Undo2 size={20} style={{ color: "var(--color-danger)" }} />
             </div>
-            <h3 style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: "1.1rem", marginBottom: 8 }}>Refund Order</h3>
-            <p style={{ color: "var(--color-secondary)", fontSize: "0.88rem", marginBottom: 10 }}>
+            <h3 style={{ color: "var(--color-brand-primary)", fontWeight: 700, fontSize: "1.1rem", marginBottom: 8 }}>Refund Order</h3>
+            <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.88rem", marginBottom: 10 }}>
               Order <strong style={{ fontFamily: "monospace" }}>{refundTarget.orderNo}</strong> akan ditandai sebagai <strong>REFUNDED</strong>.
             </p>
             <div className="p-3 rounded-xl text-left mb-5" style={{ backgroundColor: "var(--color-warning-bg)" }}>
@@ -457,7 +457,7 @@ export default function OrdersPage() {
                 onClick={() => setRefundTarget(null)}
                 disabled={refundMutation.isPending}
                 className="flex-1 py-3 rounded-xl border font-semibold"
-                style={{ borderColor: "var(--color-border)", color: "var(--color-secondary)" }}
+                style={{ borderColor: "var(--color-border)", color: "var(--color-brand-secondary)" }}
               >
                 Batal
               </button>

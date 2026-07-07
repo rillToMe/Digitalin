@@ -8,7 +8,7 @@ export function SettingToggle({
   onChange,
   disabled = false,
   isLoading = false,
-  activeColor = "var(--color-tertiary)",
+  activeColor = "var(--color-brand-tertiary)",
   inactiveColor = "var(--color-border)",
   size = "sm",
   title,

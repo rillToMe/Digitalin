@@ -10,7 +10,7 @@ export default function VouchersPage() {
           className="w-20 h-20 rounded-2xl flex items-center justify-center"
           style={{ backgroundColor: "rgba(44,94,245,0.1)" }}
         >
-          <Ticket size={40} style={{ color: "var(--color-tertiary, #2C5EF5)" }} />
+          <Ticket size={40} style={{ color: "var(--color-brand-tertiary, #2C5EF5)" }} />
         </div>
       </div>
 
@@ -26,15 +26,15 @@ export default function VouchersPage() {
       >
         <span
           className="w-2 h-2 rounded-full"
-          style={{ backgroundColor: "var(--color-tertiary, #2C5EF5)" }}
+          style={{ backgroundColor: "var(--color-brand-tertiary, #2C5EF5)" }}
         />
-        <span style={{ color: "var(--color-tertiary, #2C5EF5)", fontSize: "0.82rem", fontWeight: 600 }}>
+        <span style={{ color: "var(--color-brand-tertiary, #2C5EF5)", fontSize: "0.82rem", fontWeight: 600 }}>
           Coming Soon
         </span>
       </div>
 
       {/* Description */}
-      <p style={{ color: "var(--color-secondary, #4A5568)", fontSize: "0.9rem", lineHeight: 1.7, maxWidth: 400, margin: "0 auto 8px" }}>
+      <p style={{ color: "var(--color-brand-secondary , #4A5568)", fontSize: "0.9rem", lineHeight: 1.7, maxWidth: 400, margin: "0 auto 8px" }}>
         Fitur Voucher Digital sedang dalam tahap pengembangan.
         Segera hadir: voucher game, gift card, dan promo eksklusif untuk Anda.
       </p>
@@ -58,7 +58,7 @@ export default function VouchersPage() {
               <p style={{ color: "var(--color-primary, #0F1419)", fontWeight: 600, fontSize: "0.85rem", marginBottom: 4 }}>
                 {item.label}
               </p>
-              <p style={{ color: "var(--color-secondary, #4A5568)", fontSize: "0.78rem" }}>{item.desc}</p>
+              <p style={{ color: "var(--color-brand-secondary , #4A5568)", fontSize: "0.78rem" }}>{item.desc}</p>
             </div>
           ))}
         </div>
@@ -68,7 +68,7 @@ export default function VouchersPage() {
       <Link
         to="/"
         className="inline-flex items-center gap-2 px-6 py-3 rounded-xl no-underline transition-colors"
-        style={{ backgroundColor: "var(--color-tertiary, #2C5EF5)", color: "#fff", fontWeight: 600, fontSize: "0.9rem" }}
+        style={{ backgroundColor: "var(--color-brand-tertiary, #2C5EF5)", color: "#fff", fontWeight: 600, fontSize: "0.9rem" }}
       >
         <ArrowLeft size={16} />
         Kembali ke Beranda

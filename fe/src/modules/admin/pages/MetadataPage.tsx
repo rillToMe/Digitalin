@@ -120,7 +120,7 @@ export default function MetadataPage() {
                   <img src={item.imageUrl} alt={item.brand} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: "var(--color-neutral,#F1F3F5)" }}>
-                    <Image size={24} style={{ color: "var(--color-secondary,#4A5568)" }} />
+                    <Image size={24} style={{ color: "var(--color-brand-secondary,#4A5568)" }} />
                   </div>
                 )}
                 <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 50%)" }} />
@@ -135,10 +135,10 @@ export default function MetadataPage() {
                 </div>
               </div>
               <div className="p-3 flex items-center justify-between">
-                <span style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.75rem" }}>
+                <span style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.75rem" }}>
                   {item.serverList ? `${item.serverList.split(",").length} server` : "No server list"}
                 </span>
-                <button onClick={(e) => { e.stopPropagation(); openEdit(item); }} className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ color: "var(--color-tertiary,#2C5EF5)", fontSize: "0.75rem" }}>
+                <button onClick={(e) => { e.stopPropagation(); openEdit(item); }} className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ color: "var(--color-brand-tertiary,#2C5EF5)", fontSize: "0.75rem" }}>
                   <Pencil size={11} /> Kelola
                 </button>
               </div>

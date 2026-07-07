@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from "react";
 
-import type { OtpInputProps } from "../../../../api/index";
+import type { OtpInputProps } from "../../api/index";
 
 export default function OtpInput({ value, onChange, length = 6 }: OtpInputProps) {
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
@@ -69,10 +69,10 @@ export default function OtpInput({ value, onChange, length = 6 }: OtpInputProps)
           className="w-11 h-11 text-center font-bold text-lg rounded-xl outline-none"
           style={{
             border: "1.5px solid var(--color-border-input)",
-            color: "var(--color-primary)",
+            color: "var(--color-brand-primary)",
             backgroundColor: "var(--color-surface)",
           }}
-          onFocus={(e) => { e.target.style.borderColor = "var(--color-tertiary)"; }}
+          onFocus={(e) => { e.target.style.borderColor = "var(--color-brand-tertiary)"; }}
           onBlur={(e) => { e.target.style.borderColor = "var(--color-border-input)"; }}
           aria-label={`OTP Digit ${idx + 1}`}
         />

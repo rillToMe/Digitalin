@@ -71,7 +71,7 @@ export function MaintenanceSettingsCard() {
       <SettingSectionHeader
         icon={WrenchIcon}
         title="Maintenance Mode"
-        iconColor={maintEnabled ? "var(--color-warning, #f59e0b)" : "var(--color-secondary)"}
+        iconColor={maintEnabled ? "var(--color-warning, #f59e0b)" : "var(--color-brand-secondary)"}
         rightElement={headerRightElement}
       />
 
@@ -127,7 +127,7 @@ export function MaintenanceSettingsCard() {
             style={{
               backgroundColor: "var(--color-surface)",
               border: "1px solid var(--color-border)",
-              color: "var(--color-primary)",
+              color: "var(--color-brand-primary)",
             }}
           >
             <RefreshCw size={12} /> Coba Lagi
@@ -138,9 +138,9 @@ export function MaintenanceSettingsCard() {
           <Loader2
             size={24}
             className="animate-spin"
-            style={{ color: "var(--color-tertiary)" }}
+            style={{ color: "var(--color-brand-tertiary)" }}
           />
-          <span style={{ color: "var(--color-secondary)", fontSize: "0.82rem" }}>
+          <span style={{ color: "var(--color-brand-secondary)", fontSize: "0.82rem" }}>
             Memuat konfigurasi...
           </span>
         </div>
@@ -149,7 +149,7 @@ export function MaintenanceSettingsCard() {
           <div>
             <label
               style={{
-                color: "var(--color-primary)",
+                color: "var(--color-brand-primary)",
                 fontSize: "0.85rem",
                 fontWeight: 500,
                 display: "block",
@@ -169,10 +169,10 @@ export function MaintenanceSettingsCard() {
               style={{
                 border: "1.5px solid var(--color-border-input)",
                 fontSize: "0.88rem",
-                color: "var(--color-primary)",
+                color: "var(--color-brand-primary)",
                 backgroundColor: "var(--color-surface)",
               }}
-              onFocus={(e) => (e.target.style.borderColor = "var(--color-tertiary)")}
+              onFocus={(e) => (e.target.style.borderColor = "var(--color-brand-tertiary)")}
               onBlur={(e) => (e.target.style.borderColor = "var(--color-border-input)")}
             />
           </div>
@@ -180,7 +180,7 @@ export function MaintenanceSettingsCard() {
           <div>
             <label
               style={{
-                color: "var(--color-primary)",
+                color: "var(--color-brand-primary)",
                 fontSize: "0.85rem",
                 fontWeight: 500,
                 display: "block",
@@ -200,10 +200,10 @@ export function MaintenanceSettingsCard() {
               style={{
                 border: "1.5px solid var(--color-border-input)",
                 fontSize: "0.88rem",
-                color: "var(--color-primary)",
+                color: "var(--color-brand-primary)",
                 backgroundColor: "var(--color-surface)",
               }}
-              onFocus={(e) => (e.target.style.borderColor = "var(--color-tertiary)")}
+              onFocus={(e) => (e.target.style.borderColor = "var(--color-brand-tertiary)")}
               onBlur={(e) => (e.target.style.borderColor = "var(--color-border-input)")}
             />
           </div>
@@ -211,14 +211,14 @@ export function MaintenanceSettingsCard() {
           <div>
             <label
               style={{
-                color: isEstimatedInPast ? "var(--color-danger)" : "var(--color-primary)",
+                color: isEstimatedInPast ? "var(--color-danger)" : "var(--color-brand-primary)",
                 fontSize: "0.85rem",
                 fontWeight: 500,
                 display: "block",
                 marginBottom: 6,
               }}
             >
-              Estimasi Selesai <span style={{ color: "var(--color-secondary)", fontWeight: 400 }}>(opsional)</span>
+              Estimasi Selesai <span style={{ color: "var(--color-brand-secondary)", fontWeight: 400 }}>(opsional)</span>
             </label>
             <input
               type="datetime-local"
@@ -230,10 +230,10 @@ export function MaintenanceSettingsCard() {
               style={{
                 border: isEstimatedInPast ? "1.5px solid var(--color-danger)" : "1.5px solid var(--color-border-input)",
                 fontSize: "0.88rem",
-                color: "var(--color-primary)",
+                color: "var(--color-brand-primary)",
                 backgroundColor: "var(--color-surface)",
               }}
-              onFocus={(e) => (e.target.style.borderColor = isEstimatedInPast ? "var(--color-danger)" : "var(--color-tertiary)")}
+              onFocus={(e) => (e.target.style.borderColor = isEstimatedInPast ? "var(--color-danger)" : "var(--color-brand-tertiary)")}
               onBlur={(e) => (e.target.style.borderColor = isEstimatedInPast ? "var(--color-danger)" : "var(--color-border-input)")}
             />
             {isEstimatedInPast ? (
@@ -250,7 +250,7 @@ export function MaintenanceSettingsCard() {
             ) : (
               <p
                 style={{
-                  color: "var(--color-secondary)",
+                  color: "var(--color-brand-secondary)",
                   fontSize: "0.78rem",
                   marginTop: 4,
                 }}
@@ -269,7 +269,7 @@ export function MaintenanceSettingsCard() {
             <div>
               <span
                 style={{
-                  color: "var(--color-primary)",
+                  color: "var(--color-brand-primary)",
                   fontSize: "0.85rem",
                   fontWeight: 500,
                 }}
@@ -278,7 +278,7 @@ export function MaintenanceSettingsCard() {
               </span>
               <p
                 style={{
-                  color: "var(--color-secondary)",
+                  color: "var(--color-brand-secondary)",
                   fontSize: "0.78rem",
                   marginTop: 2,
                 }}
@@ -294,7 +294,7 @@ export function MaintenanceSettingsCard() {
               disabled={isSubmitDisabled}
               title={isEstimatedInPast ? "Estimasi selesai harus berada di masa depan" : undefined}
               className="px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 text-white font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
-              style={{ backgroundColor: "var(--color-tertiary)" }}
+              style={{ backgroundColor: "var(--color-brand-tertiary)" }}
             >
               {isSavingMaint ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
               {isSavingMaint ? "Menyimpan..." : "Simpan Konfigurasi"}

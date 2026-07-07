@@ -60,13 +60,13 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-2">
-            <div style={{ backgroundColor: "var(--color-tertiary,#2C5EF5)", borderRadius: 10 }} className="w-10 h-10 flex items-center justify-center">
+            <div style={{ backgroundColor: "var(--color-brand-tertiary,#2C5EF5)", borderRadius: 10 }} className="w-10 h-10 flex items-center justify-center">
               <Zap size={20} color="#fff" fill="#fff" />
             </div>
             <span style={{ color: "var(--color-primary,#0F1419)", fontWeight: 800, fontSize: "1.3rem" }}>Digitalin</span>
           </div>
           <h2 style={{ color: "var(--color-primary,#0F1419)", fontWeight: 700, fontSize: "1.4rem", marginTop: 8 }}>Selamat Datang Kembali</h2>
-          <p style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.9rem", marginTop: 4 }}>Masuk ke akun Digitalin kamu</p>
+          <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.9rem", marginTop: 4 }}>Masuk ke akun Digitalin kamu</p>
         </div>
 
         <div className="rounded-2xl p-8" style={{ backgroundColor: "var(--color-surface,#fff)", border: "1px solid rgba(0,0,0,0.07)" }}>
@@ -82,7 +82,7 @@ export default function LoginPage() {
                 placeholder="email@example.com"
                 className="w-full px-4 py-3 rounded-xl outline-none"
                 style={{ border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.9rem", color: "var(--color-primary,#0F1419)", backgroundColor: "var(--color-surface,#fff)" }}
-                onFocus={(e) => { e.target.style.borderColor = "var(--color-tertiary,#2C5EF5)"; }}
+                onFocus={(e) => { e.target.style.borderColor = "var(--color-brand-tertiary,#2C5EF5)"; }}
                 onBlur={(e) => { e.target.style.borderColor = "rgba(0,0,0,0.12)"; }}
               />
             </div>
@@ -98,10 +98,10 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   className="w-full px-4 py-3 pr-12 rounded-xl outline-none"
                   style={{ border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.9rem", color: "var(--color-primary,#0F1419)", backgroundColor: "var(--color-surface,#fff)" }}
-                  onFocus={(e) => { e.target.style.borderColor = "var(--color-tertiary,#2C5EF5)"; }}
+                  onFocus={(e) => { e.target.style.borderColor = "var(--color-brand-tertiary,#2C5EF5)"; }}
                   onBlur={(e) => { e.target.style.borderColor = "rgba(0,0,0,0.12)"; }}
                 />
-                <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-secondary,#4A5568)" }}>
+                <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-brand-secondary,#4A5568)" }}>
                   {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
@@ -111,7 +111,7 @@ export default function LoginPage() {
               <Link
                 to="/forgot-password"
                 style={{
-                  color: "var(--color-tertiary,#2C5EF5)",
+                  color: "var(--color-brand-tertiary,#2C5EF5)",
                   fontSize: "0.82rem",
                   fontWeight: 500,
                   textDecoration: "none",
@@ -126,7 +126,7 @@ export default function LoginPage() {
               type="submit"
               disabled={anyLoading}
               className="w-full py-3.5 rounded-xl flex items-center justify-center gap-2 transition-opacity mt-2"
-              style={{ backgroundColor: "var(--color-tertiary,#2C5EF5)", color: "#fff", fontWeight: 600, fontSize: "0.95rem", opacity: anyLoading ? 0.7 : 1 }}
+              style={{ backgroundColor: "var(--color-brand-tertiary,#2C5EF5)", color: "#fff", fontWeight: 600, fontSize: "0.95rem", opacity: anyLoading ? 0.7 : 1 }}
             >
               {loading && <Loader2 size={16} className="animate-spin" />}
               {loading ? "Masuk..." : "Masuk"}
@@ -137,9 +137,9 @@ export default function LoginPage() {
             <GoogleLoginButton disabled={anyLoading} onLoadingChange={setGoogleLoading} />
           )}
 
-          <p className="text-center mt-5" style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.875rem" }}>
+          <p className="text-center mt-5" style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.875rem" }}>
             Belum punya akun?{" "}
-            <Link to="/register" style={{ color: "var(--color-tertiary,#2C5EF5)", fontWeight: 600, textDecoration: "none" }}>
+            <Link to="/register" style={{ color: "var(--color-brand-tertiary,#2C5EF5)", fontWeight: 600, textDecoration: "none" }}>
               Daftar sekarang
             </Link>
           </p>

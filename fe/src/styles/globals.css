@@ -1,13 +1,16 @@
 :root {
-  --color-primary: #0F1419;
-  --color-secondary: #4A5568;
-  --color-tertiary: #2C5EF5;
-  --color-neutral: #F1F3F5;
-  --color-surface: #FFFFFF;
-  --color-on-primary: #FFFFFF;
+  /* Brand colors */
+  --color-brand-primary: #0f1419;
+  --color-brand-secondary: #4a5568;
+  --color-brand-tertiary: #2c5ef5;
+
+  /* Surface colors */
+  --color-neutral: #f1f3f5;
+  --color-surface: #ffffff;
+  --color-on-primary: #ffffff;
 
   /* Borders */
-  --color-border: rgba(0, 0, 0, 0.10);
+  --color-border-default: rgba(0, 0, 0, 0.1);
   --color-border-light: rgba(0, 0, 0, 0.07);
   --color-border-lighter: rgba(0, 0, 0, 0.05);
   --color-border-input: rgba(0, 0, 0, 0.12);
@@ -15,20 +18,27 @@
   /* Semantic colors */
   --color-success: #15803d;
   --color-success-bg: #dcfce7;
+
   --color-danger: #ef4444;
   --color-danger-bg: #fee2e2;
+  --color-danger-muted: rgba(239, 68, 68, 0.3);
+
   --color-warning: #92400e;
   --color-warning-bg: #fef3c7;
+
   --color-info: #3730a3;
   --color-info-bg: #e0e7ff;
 
-  /* UI elements */
+  /* Overlay and loading */
   --color-overlay: rgba(0, 0, 0, 0.4);
   --color-skeleton: var(--color-neutral);
-  --color-danger-muted: rgba(239, 68, 68, 0.3);
 
   /* Hover backgrounds */
   --color-hover-danger: #fef2f2;
   --color-hover-info: #eff6ff;
   --color-hover-neutral: #f9fafb;
+
+  /* Navbar */
+  --color-navbar-border: rgba(0, 0, 0, 0.08);
+  --shadow-navbar: 0 4px 16px rgba(0, 0, 0, 0.1);
 }

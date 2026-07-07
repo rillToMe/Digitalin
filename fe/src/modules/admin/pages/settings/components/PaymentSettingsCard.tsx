@@ -48,7 +48,7 @@ export function PaymentSettingsCard() {
             style={{
               backgroundColor: "var(--color-surface)",
               border: "1px solid var(--color-border)",
-              color: "var(--color-primary)",
+              color: "var(--color-brand-primary)",
             }}
           >
             <RefreshCw size={12} /> Coba Lagi
@@ -59,9 +59,9 @@ export function PaymentSettingsCard() {
           <Loader2
             size={24}
             className="animate-spin"
-            style={{ color: "var(--color-tertiary)" }}
+            style={{ color: "var(--color-brand-tertiary)" }}
           />
-          <span style={{ color: "var(--color-secondary)", fontSize: "0.82rem" }}>
+          <span style={{ color: "var(--color-brand-secondary)", fontSize: "0.82rem" }}>
             Memuat konfigurasi...
           </span>
         </div>
@@ -70,7 +70,7 @@ export function PaymentSettingsCard() {
           <div>
             <label
               style={{
-                color: "var(--color-primary)",
+                color: "var(--color-brand-primary)",
                 fontSize: "0.85rem",
                 fontWeight: 500,
                 display: "block",
@@ -92,25 +92,25 @@ export function PaymentSettingsCard() {
                 style={{
                   border: "1.5px solid var(--color-border-input)",
                   fontSize: "0.9rem",
-                  color: "var(--color-primary)",
+                  color: "var(--color-brand-primary)",
                   backgroundColor: "var(--color-surface)",
                 }}
                 onFocus={(e) =>
-                  (e.target.style.borderColor = "var(--color-tertiary)")
+                  (e.target.style.borderColor = "var(--color-brand-tertiary)")
                 }
                 onBlur={(e) =>
                   (e.target.style.borderColor = "var(--color-border-input)")
                 }
               />
               <span
-                style={{ color: "var(--color-secondary)", fontSize: "0.88rem" }}
+                style={{ color: "var(--color-brand-secondary)", fontSize: "0.88rem" }}
               >
                 Menit
               </span>
             </div>
             <p
               style={{
-                color: "var(--color-secondary)",
+                color: "var(--color-brand-secondary)",
                 fontSize: "0.78rem",
                 marginTop: 6,
               }}
@@ -125,7 +125,7 @@ export function PaymentSettingsCard() {
               type="submit"
               disabled={isSavingExpiry}
               className="px-5 py-2.5 rounded-xl flex items-center justify-center gap-2 text-white font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
-              style={{ backgroundColor: "var(--color-tertiary)" }}
+              style={{ backgroundColor: "var(--color-brand-tertiary)" }}
             >
               {isSavingExpiry ? (
                 <Loader2 size={15} className="animate-spin" />

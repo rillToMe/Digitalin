@@ -26,13 +26,13 @@ export default function FaqPage() {
             className="w-14 h-14 rounded-2xl flex items-center justify-center"
             style={{ backgroundColor: "rgba(44,94,245,0.1)" }}
           >
-            <HelpCircle size={28} style={{ color: "var(--color-tertiary, #2C5EF5)" }} />
+            <HelpCircle size={28} style={{ color: "var(--color-brand-tertiary, #2C5EF5)" }} />
           </div>
         </div>
-        <h1 style={{ color: "var(--color-primary, #0F1419)", fontWeight: 700, fontSize: "1.5rem", marginBottom: 8 }}>
+        <h1 style={{ color: "var(--color-brand-primary, #0F1419)", fontWeight: 700, fontSize: "1.5rem", marginBottom: 8 }}>
           Pusat Bantuan Digitalin
         </h1>
-        <p style={{ color: "var(--color-secondary, #4A5568)", fontSize: "0.9rem", maxWidth: 520, margin: "0 auto" }}>
+        <p style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.9rem", maxWidth: 520, margin: "0 auto" }}>
           Temukan jawaban atas pertanyaan yang paling sering ditanyakan mengenai Top Up, pembayaran, akun, dan transaksi.
         </p>
       </div>
@@ -47,7 +47,7 @@ export default function FaqPage() {
             height: 44,
           }}
         >
-          <Search size={16} style={{ color: "var(--color-secondary, #4A5568)", flexShrink: 0 }} />
+          <Search size={16} style={{ color: "var(--color-brand-secondary, #4A5568)", flexShrink: 0 }} />
           <input
             type="text"
             value={searchQuery}
@@ -55,7 +55,7 @@ export default function FaqPage() {
             placeholder="Cari pertanyaan..."
             aria-label="Cari FAQ"
             className="flex-1 outline-none bg-transparent"
-            style={{ color: "var(--color-primary, #0F1419)", fontSize: "0.9rem" }}
+            style={{ color: "var(--color-brand-primary, #0F1419)", fontSize: "0.9rem" }}
           />
         </div>
       </div>
@@ -71,8 +71,8 @@ export default function FaqPage() {
                 onClick={() => setActiveTab(tab)}
                 className="whitespace-nowrap px-4 py-2 rounded-full transition-all"
                 style={{
-                  backgroundColor: isActive ? "var(--color-tertiary, #2C5EF5)" : "var(--color-surface, #fff)",
-                  color: isActive ? "#fff" : "var(--color-primary, #0F1419)",
+                  backgroundColor: isActive ? "var(--color-brand-tertiary, #2C5EF5)" : "var(--color-surface, #fff)",
+                  color: isActive ? "#fff" : "var(--color-brand-primary, #0F1419)",
                   border: isActive ? "none" : "1px solid rgba(0,0,0,0.1)",
                   fontWeight: isActive ? 600 : 400,
                   fontSize: "0.83rem",
@@ -96,13 +96,13 @@ export default function FaqPage() {
             <FaqAccordion items={filteredFaqs} />
           ) : (
             <div className="py-12 text-center">
-              <HelpCircle size={32} style={{ color: "var(--color-secondary, #4A5568)", opacity: 0.4, margin: "0 auto 12px" }} />
-              <p style={{ color: "var(--color-secondary, #4A5568)", fontSize: "0.9rem" }}>
+              <HelpCircle size={32} style={{ color: "var(--color-brand-secondary, #4A5568)", opacity: 0.4, margin: "0 auto 12px" }} />
+              <p style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.9rem" }}>
                 Tidak ada pertanyaan yang sesuai.
               </p>
-              <p style={{ color: "var(--color-secondary, #4A5568)", fontSize: "0.82rem", marginTop: 4 }}>
+              <p style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.82rem", marginTop: 4 }}>
                 Coba kata kunci lain atau{" "}
-                <Link to="/contact" style={{ color: "var(--color-tertiary, #2C5EF5)" }}>
+                <Link to="/contact" style={{ color: "var(--color-brand-tertiary, #2C5EF5)" }}>
                   hubungi kami
                 </Link>
                 .
@@ -114,13 +114,13 @@ export default function FaqPage() {
 
       {/* CTA */}
       <div className="text-center mt-10">
-        <p style={{ color: "var(--color-secondary, #4A5568)", fontSize: "0.9rem", marginBottom: 12 }}>
+        <p style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.9rem", marginBottom: 12 }}>
           Tidak menemukan jawaban yang Anda cari?
         </p>
         <Link
           to="/contact"
           className="inline-flex items-center gap-2 px-6 py-3 rounded-xl no-underline transition-colors"
-          style={{ backgroundColor: "var(--color-tertiary, #2C5EF5)", color: "#fff", fontWeight: 600, fontSize: "0.9rem" }}
+          style={{ backgroundColor: "var(--color-brand-tertiary, #2C5EF5)", color: "#fff", fontWeight: 600, fontSize: "0.9rem" }}
         >
           <MessageCircle size={16} />
           Hubungi Kami

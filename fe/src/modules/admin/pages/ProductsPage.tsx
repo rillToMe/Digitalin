@@ -105,16 +105,15 @@ export default function ProductsPage() {
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3 mb-5">
         <div className="flex-1 relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-secondary,#4A5568)" }} />
           <input
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             placeholder="Cari produk atau brand..."
             className="w-full pl-9 pr-4 py-2.5 rounded-xl outline-none"
-            style={{ border: "1.5px solid rgba(0,0,0,0.1)", fontSize: "0.9rem", backgroundColor: "var(--color-surface,#fff)", color: "var(--color-primary,#0F1419)" }}
+            style={{ border: "1.5px solid rgba(0,0,0,0.1)", fontSize: "0.9rem", backgroundColor: "var(--color-surface,#fff)", color: "var(--color-brand-primary,#0F1419)" }}
           />
         </div>
-        <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2.5 rounded-xl" style={{ backgroundColor: "var(--color-tertiary,#2C5EF5)", color: "#fff", fontWeight: 600, fontSize: "0.9rem", whiteSpace: "nowrap" }}>
+        <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2.5 rounded-xl" style={{ backgroundColor: "var(--color-brand-tertiary,#2C5EF5)", color: "#fff", fontWeight: 600, fontSize: "0.9rem", whiteSpace: "nowrap" }}>
           <Plus size={16} /> Tambah Produk
         </button>
       </div>
@@ -126,7 +125,7 @@ export default function ProductsPage() {
             <thead>
               <tr style={{ borderBottom: "1px solid rgba(0,0,0,0.07)", backgroundColor: "var(--color-neutral,#F1F3F5)" }}>
                 {["Nama", "Brand", "Kategori", "Game Code", "Harga", "Aksi"].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left" style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.78rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</th>
+                  <th key={h} className="px-4 py-3 text-left" style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.78rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -143,14 +142,14 @@ export default function ProductsPage() {
                 ))
               ) : products.map((p) => (
                 <tr key={p.id} style={{ borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
-                  <td className="px-4 py-3" style={{ color: "var(--color-primary,#0F1419)", fontSize: "0.9rem", fontWeight: 500 }}>{p.name}</td>
-                  <td className="px-4 py-3" style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.85rem" }}>{p.brand}</td>
-                  <td className="px-4 py-3" style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.85rem" }}>{p.category}</td>
-                  <td className="px-4 py-3"><span style={{ fontFamily: "monospace", fontSize: "0.8rem", color: "var(--color-secondary,#4A5568)", backgroundColor: "var(--color-neutral,#F1F3F5)", padding: "2px 6px", borderRadius: 4 }}>{p.gameCode}</span></td>
-                  <td className="px-4 py-3" style={{ color: "var(--color-tertiary,#2C5EF5)", fontSize: "0.9rem", fontWeight: 600 }}>{formatRp(p.price)}</td>
+                  <td className="px-4 py-3" style={{ color: "var(--color-brand-primary,#0F1419)", fontSize: "0.9rem", fontWeight: 500 }}>{p.name}</td>
+                  <td className="px-4 py-3" style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.85rem" }}>{p.brand}</td>
+                  <td className="px-4 py-3" style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.85rem" }}>{p.category}</td>
+                  <td className="px-4 py-3"><span style={{ fontFamily: "monospace", fontSize: "0.8rem", color: "var(--color-brand-secondary,#4A5568)", backgroundColor: "var(--color-neutral,#F1F3F5)", padding: "2px 6px", borderRadius: 4 }}>{p.gameCode}</span></td>
+                  <td className="px-4 py-3" style={{ color: "var(--color-brand-tertiary,#2C5EF5)", fontSize: "0.9rem", fontWeight: 600 }}>{formatRp(p.price)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <button onClick={() => openEdit(p)} className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-blue-50" style={{ color: "var(--color-tertiary,#2C5EF5)" }}>
+                      <button onClick={() => openEdit(p)} className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-blue-50" style={{ color: "var(--color-brand-tertiary,#2C5EF5)" }}>
                         <Pencil size={14} />
                       </button>
                       <button onClick={() => handleDelete(p.id)} disabled={deleteId === p.id} className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-red-50" style={{ color: "#ef4444" }}>
@@ -162,7 +161,7 @@ export default function ProductsPage() {
               ))}
               {!loading && products.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center" style={{ color: "var(--color-secondary,#4A5568)" }}>Tidak ada produk ditemukan</td>
+                  <td colSpan={6} className="px-4 py-12 text-center" style={{ color: "var(--color-brand-secondary,#4A5568)" }}>Tidak ada produk ditemukan</td>
                 </tr>
               )}
             </tbody>
@@ -172,12 +171,12 @@ export default function ProductsPage() {
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3" style={{ borderTop: "1px solid rgba(0,0,0,0.07)" }}>
-            <span style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.85rem" }}>{totalCount} produk</span>
+            <span style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.85rem" }}>{totalCount} produk</span>
             <div className="flex items-center gap-2">
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ border: "1px solid rgba(0,0,0,0.1)" }}>
                 <ChevronLeft size={15} />
               </button>
-              <span style={{ fontSize: "0.85rem", color: "var(--color-primary,#0F1419)" }}>{page}/{totalPages}</span>
+              <span style={{ fontSize: "0.85rem", color: "var(--color-brand-primary,#0F1419)" }}>{page}/{totalPages}</span>
               <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ border: "1px solid rgba(0,0,0,0.1)" }}>
                 <ChevronRight size={15} />
               </button>
@@ -191,10 +190,10 @@ export default function ProductsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
           <div className="w-full max-w-lg rounded-2xl p-6" style={{ backgroundColor: "var(--color-surface,#fff)", maxHeight: "90vh", overflowY: "auto" }}>
             <div className="flex items-center justify-between mb-5">
-              <h3 style={{ color: "var(--color-primary,#0F1419)", fontWeight: 700, fontSize: "1rem" }}>
+              <h3 style={{ color: "var(--color-brand-primary,#0F1419)", fontWeight: 700, fontSize: "1rem" }}>
                 {editTarget ? "Edit Produk" : "Tambah Produk"}
               </h3>
-              <button onClick={() => setModalOpen(false)} style={{ color: "var(--color-secondary,#4A5568)" }}><X size={20} /></button>
+              <button onClick={() => setModalOpen(false)} style={{ color: "var(--color-brand-secondary,#4A5568)" }}><X size={20} /></button>
             </div>
             <div className="space-y-3">
               {[
@@ -206,24 +205,24 @@ export default function ProductsPage() {
                 { label: "Harga", key: "price", type: "number", placeholder: "19000" },
               ].map((field) => (
                 <div key={field.key}>
-                  <label style={{ color: "var(--color-primary,#0F1419)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 5 }}>{field.label}</label>
+                  <label style={{ color: "var(--color-brand-primary,#0F1419)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 5 }}>{field.label}</label>
                   <input
                     type={field.type}
                     value={String(form[field.key as keyof CreateProductPayload] ?? "")}
                     onChange={(e) => setForm({ ...form, [field.key]: field.type === "number" ? Number(e.target.value) : e.target.value })}
                     placeholder={field.placeholder}
                     className="w-full px-4 py-2.5 rounded-xl outline-none"
-                    style={{ border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.9rem", color: "var(--color-primary,#0F1419)" }}
+                    style={{ border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.9rem", color: "var(--color-brand-primary,#0F1419)" }}
                   />
                 </div>
               ))}
             </div>
             <div className="flex gap-3 mt-6">
-              <button onClick={handleSave} disabled={saving} className="flex-1 py-3 rounded-xl flex items-center justify-center gap-2" style={{ backgroundColor: "var(--color-tertiary,#2C5EF5)", color: "#fff", fontWeight: 600 }}>
+              <button onClick={handleSave} disabled={saving} className="flex-1 py-3 rounded-xl flex items-center justify-center gap-2" style={{ backgroundColor: "var(--color-brand-tertiary,#2C5EF5)", color: "#fff", fontWeight: 600 }}>
                 {saving && <Loader2 size={15} className="animate-spin" />}
                 {saving ? "Menyimpan..." : "Simpan"}
               </button>
-              <button onClick={() => setModalOpen(false)} className="px-5 py-3 rounded-xl" style={{ border: "1px solid rgba(0,0,0,0.1)", color: "var(--color-secondary,#4A5568)" }}>Batal</button>
+              <button onClick={() => setModalOpen(false)} className="px-5 py-3 rounded-xl" style={{ border: "1px solid rgba(0,0,0,0.1)", color: "var(--color-brand-secondary,#4A5568)" }}>Batal</button>
             </div>
           </div>
         </div>

@@ -63,7 +63,7 @@ export default function VoucherCard({ appliedCode, onApply, onRemove, compact = 
           <div className="flex items-center gap-2">
             <Ticket size={iconSize} style={{ color: "var(--color-success)", flexShrink: 0 }} />
             <div>
-              <p style={{ color: "var(--color-primary)", fontWeight: 600, fontSize: compact ? "0.82rem" : "0.9rem" }}>
+              <p style={{ color: "var(--color-brand-primary)", fontWeight: 600, fontSize: compact ? "0.82rem" : "0.9rem" }}>
                 {compact ? "Voucher" : "Voucher Diskon"}
               </p>
               <p style={{
@@ -81,7 +81,7 @@ export default function VoucherCard({ appliedCode, onApply, onRemove, compact = 
             <button
               onClick={() => { setInputValue(appliedCode); setIsExpanded(true); onRemove(); }}
               className="px-2.5 py-1.5 rounded-lg transition-colors"
-              style={{ color: "var(--color-tertiary)", fontSize: "0.75rem", fontWeight: 600, border: "none", backgroundColor: "transparent" }}
+              style={{ color: "var(--color-brand-tertiary)", fontSize: "0.75rem", fontWeight: 600, border: "none", backgroundColor: "transparent" }}
               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--color-hover-info)"; }}
               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
             >
@@ -113,12 +113,12 @@ export default function VoucherCard({ appliedCode, onApply, onRemove, compact = 
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Ticket size={iconSize} style={{ color: "var(--color-secondary)", flexShrink: 0 }} />
+            <Ticket size={iconSize} style={{ color: "var(--color-brand-secondary)", flexShrink: 0 }} />
             <div>
-              <p style={{ color: "var(--color-primary)", fontWeight: 600, fontSize: compact ? "0.82rem" : "0.9rem" }}>
+              <p style={{ color: "var(--color-brand-primary)", fontWeight: 600, fontSize: compact ? "0.82rem" : "0.9rem" }}>
                 Voucher Diskon
               </p>
-              <p style={{ color: "var(--color-secondary)", fontSize: "0.75rem" }}>
+              <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.75rem" }}>
                 Belum menggunakan voucher
               </p>
             </div>
@@ -127,7 +127,7 @@ export default function VoucherCard({ appliedCode, onApply, onRemove, compact = 
             onClick={() => setIsExpanded(true)}
             className="px-3 py-1.5 rounded-lg transition-colors"
             style={{
-              color: "var(--color-tertiary)",
+              color: "var(--color-brand-tertiary)",
               fontWeight: 600,
               fontSize: compact ? "0.78rem" : "0.83rem",
               border: "none",
@@ -147,11 +147,11 @@ export default function VoucherCard({ appliedCode, onApply, onRemove, compact = 
   return (
     <div
       className={outerClass}
-      style={{ backgroundColor: "var(--color-surface)", border: "1.5px solid var(--color-tertiary)" }}
+      style={{ backgroundColor: "var(--color-surface)", border: "1.5px solid var(--color-brand-tertiary)" }}
     >
       <div className="flex items-center gap-2 mb-3">
-        <Ticket size={iconSize} style={{ color: "var(--color-tertiary)", flexShrink: 0 }} />
-        <p style={{ color: "var(--color-primary)", fontWeight: 600, fontSize: "0.85rem" }}>
+        <Ticket size={iconSize} style={{ color: "var(--color-brand-tertiary)", flexShrink: 0 }} />
+        <p style={{ color: "var(--color-brand-primary)", fontWeight: 600, fontSize: "0.85rem" }}>
           Masukkan Kode Voucher
         </p>
       </div>
@@ -168,7 +168,7 @@ export default function VoucherCard({ appliedCode, onApply, onRemove, compact = 
           style={{
             border: "1.5px solid var(--color-border-input)",
             fontSize: "0.85rem",
-            color: "var(--color-primary)",
+            color: "var(--color-brand-primary)",
             fontFamily: "monospace",
             letterSpacing: "0.04em",
           }}
@@ -178,8 +178,8 @@ export default function VoucherCard({ appliedCode, onApply, onRemove, compact = 
           disabled={!inputValue.trim() || isLoading}
           className="px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5"
           style={{
-            backgroundColor: inputValue.trim() && !isLoading ? "var(--color-tertiary)" : "var(--color-neutral)",
-            color: inputValue.trim() && !isLoading ? "var(--color-on-primary)" : "var(--color-secondary)",
+            backgroundColor: inputValue.trim() && !isLoading ? "var(--color-brand-tertiary)" : "var(--color-neutral)",
+            color: inputValue.trim() && !isLoading ? "var(--color-on-primary)" : "var(--color-brand-secondary)",
             fontWeight: 600,
             fontSize: "0.82rem",
             border: "none",
@@ -201,7 +201,7 @@ export default function VoucherCard({ appliedCode, onApply, onRemove, compact = 
       <button
         onClick={() => { setIsExpanded(false); setInputValue(""); }}
         className="mt-2 transition-colors"
-        style={{ color: "var(--color-secondary)", fontSize: "0.78rem", border: "none", backgroundColor: "transparent" }}
+        style={{ color: "var(--color-brand-secondary)", fontSize: "0.78rem", border: "none", backgroundColor: "transparent" }}
       >
         Batal
       </button>

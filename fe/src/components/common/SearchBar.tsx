@@ -127,14 +127,14 @@ export default function SearchBar({ variant = "expandable", onClose }: SearchBar
             style={{
               backgroundColor: "var(--color-neutral, #F1F3F5)",
               border: "1.5px solid",
-              borderColor: isOpen && hasQuery ? "var(--color-tertiary, #2C5EF5)" : "rgba(0,0,0,0.08)",
+              borderColor: isOpen && hasQuery ? "var(--color-brand-tertiary, #2C5EF5)" : "rgba(0,0,0,0.08)",
               padding: "0 12px",
               height: 40,
               width: 280,
               boxSizing: "border-box",
             }}
           >
-            <Search size={16} style={{ color: "var(--color-secondary, #4A5568)", flexShrink: 0 }} />
+            <Search size={16} style={{ color: "var(--color-brand-secondary, #4A5568)", flexShrink: 0 }} />
             <input
               ref={inputRef}
               type="text"
@@ -152,15 +152,15 @@ export default function SearchBar({ variant = "expandable", onClose }: SearchBar
               aria-activedescendant={activeIndex >= 0 ? `search-result-${activeIndex}` : undefined}
               autoComplete="off"
               className="flex-1 outline-none bg-transparent"
-              style={{ color: "var(--color-primary, #0F1419)", fontSize: "0.875rem", minWidth: 0 }}
+              style={{ color: "var(--color-brand-primary, #0F1419)", fontSize: "0.875rem", minWidth: 0 }}
             />
-            {isFetching && <Loader2 size={14} className="animate-spin" style={{ color: "var(--color-secondary, #4A5568)", flexShrink: 0 }} />}
+            {isFetching && <Loader2 size={14} className="animate-spin" style={{ color: "var(--color-brand-secondary, #4A5568)", flexShrink: 0 }} />}
             {hasQuery && !isFetching && (
               <button
                 onClick={() => { setQuery(""); setIsOpen(false); inputRef.current?.focus(); }}
                 aria-label="Hapus pencarian"
                 className="p-0.5 rounded-full transition-colors hover:opacity-70"
-                style={{ color: "var(--color-secondary, #4A5568)", flexShrink: 0 }}
+                style={{ color: "var(--color-brand-secondary, #4A5568)", flexShrink: 0 }}
               >
                 <X size={14} />
               </button>
@@ -182,7 +182,7 @@ export default function SearchBar({ variant = "expandable", onClose }: SearchBar
           }}
           aria-label={isExpanded ? "Tutup pencarian" : "Buka pencarian"}
           className="p-2 rounded-lg transition-colors hover:bg-gray-100"
-          style={{ color: "var(--color-primary, #0F1419)", flexShrink: 0 }}
+          style={{ color: "var(--color-brand-primary, #0F1419)", flexShrink: 0 }}
         >
           <Search size={18} />
         </button>
@@ -206,20 +206,20 @@ export default function SearchBar({ variant = "expandable", onClose }: SearchBar
           >
             {isLoading && results.length === 0 && (
               <div className="flex items-center gap-3 px-4 py-4">
-                <Loader2 size={16} className="animate-spin" style={{ color: "var(--color-tertiary, #2C5EF5)" }} />
-                <span style={{ color: "var(--color-secondary, #4A5568)", fontSize: "0.875rem" }}>Mencari game...</span>
+                <Loader2 size={16} className="animate-spin" style={{ color: "var(--color-brand-tertiary, #2C5EF5)" }} />
+                <span style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.875rem" }}>Mencari game...</span>
               </div>
             )}
             {isError && (
               <div className="flex items-center gap-3 px-4 py-4">
                 <AlertCircle size={16} style={{ color: "#ef4444", flexShrink: 0 }} />
-                <span style={{ color: "var(--color-secondary, #4A5568)", fontSize: "0.875rem" }}>Terjadi kesalahan. Silakan coba lagi.</span>
+                <span style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.875rem" }}>Terjadi kesalahan. Silakan coba lagi.</span>
               </div>
             )}
             {!isLoading && !isError && results.length === 0 && (
               <div className="flex flex-col items-center gap-2 px-4 py-6">
-                <Gamepad2 size={24} style={{ color: "var(--color-secondary, #4A5568)", opacity: 0.5 }} />
-                <span style={{ color: "var(--color-secondary, #4A5568)", fontSize: "0.875rem", textAlign: "center" }}>Tidak ditemukan game yang sesuai.</span>
+                <Gamepad2 size={24} style={{ color: "var(--color-brand-secondary, #4A5568)", opacity: 0.5 }} />
+                <span style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.875rem", textAlign: "center" }}>Tidak ditemukan game yang sesuai.</span>
               </div>
             )}
             {results.length > 0 && (
@@ -254,12 +254,12 @@ export default function SearchBar({ variant = "expandable", onClose }: SearchBar
                         {game.imageUrl ? (
                           <img src={game.imageUrl} alt={game.brand} className="w-full h-full object-cover" />
                         ) : (
-                          <Gamepad2 size={18} style={{ color: "var(--color-secondary, #4A5568)" }} />
+                          <Gamepad2 size={18} style={{ color: "var(--color-brand-secondary, #4A5568)" }} />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="truncate" style={{ color: "var(--color-primary, #0F1419)", fontSize: "0.875rem", fontWeight: 600, margin: 0 }}>{game.brand}</p>
-                        <p className="truncate" style={{ color: "var(--color-secondary, #4A5568)", fontSize: "0.75rem", margin: "2px 0 0" }}>
+                        <p className="truncate" style={{ color: "var(--color-brand-primary, #0F1419)", fontSize: "0.875rem", fontWeight: 600, margin: 0 }}>{game.brand}</p>
+                        <p className="truncate" style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.75rem", margin: "2px 0 0" }}>
                           {game.inputType === "USER_ID_AND_ZONE_ID" ? "Player ID + Zone ID" : "Player ID"}
                         </p>
                       </div>
@@ -286,12 +286,12 @@ export default function SearchBar({ variant = "expandable", onClose }: SearchBar
         style={{
           backgroundColor: "var(--color-surface, #fff)",
           border: "1.5px solid",
-          borderColor: isOpen && hasQuery ? "var(--color-tertiary, #2C5EF5)" : "rgba(0,0,0,0.08)",
+          borderColor: isOpen && hasQuery ? "var(--color-brand-tertiary, #2C5EF5)" : "rgba(0,0,0,0.08)",
           padding: "0 12px",
           height: 48,
         }}
       >
-        <Search size={18} style={{ color: "var(--color-secondary, #4A5568)", flexShrink: 0 }} />
+        <Search size={18} style={{ color: "var(--color-brand-secondary, #4A5568)", flexShrink: 0 }} />
         <input
           ref={inputRef}
           type="text"
@@ -309,15 +309,15 @@ export default function SearchBar({ variant = "expandable", onClose }: SearchBar
           aria-activedescendant={activeIndex >= 0 ? `search-result-${activeIndex}` : undefined}
           autoComplete="off"
           className="flex-1 outline-none bg-transparent"
-          style={{ color: "var(--color-primary, #0F1419)", fontSize: "0.95rem" }}
+          style={{ color: "var(--color-brand-primary, #0F1419)", fontSize: "0.95rem" }}
         />
-        {isFetching && <Loader2 size={14} className="animate-spin" style={{ color: "var(--color-secondary, #4A5568)", flexShrink: 0 }} />}
+        {isFetching && <Loader2 size={14} className="animate-spin" style={{ color: "var(--color-brand-secondary, #4A5568)", flexShrink: 0 }} />}
         {hasQuery && !isFetching && (
           <button
             onClick={() => { setQuery(""); setIsOpen(false); inputRef.current?.focus(); }}
             aria-label="Hapus pencarian"
             className="p-0.5 rounded-full transition-colors hover:opacity-70"
-            style={{ color: "var(--color-secondary, #4A5568)", flexShrink: 0 }}
+            style={{ color: "var(--color-brand-secondary, #4A5568)", flexShrink: 0 }}
           >
             <X size={14} />
           </button>
@@ -339,20 +339,20 @@ export default function SearchBar({ variant = "expandable", onClose }: SearchBar
         >
           {isLoading && results.length === 0 && (
             <div className="flex items-center gap-3 px-4 py-4">
-              <Loader2 size={16} className="animate-spin" style={{ color: "var(--color-tertiary, #2C5EF5)" }} />
-              <span style={{ color: "var(--color-secondary, #4A5568)", fontSize: "0.875rem" }}>Mencari game...</span>
+              <Loader2 size={16} className="animate-spin" style={{ color: "var(--color-brand-tertiary, #2C5EF5)" }} />
+              <span style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.875rem" }}>Mencari game...</span>
             </div>
           )}
           {isError && (
             <div className="flex items-center gap-3 px-4 py-4">
               <AlertCircle size={16} style={{ color: "#ef4444", flexShrink: 0 }} />
-              <span style={{ color: "var(--color-secondary, #4A5568)", fontSize: "0.875rem" }}>Terjadi kesalahan. Silakan coba lagi.</span>
+              <span style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.875rem" }}>Terjadi kesalahan. Silakan coba lagi.</span>
             </div>
           )}
           {!isLoading && !isError && results.length === 0 && (
             <div className="flex flex-col items-center gap-2 px-4 py-6">
-              <Gamepad2 size={24} style={{ color: "var(--color-secondary, #4A5568)", opacity: 0.5 }} />
-              <span style={{ color: "var(--color-secondary, #4A5568)", fontSize: "0.875rem", textAlign: "center" }}>Tidak ditemukan game yang sesuai.</span>
+              <Gamepad2 size={24} style={{ color: "var(--color-brand-secondary, #4A5568)", opacity: 0.5 }} />
+              <span style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.875rem", textAlign: "center" }}>Tidak ditemukan game yang sesuai.</span>
             </div>
           )}
           {results.length > 0 && (
@@ -387,12 +387,12 @@ export default function SearchBar({ variant = "expandable", onClose }: SearchBar
                       {game.imageUrl ? (
                         <img src={game.imageUrl} alt={game.brand} className="w-full h-full object-cover" />
                       ) : (
-                        <Gamepad2 size={18} style={{ color: "var(--color-secondary, #4A5568)" }} />
+                        <Gamepad2 size={18} style={{ color: "var(--color-brand-secondary, #4A5568)" }} />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="truncate" style={{ color: "var(--color-primary, #0F1419)", fontSize: "0.875rem", fontWeight: 600, margin: 0 }}>{game.brand}</p>
-                      <p className="truncate" style={{ color: "var(--color-secondary, #4A5568)", fontSize: "0.75rem", margin: "2px 0 0" }}>
+                      <p className="truncate" style={{ color: "var(--color-brand-primary, #0F1419)", fontSize: "0.875rem", fontWeight: 600, margin: 0 }}>{game.brand}</p>
+                      <p className="truncate" style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.75rem", margin: "2px 0 0" }}>
                         {game.inputType === "USER_ID_AND_ZONE_ID" ? "Player ID + Zone ID" : "Player ID"}
                       </p>
                     </div>

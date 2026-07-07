@@ -54,11 +54,11 @@ export default function AdminLoginPage() {
   const loading = loginMutation.isPending;
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: "var(--color-primary,#0F1419)" }}>
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: "var(--color-brand-primary,#0F1419)" }}>
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-4">
-            <div style={{ backgroundColor: "var(--color-tertiary,#2C5EF5)", borderRadius: 10 }} className="w-10 h-10 flex items-center justify-center">
+            <div style={{ backgroundColor: "var(--color-brand-tertiary,#2C5EF5)", borderRadius: 10 }} className="w-10 h-10 flex items-center justify-center">
               <Zap size={20} color="#fff" fill="#fff" />
             </div>
             <span style={{ color: "#fff", fontWeight: 800, fontSize: "1.3rem" }}>Digitalin</span>
@@ -80,7 +80,7 @@ export default function AdminLoginPage() {
                 placeholder="admin"
                 className="w-full px-4 py-3 rounded-xl outline-none"
                 style={{ backgroundColor: "rgba(255,255,255,0.08)", border: "1.5px solid rgba(255,255,255,0.12)", color: "#fff", fontSize: "0.9rem" }}
-                onFocus={(e) => { e.target.style.borderColor = "var(--color-tertiary,#2C5EF5)"; }}
+                onFocus={(e) => { e.target.style.borderColor = "var(--color-brand-tertiary,#2C5EF5)"; }}
                 onBlur={(e) => { e.target.style.borderColor = "rgba(255,255,255,0.12)"; }}
               />
             </div>
@@ -94,7 +94,7 @@ export default function AdminLoginPage() {
                   placeholder="••••••••"
                   className="w-full px-4 py-3 pr-12 rounded-xl outline-none"
                   style={{ backgroundColor: "rgba(255,255,255,0.08)", border: "1.5px solid rgba(255,255,255,0.12)", color: "#fff", fontSize: "0.9rem" }}
-                  onFocus={(e) => { e.target.style.borderColor = "var(--color-tertiary,#2C5EF5)"; }}
+                  onFocus={(e) => { e.target.style.borderColor = "var(--color-brand-tertiary,#2C5EF5)"; }}
                   onBlur={(e) => { e.target.style.borderColor = "rgba(255,255,255,0.12)"; }}
                 />
                 <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "rgba(255,255,255,0.5)" }}>
@@ -106,7 +106,7 @@ export default function AdminLoginPage() {
               type="submit"
               disabled={loading}
               className="w-full py-3.5 rounded-xl flex items-center justify-center gap-2 mt-2"
-              style={{ backgroundColor: "var(--color-tertiary,#2C5EF5)", color: "#fff", fontWeight: 600, fontSize: "0.95rem", opacity: loading ? 0.7 : 1 }}
+              style={{ backgroundColor: "var(--color-brand-tertiary,#2C5EF5)", color: "#fff", fontWeight: 600, fontSize: "0.95rem", opacity: loading ? 0.7 : 1 }}
             >
               {loading && <Loader2 size={16} className="animate-spin" />}
               {loading ? "Masuk..." : "Masuk"}

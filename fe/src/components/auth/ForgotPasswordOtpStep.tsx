@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Eye, EyeOff, Loader2, KeyRound, Lock } from "lucide-react";
 import OtpInput from "./OtpInput";
 
-import type { ForgotPasswordOtpStepProps } from "../../../../api/index";
+import type { ForgotPasswordOtpStepProps } from "../../api/index";
 
 export default function ForgotPasswordOtpStep({
   email,
@@ -55,12 +55,12 @@ export default function ForgotPasswordOtpStep({
 
       {/* OTP Code Section */}
       <div>
-        <label style={{ color: "var(--color-primary)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 8, textAlign: "center" }}>
+        <label style={{ color: "var(--color-brand-primary)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 8, textAlign: "center" }}>
           Masukkan 6 Digit Kode OTP
         </label>
         <OtpInput value={otpCode} onChange={setOtpCode} />
-        <p style={{ color: "var(--color-secondary)", fontSize: "0.78rem", marginTop: 6, textAlign: "center" }}>
-          Kode dikirim ke <strong style={{ color: "var(--color-primary)" }}>{email}</strong>
+        <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.78rem", marginTop: 6, textAlign: "center" }}>
+          Kode dikirim ke <strong style={{ color: "var(--color-brand-primary)" }}>{email}</strong>
         </p>
       </div>
 
@@ -68,7 +68,7 @@ export default function ForgotPasswordOtpStep({
       <div>
         <label
           htmlFor="newPassword"
-          style={{ color: "var(--color-primary)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 6 }}
+          style={{ color: "var(--color-brand-primary)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 6 }}
         >
           Password Baru
         </label>
@@ -76,7 +76,7 @@ export default function ForgotPasswordOtpStep({
           <KeyRound
             size={18}
             className="absolute left-4 top-1/2 -translate-y-1/2"
-            style={{ color: "var(--color-secondary)" }}
+            style={{ color: "var(--color-brand-secondary)" }}
           />
           <input
             id="newPassword"
@@ -89,18 +89,18 @@ export default function ForgotPasswordOtpStep({
             className="w-full pl-11 pr-11 py-3 rounded-xl outline-none transition-all"
             style={{
               border: "1.5px solid var(--color-border-input)",
-              color: "var(--color-primary)",
+              color: "var(--color-brand-primary)",
               backgroundColor: "var(--color-surface)",
               fontSize: "0.9rem",
             }}
-            onFocus={(e) => { e.target.style.borderColor = "var(--color-tertiary)"; }}
+            onFocus={(e) => { e.target.style.borderColor = "var(--color-brand-tertiary)"; }}
             onBlur={(e) => { e.target.style.borderColor = "var(--color-border-input)"; }}
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
             className="absolute right-4 top-1/2 -translate-y-1/2 focus:outline-none"
-            style={{ color: "var(--color-secondary)" }}
+            style={{ color: "var(--color-brand-secondary)" }}
             tabIndex={-1}
           >
             {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -117,7 +117,7 @@ export default function ForgotPasswordOtpStep({
       <div>
         <label
           htmlFor="confirmPassword"
-          style={{ color: "var(--color-primary)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 6 }}
+          style={{ color: "var(--color-brand-primary)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 6 }}
         >
           Konfirmasi Password Baru
         </label>
@@ -125,7 +125,7 @@ export default function ForgotPasswordOtpStep({
           <Lock
             size={18}
             className="absolute left-4 top-1/2 -translate-y-1/2"
-            style={{ color: "var(--color-secondary)" }}
+            style={{ color: "var(--color-brand-secondary)" }}
           />
           <input
             id="confirmPassword"
@@ -138,18 +138,18 @@ export default function ForgotPasswordOtpStep({
             className="w-full pl-11 pr-11 py-3 rounded-xl outline-none transition-all"
             style={{
               border: "1.5px solid var(--color-border-input)",
-              color: "var(--color-primary)",
+              color: "var(--color-brand-primary)",
               backgroundColor: "var(--color-surface)",
               fontSize: "0.9rem",
             }}
-            onFocus={(e) => { e.target.style.borderColor = "var(--color-tertiary)"; }}
+            onFocus={(e) => { e.target.style.borderColor = "var(--color-brand-tertiary)"; }}
             onBlur={(e) => { e.target.style.borderColor = "var(--color-border-input)"; }}
           />
           <button
             type="button"
             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
             className="absolute right-4 top-1/2 -translate-y-1/2 focus:outline-none"
-            style={{ color: "var(--color-secondary)" }}
+            style={{ color: "var(--color-brand-secondary)" }}
             tabIndex={-1}
           >
             {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -165,8 +165,8 @@ export default function ForgotPasswordOtpStep({
       {/* Resend OTP button & timer */}
       <div className="flex justify-center text-xs">
         {countdown > 0 ? (
-          <p style={{ color: "var(--color-secondary)" }}>
-            Kirim ulang OTP dalam <span className="font-semibold" style={{ color: "var(--color-tertiary)" }}>{countdown} detik</span>
+          <p style={{ color: "var(--color-brand-secondary)" }}>
+            Kirim ulang OTP dalam <span className="font-semibold" style={{ color: "var(--color-brand-tertiary)" }}>{countdown} detik</span>
           </p>
         ) : (
           <button
@@ -174,7 +174,7 @@ export default function ForgotPasswordOtpStep({
             onClick={handleResend}
             disabled={isResending}
             className="font-semibold hover:underline"
-            style={{ color: "var(--color-tertiary)" }}
+            style={{ color: "var(--color-brand-tertiary)" }}
           >
             {isResending ? "Mengirim..." : "Kirim Ulang OTP"}
           </button>
@@ -187,7 +187,7 @@ export default function ForgotPasswordOtpStep({
         disabled={isPending || !isFormValid}
         className="w-full py-3 rounded-xl flex items-center justify-center gap-2 font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         style={{
-          backgroundColor: "var(--color-tertiary)",
+          backgroundColor: "var(--color-brand-tertiary)",
           cursor: isPending || !isFormValid ? "not-allowed" : "pointer",
         }}
       >

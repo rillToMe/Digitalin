@@ -71,7 +71,7 @@ function HeroCarousel({ banners }: { banners: BannerItem[] }) {
             style={{
               width: i === current ? 32 : 12,
               height: 12,
-              backgroundColor: i === current ? "var(--color-tertiary, #2C5EF5)" : "rgba(255,255,255,0.5)",
+              backgroundColor: i === current ? "var(--color-brand-tertiary, #2C5EF5)" : "rgba(255,255,255,0.5)",
             }}
           />
         ))}
@@ -97,16 +97,16 @@ function GameCard({ brand }: { brand: BrandItem }) {
           <img src={brand.imageUrl} alt={brand.brand} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: "var(--color-neutral, #F1F3F5)" }}>
-            <Gamepad2 size={32} style={{ color: "var(--color-secondary, #4A5568)" }} />
+            <Gamepad2 size={32} style={{ color: "var(--color-brand-secondary, #4A5568)" }} />
           </div>
         )}
         <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(15,20,25,0.6) 0%, transparent 50%)" }} />
       </div>
       <div className="px-3 py-3">
         <p style={{ color: "var(--color-primary, #0F1419)", fontWeight: 600, fontSize: "0.9rem" }} className="truncate">{brand.brand}</p>
-        <p style={{ color: "var(--color-secondary, #4A5568)", fontSize: "0.75rem", marginTop: 2 }}>
-          Mulai dari <span style={{ color: "var(--color-tertiary, #2C5EF5)", fontWeight: 600 }}>Rp {minPrice.toLocaleString("id-ID")}</span>
-        </p>
+        {/* <p style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.75rem", marginTop: 2 }}>
+          Mulai dari <span style={{ color: "var(--color-brand-tertiary, #2C5EF5)", fontWeight: 600 }}>Rp {minPrice.toLocaleString("id-ID")}</span>
+        </p> */}
       </div>
     </motion.div>
   );
@@ -180,7 +180,7 @@ export default function HomePage() {
                 onClick={() => setCategory(cat.id)}
                 className="flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap transition-all"
                 style={{
-                  backgroundColor: active ? "var(--color-tertiary, #2C5EF5)" : "var(--color-surface, #fff)",
+                  backgroundColor: active ? "var(--color-brand-tertiary, #2C5EF5)" : "var(--color-surface, #fff)",
                   color: active ? "#fff" : "var(--color-primary, #0F1419)",
                   border: active ? "none" : "1px solid rgba(0,0,0,0.1)",
                   fontWeight: active ? 600 : 400,
@@ -202,7 +202,7 @@ export default function HomePage() {
             {category === "all" ? "Semua Game" : CATEGORIES.find((c) => c.id === category)?.label}
           </h2>
           {!loading && (
-            <span style={{ color: "var(--color-secondary, #4A5568)", fontSize: "0.85rem" }}>
+            <span style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.85rem" }}>
               {filteredBrands.length} game
             </span>
           )}
@@ -216,8 +216,8 @@ export default function HomePage() {
 
         {!loading && filteredBrands.length === 0 && (
           <div className="text-center py-16">
-            <Gamepad2 size={40} style={{ color: "var(--color-secondary, #4A5568)", margin: "0 auto 12px" }} />
-            <p style={{ color: "var(--color-secondary, #4A5568)" }}>Tidak ada game ditemukan</p>
+            <Gamepad2 size={40} style={{ color: "var(--color-brand-secondary, #4A5568)", margin: "0 auto 12px" }} />
+            <p style={{ color: "var(--color-brand-secondary, #4A5568)" }}>Tidak ada game ditemukan</p>
           </div>
         )}
       </section>
@@ -234,7 +234,7 @@ export default function HomePage() {
             <div key={i} className="rounded-2xl p-5 flex flex-col items-center text-center" style={{ backgroundColor: "var(--color-surface, #fff)", border: "1px solid rgba(0,0,0,0.07)" }}>
               <span style={{ fontSize: "1.8rem", marginBottom: 8 }}>{item.icon}</span>
               <p style={{ color: "var(--color-primary, #0F1419)", fontWeight: 600, fontSize: "0.9rem" }}>{item.title}</p>
-              <p style={{ color: "var(--color-secondary, #4A5568)", fontSize: "0.8rem", marginTop: 4 }}>{item.desc}</p>
+              <p style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.8rem", marginTop: 4 }}>{item.desc}</p>
             </div>
           ))}
         </div>
@@ -243,12 +243,12 @@ export default function HomePage() {
       {/* FAQ Preview */}
       <section className="mt-16">
         <div className="flex items-center gap-3 mb-2">
-          <HelpCircle size={20} style={{ color: "var(--color-tertiary, #2C5EF5)" }} />
+          <HelpCircle size={20} style={{ color: "var(--color-brand-tertiary, #2C5EF5)" }} />
           <h2 style={{ color: "var(--color-primary, #0F1419)", fontWeight: 700, fontSize: "1.1rem" }}>
             Pertanyaan yang Sering Ditanyakan
           </h2>
         </div>
-        <p style={{ color: "var(--color-secondary, #4A5568)", fontSize: "0.875rem", marginBottom: 16 }}>
+        <p style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.875rem", marginBottom: 16 }}>
           Berikut beberapa pertanyaan yang paling sering diajukan oleh pengguna Digitalin.
         </p>
         <div
@@ -264,7 +264,7 @@ export default function HomePage() {
             to="/faq"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl no-underline transition-colors"
             style={{
-              backgroundColor: "var(--color-tertiary, #2C5EF5)",
+              backgroundColor: "var(--color-brand-tertiary, #2C5EF5)",
               color: "#fff",
               fontWeight: 600,
               fontSize: "0.875rem",

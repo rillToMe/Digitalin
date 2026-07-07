@@ -11,7 +11,7 @@ interface Props {
 export function SettingSectionHeader({
   icon: Icon,
   title,
-  iconColor = "var(--color-tertiary)",
+  iconColor = "var(--color-brand-tertiary)",
   rightElement,
 }: Props) {
   return (
@@ -23,7 +23,7 @@ export function SettingSectionHeader({
         <Icon size={18} style={{ color: iconColor }} />
         <h3
           style={{
-            color: "var(--color-primary)",
+            color: "var(--color-brand-primary)",
             fontWeight: 600,
             fontSize: "1rem",
           }}

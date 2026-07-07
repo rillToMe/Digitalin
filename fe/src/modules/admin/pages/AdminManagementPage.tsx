@@ -22,12 +22,12 @@ function formatDateTime(iso: string | null): string {
 const ROLE_STYLES: Record<AdminRole, { bg: string; text: string; icon: typeof Shield }> = {
   SUPER_ADMIN: {
     bg: "rgba(44,94,245,0.12)",
-    text: "var(--color-tertiary, #2C5EF5)",
+    text: "var(--color-brand-tertiary, #2C5EF5)",
     icon: ShieldCheck,
   },
   ADMIN: {
     bg: "rgba(0,0,0,0.06)",
-    text: "var(--color-secondary, #4A5568)",
+    text: "var(--color-brand-secondary, #4A5568)",
     icon: Shield,
   },
 };
@@ -56,10 +56,10 @@ function ModalShell({ title, onClose, children }: ModalShellProps) {
         style={{ backgroundColor: "var(--color-surface, #fff)", maxHeight: "90vh", overflowY: "auto" }}
       >
         <div className="flex items-center justify-between mb-5">
-          <h3 style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: "1rem" }}>
+          <h3 style={{ color: "var(--color-brand-primary)", fontWeight: 700, fontSize: "1rem" }}>
             {title}
           </h3>
-          <button onClick={onClose} style={{ color: "var(--color-secondary)" }}>
+          <button onClick={onClose} style={{ color: "var(--color-brand-secondary)" }}>
             <X size={20} />
           </button>
         </div>
@@ -78,7 +78,7 @@ function Field({ label, children }: FieldProps) {
     <div>
       <label
         style={{
-          color: "var(--color-primary)",
+          color: "var(--color-brand-primary)",
           fontSize: "0.85rem",
           fontWeight: 500,
           display: "block",
@@ -95,7 +95,7 @@ function Field({ label, children }: FieldProps) {
 const inputStyle: React.CSSProperties = {
   border: "1.5px solid var(--color-border-input, rgba(0,0,0,0.15))",
   fontSize: "0.9rem",
-  color: "var(--color-primary)",
+  color: "var(--color-brand-primary)",
   backgroundColor: "var(--color-surface)",
 };
 
@@ -158,7 +158,7 @@ function CreateAdminModal({ onClose }: CreateAdminModalProps) {
               type="button"
               onClick={() => setShowPass((v) => !v)}
               className="absolute right-3 top-1/2 -translate-y-1/2"
-              style={{ color: "var(--color-secondary)" }}
+              style={{ color: "var(--color-brand-secondary)" }}
             >
               {showPass ? <EyeOff size={17} /> : <Eye size={17} />}
             </button>
@@ -176,8 +176,8 @@ function CreateAdminModal({ onClose }: CreateAdminModalProps) {
                   onClick={() => setForm({ ...form, role: r })}
                   className="flex-1 py-2.5 rounded-xl transition-all"
                   style={{
-                    backgroundColor: active ? "var(--color-tertiary)" : "var(--color-surface)",
-                    color: active ? "#fff" : "var(--color-primary)",
+                    backgroundColor: active ? "var(--color-brand-tertiary)" : "var(--color-surface)",
+                    color: active ? "#fff" : "var(--color-brand-primary)",
                     border: active ? "none" : "1.5px solid var(--color-border-input, rgba(0,0,0,0.15))",
                     fontWeight: 500,
                     fontSize: "0.85rem",
@@ -195,7 +195,7 @@ function CreateAdminModal({ onClose }: CreateAdminModalProps) {
           disabled={mutation.isPending}
           className="w-full py-3 rounded-xl flex items-center justify-center gap-2 mt-2"
           style={{
-            backgroundColor: "var(--color-tertiary)",
+            backgroundColor: "var(--color-brand-tertiary)",
             color: "#fff",
             fontWeight: 600,
             fontSize: "0.9rem",
@@ -249,8 +249,8 @@ function EditRoleModal({ admin, onClose }: EditRoleModalProps) {
                   onClick={() => setRole(r)}
                   className="flex-1 py-2.5 rounded-xl transition-all"
                   style={{
-                    backgroundColor: active ? "var(--color-tertiary)" : "var(--color-surface)",
-                    color: active ? "#fff" : "var(--color-primary)",
+                    backgroundColor: active ? "var(--color-brand-tertiary)" : "var(--color-surface)",
+                    color: active ? "#fff" : "var(--color-brand-primary)",
                     border: active ? "none" : "1.5px solid var(--color-border-input, rgba(0,0,0,0.15))",
                     fontWeight: 500,
                     fontSize: "0.85rem",
@@ -268,7 +268,7 @@ function EditRoleModal({ admin, onClose }: EditRoleModalProps) {
           disabled={mutation.isPending}
           className="w-full py-3 rounded-xl flex items-center justify-center gap-2 mt-2"
           style={{
-            backgroundColor: "var(--color-tertiary)",
+            backgroundColor: "var(--color-brand-tertiary)",
             color: "#fff",
             fontWeight: 600,
             fontSize: "0.9rem",
@@ -332,7 +332,7 @@ function ResetPasswordModal({ admin, onClose }: ResetPasswordModalProps) {
               type="button"
               onClick={() => setShowNew((v) => !v)}
               className="absolute right-3 top-1/2 -translate-y-1/2"
-              style={{ color: "var(--color-secondary)" }}
+              style={{ color: "var(--color-brand-secondary)" }}
             >
               {showNew ? <EyeOff size={17} /> : <Eye size={17} />}
             </button>
@@ -353,7 +353,7 @@ function ResetPasswordModal({ admin, onClose }: ResetPasswordModalProps) {
               type="button"
               onClick={() => setShowConfirm((v) => !v)}
               className="absolute right-3 top-1/2 -translate-y-1/2"
-              style={{ color: "var(--color-secondary)" }}
+              style={{ color: "var(--color-brand-secondary)" }}
             >
               {showConfirm ? <EyeOff size={17} /> : <Eye size={17} />}
             </button>
@@ -365,7 +365,7 @@ function ResetPasswordModal({ admin, onClose }: ResetPasswordModalProps) {
           disabled={mutation.isPending}
           className="w-full py-3 rounded-xl flex items-center justify-center gap-2 mt-2"
           style={{
-            backgroundColor: "var(--color-tertiary)",
+            backgroundColor: "var(--color-brand-tertiary)",
             color: "#fff",
             fontWeight: 600,
             fontSize: "0.9rem",
@@ -401,9 +401,9 @@ function DeleteConfirmModal({ admin, onClose }: DeleteConfirmModalProps) {
 
   return (
     <ModalShell title="Hapus Admin" onClose={onClose}>
-      <p style={{ color: "var(--color-secondary)", fontSize: "0.9rem", marginBottom: 20 }}>
+      <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.9rem", marginBottom: 20 }}>
         Apakah Anda yakin ingin menghapus admin{" "}
-        <strong style={{ color: "var(--color-primary)" }}>{admin.username}</strong>?
+        <strong style={{ color: "var(--color-brand-primary)" }}>{admin.username}</strong>?
         Tindakan ini tidak dapat dibatalkan.
       </p>
       <div className="flex gap-3">
@@ -412,7 +412,7 @@ function DeleteConfirmModal({ admin, onClose }: DeleteConfirmModalProps) {
           className="flex-1 py-2.5 rounded-xl"
           style={{
             border: "1.5px solid var(--color-border-input, rgba(0,0,0,0.15))",
-            color: "var(--color-primary)",
+            color: "var(--color-brand-primary)",
             fontWeight: 500,
             fontSize: "0.9rem",
           }}
@@ -462,14 +462,14 @@ export default function AdminManagementPage() {
     <AdminLayout title="Kelola Admin" breadcrumb={["Admin", "Kelola Admin"]}>
       {/* Toolbar */}
       <div className="flex items-center justify-between mb-5">
-        <p style={{ color: "var(--color-secondary)", fontSize: "0.85rem" }}>
+        <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.85rem" }}>
           {admins.length} admin terdaftar
         </p>
         <button
           onClick={() => setActiveModal({ type: "create" })}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl"
           style={{
-            backgroundColor: "var(--color-tertiary)",
+            backgroundColor: "var(--color-brand-tertiary)",
             color: "#fff",
             fontWeight: 600,
             fontSize: "0.9rem",
@@ -503,7 +503,7 @@ export default function AdminManagementPage() {
                     key={h}
                     className="px-5 py-3 text-left"
                     style={{
-                      color: "var(--color-secondary)",
+                      color: "var(--color-brand-secondary)",
                       fontSize: "0.75rem",
                       fontWeight: 600,
                       textTransform: "uppercase",
@@ -545,7 +545,7 @@ export default function AdminManagementPage() {
                             style={{
                               fontWeight: 600,
                               fontSize: "0.9rem",
-                              color: "var(--color-primary)",
+                              color: "var(--color-brand-primary)",
                               fontFamily: "monospace",
                             }}
                           >
@@ -570,12 +570,12 @@ export default function AdminManagementPage() {
                         </td>
 
                         {/* Created */}
-                        <td className="px-5 py-4" style={{ color: "var(--color-secondary)", fontSize: "0.85rem" }}>
+                        <td className="px-5 py-4" style={{ color: "var(--color-brand-secondary)", fontSize: "0.85rem" }}>
                           {formatDateTime(a.createdAt)}
                         </td>
 
                         {/* Last login */}
-                        <td className="px-5 py-4" style={{ color: "var(--color-secondary)", fontSize: "0.85rem" }}>
+                        <td className="px-5 py-4" style={{ color: "var(--color-brand-secondary)", fontSize: "0.85rem" }}>
                           {formatDateTime(a.lastLoginAt)}
                         </td>
 
@@ -586,7 +586,7 @@ export default function AdminManagementPage() {
                             <button
                               onClick={() => setActiveModal({ type: "edit-role", admin: a })}
                               className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-                              style={{ color: "var(--color-tertiary)" }}
+                              style={{ color: "var(--color-brand-tertiary)" }}
                               onMouseEnter={(e) => {
                                 e.currentTarget.style.backgroundColor = "var(--color-hover-info, rgba(44,94,245,0.08))";
                               }}
@@ -636,7 +636,7 @@ export default function AdminManagementPage() {
                   })}
               {!isLoading && admins.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-5 py-12 text-center" style={{ color: "var(--color-secondary)" }}>
+                  <td colSpan={5} className="px-5 py-12 text-center" style={{ color: "var(--color-brand-secondary)" }}>
                     Tidak ada admin ditemukan.
                   </td>
                 </tr>

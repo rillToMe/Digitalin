@@ -24,12 +24,12 @@ const STATUS_BADGE: Record<OrderStatus, { label: string; color: string; bg: stri
   COMPLETED:    { label: "Sukses",     color: "var(--color-success)",   bg: "var(--color-success-bg)" },
   NEEDS_ACTION: { label: "Perlu Aksi", color: "var(--color-warning)",   bg: "var(--color-warning-bg)" },
   FAILED:       { label: "Gagal",      color: "var(--color-danger)",    bg: "var(--color-danger-bg)" },
-  EXPIRED:      { label: "Expired",    color: "var(--color-secondary)", bg: "var(--color-neutral)" },
+  EXPIRED:      { label: "Expired",    color: "var(--color-brand-secondary)", bg: "var(--color-neutral)" },
   REFUNDED:     { label: "Refunded",   color: "var(--color-info)",      bg: "var(--color-info-bg)" },
 };
 
 function StatusBadge({ status }: { status: OrderStatus }) {
-  const cfg = STATUS_BADGE[status] ?? { label: status, color: "var(--color-secondary)", bg: "var(--color-neutral)" };
+  const cfg = STATUS_BADGE[status] ?? { label: status, color: "var(--color-brand-secondary)", bg: "var(--color-neutral)" };
   return (
     <span className="px-2 py-0.5 rounded-full" style={{ backgroundColor: cfg.bg, color: cfg.color, fontSize: "0.7rem", fontWeight: 600 }}>
       {cfg.label}
@@ -146,12 +146,12 @@ export default function ProfilePage() {
         <div className="space-y-5">
           {/* Avatar Card */}
           <div className="rounded-2xl p-6 flex items-center gap-5" style={{ backgroundColor: "var(--color-surface,#fff)", border: "1px solid rgba(0,0,0,0.07)" }}>
-            <div className="w-16 h-16 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-tertiary,#2C5EF5)" }}>
+            <div className="w-16 h-16 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-brand-tertiary,#2C5EF5)" }}>
               <User size={28} color="#fff" />
             </div>
             <div className="min-w-0">
               <p style={{ color: "var(--color-primary,#0F1419)", fontWeight: 700, fontSize: "1.1rem" }} className="truncate">{profile.fullName}</p>
-              <p style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.85rem", marginTop: 2 }} className="truncate">{profile.email}</p>
+              <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.85rem", marginTop: 2 }} className="truncate">{profile.email}</p>
             </div>
           </div>
 
@@ -175,7 +175,7 @@ export default function ProfilePage() {
                     onChange={(e) => setForm({ ...form, fullName: e.target.value })}
                     className="w-full px-4 py-3 rounded-xl outline-none"
                     style={{ border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.9rem", color: "var(--color-primary,#0F1419)" }}
-                    onFocus={(e) => { e.target.style.borderColor = "var(--color-tertiary,#2C5EF5)"; }}
+                    onFocus={(e) => { e.target.style.borderColor = "var(--color-brand-tertiary,#2C5EF5)"; }}
                     onBlur={(e) => { e.target.style.borderColor = "rgba(0,0,0,0.12)"; }}
                   />
                 </div>
@@ -188,7 +188,7 @@ export default function ProfilePage() {
                     placeholder="Biarkan kosong jika tidak ingin ganti"
                     className="w-full px-4 py-3 rounded-xl outline-none"
                     style={{ border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.9rem", color: "var(--color-primary,#0F1419)" }}
-                    onFocus={(e) => { e.target.style.borderColor = "var(--color-tertiary,#2C5EF5)"; }}
+                    onFocus={(e) => { e.target.style.borderColor = "var(--color-brand-tertiary,#2C5EF5)"; }}
                     onBlur={(e) => { e.target.style.borderColor = "rgba(0,0,0,0.12)"; }}
                   />
                 </div>
@@ -197,12 +197,12 @@ export default function ProfilePage() {
                     onClick={handleSave}
                     disabled={updateMutation.isPending}
                     className="flex-1 py-3 rounded-xl flex items-center justify-center gap-2"
-                    style={{ backgroundColor: "var(--color-tertiary,#2C5EF5)", color: "#fff", fontWeight: 600, fontSize: "0.9rem" }}
+                    style={{ backgroundColor: "var(--color-brand-tertiary,#2C5EF5)", color: "#fff", fontWeight: 600, fontSize: "0.9rem" }}
                   >
                     {updateMutation.isPending ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
                     Simpan
                   </button>
-                  <button onClick={() => setEditing(false)} className="px-6 py-3 rounded-xl" style={{ border: "1px solid rgba(0,0,0,0.1)", color: "var(--color-secondary,#4A5568)", fontSize: "0.9rem" }}>
+                  <button onClick={() => setEditing(false)} className="px-6 py-3 rounded-xl" style={{ border: "1px solid rgba(0,0,0,0.1)", color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.9rem" }}>
                     Batal
                   </button>
                 </div>
@@ -215,11 +215,11 @@ export default function ProfilePage() {
                   { icon: <Calendar size={16} />, label: "Bergabung", value: memberSince },
                 ].map((item, i) => (
                   <div key={i} className="flex items-center gap-4">
-                    <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: "var(--color-neutral,#F1F3F5)", color: "var(--color-secondary,#4A5568)" }}>
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: "var(--color-neutral,#F1F3F5)", color: "var(--color-brand-secondary,#4A5568)" }}>
                       {item.icon}
                     </div>
                     <div>
-                      <p style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.75rem" }}>{item.label}</p>
+                      <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.75rem" }}>{item.label}</p>
                       <p style={{ color: "var(--color-primary,#0F1419)", fontWeight: 500, fontSize: "0.9rem" }}>{item.value}</p>
                     </div>
                   </div>
@@ -239,11 +239,11 @@ export default function ProfilePage() {
               ].map((action, i) => {
                 const content = (
                   <div className="flex items-center gap-3 px-4 py-3 rounded-xl transition-colors hover:bg-gray-50" style={{ color: "var(--color-primary,#0F1419)" }}>
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: "var(--color-neutral,#F1F3F5)", color: "var(--color-tertiary,#2C5EF5)" }}>
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: "var(--color-neutral,#F1F3F5)", color: "var(--color-brand-tertiary,#2C5EF5)" }}>
                       {action.icon}
                     </div>
                     <span style={{ fontSize: "0.9rem", fontWeight: 500, flex: 1 }}>{action.label}</span>
-                    <ChevronRight size={14} style={{ color: "var(--color-secondary,#4A5568)" }} />
+                    <ChevronRight size={14} style={{ color: "var(--color-brand-secondary,#4A5568)" }} />
                   </div>
                 );
                 if (action.onClick) {
@@ -278,13 +278,13 @@ export default function ProfilePage() {
                       {stat.icon}
                     </div>
                     <p style={{ color: "var(--color-primary,#0F1419)", fontWeight: 700, fontSize: "1.1rem" }}>{stat.value}</p>
-                    <p style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.75rem", marginTop: 2 }}>{stat.label}</p>
+                    <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.75rem", marginTop: 2 }}>{stat.label}</p>
                   </div>
                 ))}
               </div>
             )}
             {!historyLoading && stats.successCount > 0 && (
-              <p style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.8rem", marginTop: 12, textAlign: "center" }}>
+              <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.8rem", marginTop: 12, textAlign: "center" }}>
                 {stats.successCount} transaksi sukses dari {stats.totalOrders} total order
               </p>
             )}
@@ -301,19 +301,19 @@ export default function ProfilePage() {
               </div>
             ) : recentOrders.length === 0 ? (
               <div className="text-center py-8">
-                <Package size={32} style={{ color: "var(--color-secondary,#4A5568)", margin: "0 auto 8px" }} />
-                <p style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.85rem" }}>Belum ada transaksi</p>
+                <Package size={32} style={{ color: "var(--color-brand-secondary,#4A5568)", margin: "0 auto 8px" }} />
+                <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.85rem" }}>Belum ada transaksi</p>
               </div>
             ) : (
               <div className="space-y-2">
                 {recentOrders.map((order: OrderResponse) => (
                   <div key={order.id} className="flex items-center gap-4 px-4 py-3 rounded-xl" style={{ backgroundColor: "var(--color-neutral,#F1F3F5)" }}>
                     <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-surface,#fff)" }}>
-                      <Gamepad2 size={18} style={{ color: "var(--color-tertiary,#2C5EF5)" }} />
+                      <Gamepad2 size={18} style={{ color: "var(--color-brand-tertiary,#2C5EF5)" }} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p style={{ color: "var(--color-primary,#0F1419)", fontWeight: 600, fontSize: "0.85rem" }} className="truncate">{order.productName}</p>
-                      <p style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.75rem", marginTop: 1 }}>
+                      <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.75rem", marginTop: 1 }}>
                         {new Date(order.orderDate).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
                       </p>
                     </div>
@@ -329,7 +329,7 @@ export default function ProfilePage() {
               <Link
                 to="/history"
                 className="flex items-center justify-center gap-2 mt-4 py-3 rounded-xl no-underline transition-colors hover:bg-gray-50"
-                style={{ border: "1px solid rgba(0,0,0,0.08)", color: "var(--color-tertiary,#2C5EF5)", fontSize: "0.85rem", fontWeight: 600 }}
+                style={{ border: "1px solid rgba(0,0,0,0.08)", color: "var(--color-brand-tertiary,#2C5EF5)", fontSize: "0.85rem", fontWeight: 600 }}
               >
                 Lihat Semua Riwayat <ChevronRight size={14} />
               </Link>
@@ -346,7 +346,7 @@ export default function ProfilePage() {
                 ))}
               </div>
             ) : favoriteGames.length === 0 ? (
-              <p style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.85rem", textAlign: "center", padding: "16px 0" }}>
+              <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.85rem", textAlign: "center", padding: "16px 0" }}>
                 Belum ada data. Mulai top up untuk melihat game favorit kamu.
               </p>
             ) : (
@@ -357,9 +357,9 @@ export default function ProfilePage() {
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl"
                     style={{ backgroundColor: "var(--color-neutral,#F1F3F5)" }}
                   >
-                    <Gamepad2 size={15} style={{ color: "var(--color-tertiary,#2C5EF5)" }} />
+                    <Gamepad2 size={15} style={{ color: "var(--color-brand-tertiary,#2C5EF5)" }} />
                     <span style={{ color: "var(--color-primary,#0F1419)", fontWeight: 600, fontSize: "0.85rem" }}>{game.name}</span>
-                    <span className="px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "var(--color-tertiary,#2C5EF5)", color: "#fff", fontSize: "0.7rem", fontWeight: 700 }}>
+                    <span className="px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "var(--color-brand-tertiary,#2C5EF5)", color: "#fff", fontSize: "0.7rem", fontWeight: 700 }}>
                       {game.count}x
                     </span>
                   </div>
@@ -374,12 +374,12 @@ export default function ProfilePage() {
             <div className="space-y-3">
               <div className="flex items-center justify-between px-4 py-3 rounded-xl" style={{ backgroundColor: "var(--color-neutral,#F1F3F5)" }}>
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: "var(--color-surface,#fff)", color: "var(--color-secondary,#4A5568)" }}>
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: "var(--color-surface,#fff)", color: "var(--color-brand-secondary,#4A5568)" }}>
                     <Mail size={16} />
                   </div>
                   <div>
                     <p style={{ color: "var(--color-primary,#0F1419)", fontWeight: 500, fontSize: "0.9rem" }}>Email</p>
-                    <p style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.8rem" }}>{profile.email}</p>
+                    <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.8rem" }}>{profile.email}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full" style={{ backgroundColor: "#dcfce7", color: "#15803d" }}>
@@ -390,12 +390,12 @@ export default function ProfilePage() {
 
               {/* <div className="flex items-center justify-between px-4 py-3 rounded-xl" style={{ backgroundColor: "var(--color-neutral,#F1F3F5)" }}>
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: "var(--color-surface,#fff)", color: "var(--color-secondary,#4A5568)" }}>
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: "var(--color-surface,#fff)", color: "var(--color-brand-secondary,#4A5568)" }}>
                     <Lock size={16} />
                   </div>
                   <div>
                     <p style={{ color: "var(--color-primary,#0F1419)", fontWeight: 500, fontSize: "0.9rem" }}>Password</p>
-                    <p style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.8rem" }}>Terakhir diperbarui saat edit profil</p>
+                    <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.8rem" }}>Terakhir diperbarui saat edit profil</p>
                   </div>
                 </div>
                 <button
@@ -409,12 +409,12 @@ export default function ProfilePage() {
 
               {/* <div className="flex items-center justify-between px-4 py-3 rounded-xl" style={{ backgroundColor: "var(--color-neutral,#F1F3F5)" }}>
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: "var(--color-surface,#fff)", color: "var(--color-secondary,#4A5568)" }}>
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: "var(--color-surface,#fff)", color: "var(--color-brand-secondary,#4A5568)" }}>
                     <ShieldCheck size={16} />
                   </div>
                   <div>
                     <p style={{ color: "var(--color-primary,#0F1419)", fontWeight: 500, fontSize: "0.9rem" }}>Sesi Login</p>
-                    <p style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.8rem" }}>JWT aktif, expires dalam 24 jam</p>
+                    <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.8rem" }}>JWT aktif, expires dalam 24 jam</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full" style={{ backgroundColor: "#dcfce7", color: "#15803d" }}>

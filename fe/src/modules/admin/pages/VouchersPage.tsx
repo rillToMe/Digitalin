@@ -178,16 +178,16 @@ export default function VouchersPage() {
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-3 mb-5">
         <div className="flex-1 relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-secondary)" }} />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-brand-secondary)" }} />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari kode voucher..."
             className="w-full pl-9 pr-4 py-2.5 rounded-xl outline-none"
-            style={{ border: "1.5px solid var(--color-border)", fontSize: "0.9rem", backgroundColor: "var(--color-surface)", color: "var(--color-primary)" }}
+            style={{ border: "1.5px solid var(--color-border)", fontSize: "0.9rem", backgroundColor: "var(--color-surface)", color: "var(--color-brand-primary)" }}
           />
         </div>
-        <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2.5 rounded-xl" style={{ backgroundColor: "var(--color-tertiary)", color: "var(--color-on-primary)", fontWeight: 600, fontSize: "0.9rem", whiteSpace: "nowrap" }}>
+        <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2.5 rounded-xl" style={{ backgroundColor: "var(--color-brand-tertiary)", color: "var(--color-on-primary)", fontWeight: 600, fontSize: "0.9rem", whiteSpace: "nowrap" }}>
           <Plus size={16} /> Tambah Voucher
         </button>
       </div>
@@ -202,8 +202,8 @@ export default function VouchersPage() {
               onClick={() => { setStatusFilter(f.value); setPage(1); }}
               className="px-4 py-2 rounded-full whitespace-nowrap transition-all"
               style={{
-                backgroundColor: active ? "var(--color-tertiary)" : "var(--color-surface)",
-                color: active ? "var(--color-on-primary)" : "var(--color-primary)",
+                backgroundColor: active ? "var(--color-brand-tertiary)" : "var(--color-surface)",
+                color: active ? "var(--color-on-primary)" : "var(--color-brand-primary)",
                 border: active ? "none" : "1px solid var(--color-border)",
                 fontWeight: active ? 600 : 400,
                 fontSize: "0.82rem",
@@ -222,7 +222,7 @@ export default function VouchersPage() {
             <thead>
               <tr style={{ borderBottom: "1px solid var(--color-border-light)", backgroundColor: "var(--color-neutral)" }}>
                 {["Kode", "Tipe", "Nilai", "Min. Transaksi", "Penggunaan", "Berakhir", "Status", "Aksi"].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left" style={{ color: "var(--color-secondary)", fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</th>
+                  <th key={h} className="px-4 py-3 text-left" style={{ color: "var(--color-brand-secondary)", fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -240,21 +240,21 @@ export default function VouchersPage() {
               ) : vouchers.map((v) => (
                 <tr key={v.id} style={{ borderBottom: "1px solid var(--color-border-lighter)" }}>
                   <td className="px-4 py-3">
-                    <span style={{ fontFamily: "monospace", fontSize: "0.85rem", color: "var(--color-primary)", fontWeight: 600 }}>{v.code}</span>
+                    <span style={{ fontFamily: "monospace", fontSize: "0.85rem", color: "var(--color-brand-primary)", fontWeight: 600 }}>{v.code}</span>
                   </td>
-                  <td className="px-4 py-3" style={{ color: "var(--color-secondary)", fontSize: "0.85rem" }}>
+                  <td className="px-4 py-3" style={{ color: "var(--color-brand-secondary)", fontSize: "0.85rem" }}>
                     {v.discountType === "Percentage" ? "Persentase" : "Nominal"}
                   </td>
-                  <td className="px-4 py-3" style={{ color: "var(--color-tertiary)", fontSize: "0.9rem", fontWeight: 600 }}>
+                  <td className="px-4 py-3" style={{ color: "var(--color-brand-tertiary)", fontSize: "0.9rem", fontWeight: 600 }}>
                     {v.discountType === "Percentage" ? `${v.discountValue}%` : formatRp(v.discountValue)}
                   </td>
-                  <td className="px-4 py-3" style={{ color: "var(--color-secondary)", fontSize: "0.85rem" }}>
+                  <td className="px-4 py-3" style={{ color: "var(--color-brand-secondary)", fontSize: "0.85rem" }}>
                     {formatRp(v.minimumTransaction)}
                   </td>
-                  <td className="px-4 py-3" style={{ color: "var(--color-secondary)", fontSize: "0.85rem" }}>
+                  <td className="px-4 py-3" style={{ color: "var(--color-brand-secondary)", fontSize: "0.85rem" }}>
                     {v.usedCount}/{v.usageLimit}
                   </td>
-                  <td className="px-4 py-3" style={{ color: "var(--color-secondary)", fontSize: "0.85rem" }}>
+                  <td className="px-4 py-3" style={{ color: "var(--color-brand-secondary)", fontSize: "0.85rem" }}>
                     {formatDate(v.expiredAt)}
                   </td>
                   <td className="px-4 py-3">
@@ -283,7 +283,7 @@ export default function VouchersPage() {
                       <button
                         onClick={() => openEdit(v)}
                         className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-                        style={{ color: "var(--color-tertiary)" }}
+                        style={{ color: "var(--color-brand-tertiary)" }}
                         onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--color-hover-info)"; }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
                       >
@@ -304,7 +304,7 @@ export default function VouchersPage() {
               ))}
               {!loading && vouchers.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center" style={{ color: "var(--color-secondary)" }}>Tidak ada voucher ditemukan</td>
+                  <td colSpan={8} className="px-4 py-12 text-center" style={{ color: "var(--color-brand-secondary)" }}>Tidak ada voucher ditemukan</td>
                 </tr>
               )}
             </tbody>
@@ -314,12 +314,12 @@ export default function VouchersPage() {
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3" style={{ borderTop: "1px solid var(--color-border-light)" }}>
-            <span style={{ color: "var(--color-secondary)", fontSize: "0.85rem" }}>{totalCount} voucher</span>
+            <span style={{ color: "var(--color-brand-secondary)", fontSize: "0.85rem" }}>{totalCount} voucher</span>
             <div className="flex items-center gap-2">
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ border: "1px solid var(--color-border)" }}>
                 <ChevronLeft size={15} />
               </button>
-              <span style={{ fontSize: "0.85rem", color: "var(--color-primary)" }}>{page}/{totalPages}</span>
+              <span style={{ fontSize: "0.85rem", color: "var(--color-brand-primary)" }}>{page}/{totalPages}</span>
               <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ border: "1px solid var(--color-border)" }}>
                 <ChevronRight size={15} />
               </button>
@@ -333,28 +333,28 @@ export default function VouchersPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "var(--color-overlay)" }}>
           <div className="w-full max-w-lg rounded-2xl p-6" style={{ backgroundColor: "var(--color-surface)", maxHeight: "90vh", overflowY: "auto" }}>
             <div className="flex items-center justify-between mb-5">
-              <h3 style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: "1rem" }}>
+              <h3 style={{ color: "var(--color-brand-primary)", fontWeight: 700, fontSize: "1rem" }}>
                 {editTarget ? "Edit Voucher" : "Tambah Voucher"}
               </h3>
-              <button onClick={() => setModalOpen(false)} style={{ color: "var(--color-secondary)" }}><X size={20} /></button>
+              <button onClick={() => setModalOpen(false)} style={{ color: "var(--color-brand-secondary)" }}><X size={20} /></button>
             </div>
             <div className="space-y-3">
               {/* Code */}
               <div>
-                <label style={{ color: "var(--color-primary)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 5 }}>Kode Voucher *</label>
+                <label style={{ color: "var(--color-brand-primary)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 5 }}>Kode Voucher *</label>
                 <input
                   value={form.code}
                   onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") })}
                   placeholder="HEMAT20"
                   maxLength={50}
                   className="w-full px-4 py-2.5 rounded-xl outline-none"
-                  style={{ border: "1.5px solid var(--color-border-input)", fontSize: "0.9rem", color: "var(--color-primary)", fontFamily: "monospace" }}
+                  style={{ border: "1.5px solid var(--color-border-input)", fontSize: "0.9rem", color: "var(--color-brand-primary)", fontFamily: "monospace" }}
                 />
               </div>
 
               {/* Discount Type */}
               <div>
-                <label style={{ color: "var(--color-primary)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 5 }}>Tipe Diskon *</label>
+                <label style={{ color: "var(--color-brand-primary)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 5 }}>Tipe Diskon *</label>
                 <div className="flex gap-2">
                   {(["Percentage", "FixedAmount"] as DiscountType[]).map((t) => (
                     <button
@@ -362,8 +362,8 @@ export default function VouchersPage() {
                       onClick={() => setForm({ ...form, discountType: t, maximumDiscount: t === "FixedAmount" ? null : form.maximumDiscount })}
                       className="flex-1 py-2.5 rounded-xl transition-all"
                       style={{
-                        backgroundColor: form.discountType === t ? "var(--color-tertiary)" : "var(--color-surface)",
-                        color: form.discountType === t ? "var(--color-on-primary)" : "var(--color-primary)",
+                        backgroundColor: form.discountType === t ? "var(--color-brand-tertiary)" : "var(--color-surface)",
+                        color: form.discountType === t ? "var(--color-on-primary)" : "var(--color-brand-primary)",
                         border: form.discountType === t ? "none" : "1.5px solid var(--color-border-input)",
                         fontWeight: 500,
                         fontSize: "0.85rem",
@@ -377,7 +377,7 @@ export default function VouchersPage() {
 
               {/* Discount Value */}
               <div>
-                <label style={{ color: "var(--color-primary)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 5 }}>
+                <label style={{ color: "var(--color-brand-primary)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 5 }}>
                   Nilai Diskon * {form.discountType === "Percentage" ? "(%)" : "(Rp)"}
                 </label>
                 <input
@@ -388,13 +388,13 @@ export default function VouchersPage() {
                   min={0}
                   max={form.discountType === "Percentage" ? 100 : undefined}
                   className="w-full px-4 py-2.5 rounded-xl outline-none"
-                  style={{ border: "1.5px solid var(--color-border-input)", fontSize: "0.9rem", color: "var(--color-primary)" }}
+                  style={{ border: "1.5px solid var(--color-border-input)", fontSize: "0.9rem", color: "var(--color-brand-primary)" }}
                 />
               </div>
 
               {/* Min Transaction */}
               <div>
-                <label style={{ color: "var(--color-primary)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 5 }}>Minimal Transaksi (Rp) *</label>
+                <label style={{ color: "var(--color-brand-primary)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 5 }}>Minimal Transaksi (Rp) *</label>
                 <input
                   type="number"
                   value={form.minimumTransaction || ""}
@@ -402,14 +402,14 @@ export default function VouchersPage() {
                   placeholder="25000"
                   min={0}
                   className="w-full px-4 py-2.5 rounded-xl outline-none"
-                  style={{ border: "1.5px solid var(--color-border-input)", fontSize: "0.9rem", color: "var(--color-primary)" }}
+                  style={{ border: "1.5px solid var(--color-border-input)", fontSize: "0.9rem", color: "var(--color-brand-primary)" }}
                 />
               </div>
 
               {/* Max Discount (only for Percentage) */}
               {form.discountType === "Percentage" && (
                 <div>
-                  <label style={{ color: "var(--color-primary)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 5 }}>Maks. Diskon (Rp, opsional)</label>
+                  <label style={{ color: "var(--color-brand-primary)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 5 }}>Maks. Diskon (Rp, opsional)</label>
                   <input
                     type="number"
                     value={form.maximumDiscount ?? ""}
@@ -417,14 +417,14 @@ export default function VouchersPage() {
                     placeholder="15000 (kosongkan = tanpa batas)"
                     min={0}
                     className="w-full px-4 py-2.5 rounded-xl outline-none"
-                    style={{ border: "1.5px solid var(--color-border-input)", fontSize: "0.9rem", color: "var(--color-primary)" }}
+                    style={{ border: "1.5px solid var(--color-border-input)", fontSize: "0.9rem", color: "var(--color-brand-primary)" }}
                   />
                 </div>
               )}
 
               {/* Usage Limit */}
               <div>
-                <label style={{ color: "var(--color-primary)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 5 }}>Batas Penggunaan *</label>
+                <label style={{ color: "var(--color-brand-primary)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 5 }}>Batas Penggunaan *</label>
                 <input
                   type="number"
                   value={form.usageLimit || ""}
@@ -432,25 +432,25 @@ export default function VouchersPage() {
                   placeholder="100"
                   min={1}
                   className="w-full px-4 py-2.5 rounded-xl outline-none"
-                  style={{ border: "1.5px solid var(--color-border-input)", fontSize: "0.9rem", color: "var(--color-primary)" }}
+                  style={{ border: "1.5px solid var(--color-border-input)", fontSize: "0.9rem", color: "var(--color-brand-primary)" }}
                 />
               </div>
 
               {/* Expired At */}
               <div>
-                <label style={{ color: "var(--color-primary)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 5 }}>Tanggal Kedaluwarsa *</label>
+                <label style={{ color: "var(--color-brand-primary)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 5 }}>Tanggal Kedaluwarsa *</label>
                 <input
                   type="datetime-local"
                   value={form.expiredAt}
                   onChange={(e) => setForm({ ...form, expiredAt: e.target.value })}
                   className="w-full px-4 py-2.5 rounded-xl outline-none"
-                  style={{ border: "1.5px solid var(--color-border-input)", fontSize: "0.9rem", color: "var(--color-primary)" }}
+                  style={{ border: "1.5px solid var(--color-border-input)", fontSize: "0.9rem", color: "var(--color-brand-primary)" }}
                 />
               </div>
 
               {/* Status */}
               <div className="flex items-center justify-between py-2">
-                <label style={{ color: "var(--color-primary)", fontSize: "0.85rem", fontWeight: 500 }}>Status Aktif</label>
+                <label style={{ color: "var(--color-brand-primary)", fontSize: "0.85rem", fontWeight: 500 }}>Status Aktif</label>
                 <button
                   onClick={() => setForm({ ...form, isActive: !form.isActive })}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
@@ -468,11 +468,11 @@ export default function VouchersPage() {
             </div>
 
             <div className="flex gap-3 mt-6">
-              <button onClick={handleSave} disabled={saving} className="flex-1 py-3 rounded-xl flex items-center justify-center gap-2" style={{ backgroundColor: "var(--color-tertiary)", color: "var(--color-on-primary)", fontWeight: 600 }}>
+              <button onClick={handleSave} disabled={saving} className="flex-1 py-3 rounded-xl flex items-center justify-center gap-2" style={{ backgroundColor: "var(--color-brand-tertiary)", color: "var(--color-on-primary)", fontWeight: 600 }}>
                 {saving && <Loader2 size={15} className="animate-spin" />}
                 {saving ? "Menyimpan..." : "Simpan"}
               </button>
-              <button onClick={() => setModalOpen(false)} className="px-5 py-3 rounded-xl" style={{ border: "1px solid var(--color-border)", color: "var(--color-secondary)" }}>Batal</button>
+              <button onClick={() => setModalOpen(false)} className="px-5 py-3 rounded-xl" style={{ border: "1px solid var(--color-border)", color: "var(--color-brand-secondary)" }}>Batal</button>
             </div>
           </div>
         </div>
@@ -485,8 +485,8 @@ export default function VouchersPage() {
             <div className="w-12 h-12 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ backgroundColor: "var(--color-danger-bg)" }}>
               <Trash2 size={20} style={{ color: "var(--color-danger)" }} />
             </div>
-            <h3 style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: "1rem", marginBottom: 8 }}>Hapus Voucher?</h3>
-            <p style={{ color: "var(--color-secondary)", fontSize: "0.85rem", marginBottom: 4 }}>
+            <h3 style={{ color: "var(--color-brand-primary)", fontWeight: 700, fontSize: "1rem", marginBottom: 8 }}>Hapus Voucher?</h3>
+            <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.85rem", marginBottom: 4 }}>
               Voucher <strong style={{ fontFamily: "monospace" }}>{deleteTarget.code}</strong> akan dihapus permanen.
             </p>
             {deleteTarget.usedCount > 0 && (
@@ -495,7 +495,7 @@ export default function VouchersPage() {
               </p>
             )}
             <div className="flex gap-3 mt-4">
-              <button onClick={() => setDeleteTarget(null)} className="flex-1 py-3 rounded-xl" style={{ border: "1px solid var(--color-border)", color: "var(--color-secondary)" }}>Batal</button>
+              <button onClick={() => setDeleteTarget(null)} className="flex-1 py-3 rounded-xl" style={{ border: "1px solid var(--color-border)", color: "var(--color-brand-secondary)" }}>Batal</button>
               <button
                 onClick={() => deleteMutation.mutate(deleteTarget.id)}
                 disabled={deleteTarget.usedCount > 0 || deleteMutation.isPending}

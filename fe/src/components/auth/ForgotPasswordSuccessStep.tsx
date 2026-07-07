@@ -1,7 +1,7 @@
 import React from "react";
 import { CheckCircle2, ArrowLeft } from "lucide-react";
 
-import type { ForgotPasswordSuccessStepProps } from "../../../../api/index";
+import type { ForgotPasswordSuccessStepProps } from "../../api/index";
 
 export default function ForgotPasswordSuccessStep({ onBackToLogin }: ForgotPasswordSuccessStepProps) {
   return (
@@ -16,10 +16,10 @@ export default function ForgotPasswordSuccessStep({ onBackToLogin }: ForgotPassw
       </div>
 
       <div className="space-y-2">
-        <h3 style={{ color: "var(--color-primary)", fontWeight: 700, fontSize: "1.15rem" }}>
+        <h3 style={{ color: "var(--color-brand-primary)", fontWeight: 700, fontSize: "1.15rem" }}>
           Berhasil!
         </h3>
-        <p style={{ color: "var(--color-secondary)", fontSize: "0.88rem" }}>
+        <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.88rem" }}>
           Password berhasil diubah.
         </p>
       </div>
@@ -27,7 +27,7 @@ export default function ForgotPasswordSuccessStep({ onBackToLogin }: ForgotPassw
       <button
         onClick={onBackToLogin}
         className="w-full py-3 rounded-xl flex items-center justify-center gap-2 font-semibold text-white transition-opacity hover:opacity-90"
-        style={{ backgroundColor: "var(--color-tertiary)" }}
+        style={{ backgroundColor: "var(--color-brand-tertiary)" }}
       >
         <ArrowLeft size={16} />
         Kembali ke Login

@@ -77,8 +77,8 @@ export default function BannersPage() {
   return (
     <AdminLayout title="Banners" breadcrumb={["Admin", "Banners"]}>
       <div className="flex justify-between items-center mb-5">
-        <span style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.9rem" }}>{banners.length} banner</span>
-        <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl" style={{ backgroundColor: "var(--color-tertiary,#2C5EF5)", color: "#fff", fontWeight: 600, fontSize: "0.9rem" }}>
+        <span style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.9rem" }}>{banners.length} banner</span>
+        <button onClick={() => setModalOpen(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl" style={{ backgroundColor: "var(--color-brand-tertiary,#2C5EF5)", color: "#fff", fontWeight: 600, fontSize: "0.9rem" }}>
           <Plus size={16} /> Tambah Banner
         </button>
       </div>
@@ -100,8 +100,8 @@ export default function BannersPage() {
                 </div>
               </div>
               <div className="p-4">
-                <p style={{ color: "var(--color-primary,#0F1419)", fontWeight: 600, fontSize: "0.9rem", marginBottom: 3 }} className="truncate">{banner.title}</p>
-                <p style={{ color: "var(--color-secondary,#4A5568)", fontSize: "0.75rem" }}>
+                <p style={{ color: "var(--color-brand-primary,#0F1419)", fontWeight: 600, fontSize: "0.9rem", marginBottom: 3 }} className="truncate">{banner.title}</p>
+                <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.75rem" }}>
                   {new Date(banner.createdAt).toLocaleDateString("id-ID")}
                 </p>
                 <div className="flex items-center gap-2 mt-3">
@@ -134,16 +134,16 @@ export default function BannersPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
           <div className="w-full max-w-md rounded-2xl p-6" style={{ backgroundColor: "var(--color-surface,#fff)" }}>
             <div className="flex items-center justify-between mb-5">
-              <h3 style={{ color: "var(--color-primary,#0F1419)", fontWeight: 700, fontSize: "1rem" }}>Tambah Banner</h3>
-              <button onClick={() => setModalOpen(false)} style={{ color: "var(--color-secondary,#4A5568)" }}><X size={20} /></button>
+              <h3 style={{ color: "var(--color-brand-primary,#0F1419)", fontWeight: 700, fontSize: "1rem" }}>Tambah Banner</h3>
+              <button onClick={() => setModalOpen(false)} style={{ color: "var(--color-brand-secondary,#4A5568)" }}><X size={20} /></button>
             </div>
             <div className="space-y-3">
               <div>
-                <label style={{ color: "var(--color-primary,#0F1419)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 5 }}>Judul Banner</label>
-                <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Promo Spesial!" className="w-full px-4 py-2.5 rounded-xl outline-none" style={{ border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.9rem", color: "var(--color-primary,#0F1419)" }} />
+                <label style={{ color: "var(--color-brand-primary,#0F1419)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 5 }}>Judul Banner</label>
+                <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Promo Spesial!" className="w-full px-4 py-2.5 rounded-xl outline-none" style={{ border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.9rem", color: "var(--color-brand-primary,#0F1419)" }} />
               </div>
               <div>
-                <label style={{ color: "var(--color-primary,#0F1419)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 5 }}>Gambar Banner</label>
+                <label style={{ color: "var(--color-brand-primary,#0F1419)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 5 }}>Gambar Banner</label>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -154,7 +154,7 @@ export default function BannersPage() {
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all"
-                  style={{ border: "1.5px dashed rgba(0,0,0,0.2)", color: "var(--color-secondary,#4A5568)", fontSize: "0.85rem" }}
+                  style={{ border: "1.5px dashed rgba(0,0,0,0.2)", color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.85rem" }}
                 >
                   <Upload size={16} />
                   {newFile ? newFile.name : "Pilih gambar (max 2MB)"}
@@ -165,11 +165,11 @@ export default function BannersPage() {
               </div>
             </div>
             <div className="flex gap-3 mt-5">
-              <button onClick={handleCreate} disabled={createMutation.isPending} className="flex-1 py-3 rounded-xl flex items-center justify-center gap-2" style={{ backgroundColor: "var(--color-tertiary,#2C5EF5)", color: "#fff", fontWeight: 600 }}>
+              <button onClick={handleCreate} disabled={createMutation.isPending} className="flex-1 py-3 rounded-xl flex items-center justify-center gap-2" style={{ backgroundColor: "var(--color-brand-tertiary,#2C5EF5)", color: "#fff", fontWeight: 600 }}>
                 {createMutation.isPending && <Loader2 size={15} className="animate-spin" />}
                 {createMutation.isPending ? "Menyimpan..." : "Tambah"}
               </button>
-              <button onClick={() => setModalOpen(false)} className="px-5 py-3 rounded-xl" style={{ border: "1px solid rgba(0,0,0,0.1)", color: "var(--color-secondary,#4A5568)" }}>Batal</button>
+              <button onClick={() => setModalOpen(false)} className="px-5 py-3 rounded-xl" style={{ border: "1px solid rgba(0,0,0,0.1)", color: "var(--color-brand-secondary,#4A5568)" }}>Batal</button>
             </div>
           </div>
         </div>

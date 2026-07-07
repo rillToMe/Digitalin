@@ -39,7 +39,7 @@ export function AdminLayout({ children, title, breadcrumb }: AdminLayoutProps) {
   const Sidebar = () => (
     <aside
       style={{
-        backgroundColor: "var(--color-primary, #0F1419)",
+        backgroundColor: "var(--color-brand-primary, #0F1419)",
         width: 240,
         flexShrink: 0,
         height: "100vh",
@@ -56,7 +56,7 @@ export function AdminLayout({ children, title, breadcrumb }: AdminLayoutProps) {
         style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}
       >
         <div
-          style={{ backgroundColor: "var(--color-tertiary, #2C5EF5)", borderRadius: 7 }}
+          style={{ backgroundColor: "var(--color-brand-tertiary, #2C5EF5)", borderRadius: 7 }}
           className="w-8 h-8 flex items-center justify-center"
         >
           <Zap size={15} color="#fff" fill="#fff" />
@@ -84,7 +84,7 @@ export function AdminLayout({ children, title, breadcrumb }: AdminLayoutProps) {
                 color: active ? "#fff" : "rgba(255,255,255,0.55)",
                 backgroundColor: active ? "rgba(44,94,245,0.25)" : "transparent",
                 borderLeft: active
-                  ? "3px solid var(--color-tertiary, #2C5EF5)"
+                  ? "3px solid var(--color-brand-tertiary, #2C5EF5)"
                   : "3px solid transparent",
               }}
             >
@@ -148,12 +148,12 @@ export function AdminLayout({ children, title, breadcrumb }: AdminLayoutProps) {
           <button
             className="md:hidden"
             onClick={() => setSidebarOpen(true)}
-            style={{ color: "var(--color-primary, #0F1419)" }}
+            style={{ color: "var(--color-brand-primary, #0F1419)" }}
           >
             <Menu size={20} />
           </button>
           <div className="flex-1">
-            <h1 style={{ color: "var(--color-primary, #0F1419)", fontSize: "1.1rem", fontWeight: 700 }}>
+            <h1 style={{ color: "var(--color-brand-primary, #0F1419)", fontSize: "1.1rem", fontWeight: 700 }}>
               {title}
             </h1>
             {breadcrumb && (
@@ -161,14 +161,14 @@ export function AdminLayout({ children, title, breadcrumb }: AdminLayoutProps) {
                 {breadcrumb.map((crumb, i) => (
                   <span key={i} className="flex items-center gap-1">
                     {i > 0 && (
-                      <ChevronRight size={12} style={{ color: "var(--color-secondary, #4A5568)" }} />
+                      <ChevronRight size={12} style={{ color: "var(--color-brand-secondary, #4A5568)" }} />
                     )}
                     <span
                       style={{
                         color:
                           i === breadcrumb.length - 1
-                            ? "var(--color-tertiary, #2C5EF5)"
-                            : "var(--color-secondary, #4A5568)",
+                            ? "var(--color-brand-tertiary, #2C5EF5)"
+                            : "var(--color-brand-secondary, #4A5568)",
                         fontSize: "0.78rem",
                       }}
                     >

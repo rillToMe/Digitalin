@@ -72,7 +72,6 @@ export const useAuthStore = create<AuthState>()(
         set({ token });
       },
       setAdminToken: (token) => {
-        localStorage.setItem("adminToken", token);
         set({ adminToken: token });
       },
       setUser: (user) => set({ user }),
@@ -80,7 +79,6 @@ export const useAuthStore = create<AuthState>()(
         set({ token: null, user: null });
       },
       adminLogout: () => {
-        localStorage.removeItem("adminToken");
         set({ adminToken: null });
       },
     }),

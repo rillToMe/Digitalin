@@ -4,28 +4,28 @@ import type { ContactItem } from "../../../api/index";
 
 const CONTACT_DATA: ContactItem[] = [
   {
-    icon: <Mail size={22} style={{ color: "var(--color-tertiary, #2C5EF5)" }} />,
+    icon: <Mail size={22} style={{ color: "var(--color-brand-tertiary, #2C5EF5)" }} />,
     label: "Email Support",
     value: "support@digitalin.id",
     link: "mailto:support@digitalin.id",
     description: "Kirim pertanyaan atau keluhan melalui email. Tim kami akan merespons dalam 1×24 jam.",
   },
   {
-    icon: <Send size={22} style={{ color: "var(--color-tertiary, #2C5EF5)" }} />,
+    icon: <Send size={22} style={{ color: "var(--color-brand-tertiary, #2C5EF5)" }} />,
     label: "Telegram",
     value: "@digitalin_support",
     link: "https://t.me/digitalin_support",
     description: "Chat langsung dengan tim support kami melalui Telegram untuk respon lebih cepat.",
   },
   {
-    icon: <MessageCircle size={22} style={{ color: "var(--color-tertiary, #2C5EF5)" }} />,
+    icon: <MessageCircle size={22} style={{ color: "var(--color-brand-tertiary, #2C5EF5)" }} />,
     label: "WhatsApp",
     value: "+62 812-3456-7890",
     link: "https://wa.me/6281234567890",
     description: "Hubungi kami via WhatsApp untuk bantuan cepat terkait transaksi atau masalah akun.",
   },
   {
-    icon: <Clock size={22} style={{ color: "var(--color-tertiary, #2C5EF5)" }} />,
+    icon: <Clock size={22} style={{ color: "var(--color-brand-tertiary, #2C5EF5)" }} />,
     label: "Jam Operasional",
     value: "Senin – Minggu, 08:00 – 23:00 WIB",
     description: "Tim support kami siap membantu setiap hari termasuk hari libur nasional.",
@@ -42,13 +42,13 @@ export default function ContactPage() {
             className="w-14 h-14 rounded-2xl flex items-center justify-center"
             style={{ backgroundColor: "rgba(44,94,245,0.1)" }}
           >
-            <MessageCircle size={28} style={{ color: "var(--color-tertiary, #2C5EF5)" }} />
+            <MessageCircle size={28} style={{ color: "var(--color-brand-tertiary, #2C5EF5)" }} />
           </div>
         </div>
-        <h1 style={{ color: "var(--color-primary, #0F1419)", fontWeight: 700, fontSize: "1.5rem", marginBottom: 8 }}>
+        <h1 style={{ color: "var(--color-brand-primary, #0F1419)", fontWeight: 700, fontSize: "1.5rem", marginBottom: 8 }}>
           Hubungi Kami
         </h1>
-        <p style={{ color: "var(--color-secondary, #4A5568)", fontSize: "0.9rem", maxWidth: 480, margin: "0 auto" }}>
+        <p style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.9rem", maxWidth: 480, margin: "0 auto" }}>
           Butuh bantuan atau memiliki pertanyaan? Tim kami siap membantu Anda melalui berbagai channel berikut.
         </p>
       </div>
@@ -78,16 +78,16 @@ export default function ContactPage() {
                   {contact.icon}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p style={{ color: "var(--color-secondary, #4A5568)", fontSize: "0.78rem", marginBottom: 4 }}>
+                  <p style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.78rem", marginBottom: 4 }}>
                     {contact.label}
                   </p>
                   <p
                     className="truncate"
-                    style={{ color: "var(--color-primary, #0F1419)", fontWeight: 600, fontSize: "0.9rem", marginBottom: 8 }}
+                    style={{ color: "var(--color-brand-primary, #0F1419)", fontWeight: 600, fontSize: "0.9rem", marginBottom: 8 }}
                   >
                     {contact.value}
                   </p>
-                  <p style={{ color: "var(--color-secondary, #4A5568)", fontSize: "0.82rem", lineHeight: 1.5 }}>
+                  <p style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.82rem", lineHeight: 1.5 }}>
                     {contact.description}
                   </p>
                 </div>
@@ -102,10 +102,10 @@ export default function ContactPage() {
         className="rounded-2xl p-6 mt-8 text-center"
         style={{ backgroundColor: "rgba(44,94,245,0.05)", border: "1px solid rgba(44,94,245,0.12)" }}
       >
-        <p style={{ color: "var(--color-primary, #0F1419)", fontWeight: 600, fontSize: "0.95rem", marginBottom: 6 }}>
+        <p style={{ color: "var(--color-brand-primary, #0F1419)", fontWeight: 600, fontSize: "0.95rem", marginBottom: 6 }}>
           Pertanyaan tentang transaksi?
         </p>
-        <p style={{ color: "var(--color-secondary, #4A5568)", fontSize: "0.85rem" }}>
+        <p style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.85rem" }}>
           Sertakan nomor invoice (INV-XXXXXXXX-XXXX) agar tim kami dapat membantu lebih cepat.
         </p>
       </div>
