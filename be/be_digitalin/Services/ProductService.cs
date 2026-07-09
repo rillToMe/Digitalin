@@ -24,63 +24,128 @@ public class ProductService : IProductService
     }
 
     // logic sync
-    public async Task<(int Added, int Updated)> SyncCatalogFromDigiflazzAsync()
+    public async Task<(int Added, int Updated, int Deactivated)> SyncCatalogFromDigiflazzAsync()
+{
+    var dataArray = await _digiflazzProvider.GetPriceListAsync();
+
+    int added = 0;
+    int updated = 0;
+    int deactivated = 0;
+
+    var activeDigiflazzSkus = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+    foreach (var item in dataArray)
     {
-        var dataArray = await _digiflazzProvider.GetPriceListAsync();
+        var category = item
+            .GetProperty(AppConstants.DigiflazzResponseKeys.Category)
+            .GetString();
 
-        int added = 0; int updated = 0;
+        if (category != AppConstants.Categories.Games)
+            continue;
 
-        foreach (var item in dataArray)
+        var sku = item
+            .GetProperty(AppConstants.DigiflazzResponseKeys.BuyerSkuCode)
+            .GetString() ?? string.Empty;
+
+        var name = item
+            .GetProperty(AppConstants.DigiflazzResponseKeys.ProductName)
+            .GetString() ?? string.Empty;
+
+        var modalPrice = item
+            .GetProperty(AppConstants.DigiflazzResponseKeys.Price)
+            .GetDecimal();
+
+        var brand = item
+            .GetProperty(AppConstants.DigiflazzResponseKeys.Brand)
+            .GetString() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(sku))
+            continue;
+
+        activeDigiflazzSkus.Add(sku);
+
+        var existingMeta = await _db.GameMetadata
+            .FirstOrDefaultAsync(m => m.Brand == brand);
+
+        if (existingMeta == null)
         {
-            var category = item.GetProperty(AppConstants.DigiflazzResponseKeys.Category).GetString();
-            if (category != AppConstants.Categories.Games) continue;
-
-            var sku = item.GetProperty(AppConstants.DigiflazzResponseKeys.BuyerSkuCode).GetString() ?? "";
-            var name = item.GetProperty(AppConstants.DigiflazzResponseKeys.ProductName).GetString() ?? "";
-            var modalPrice = item.GetProperty(AppConstants.DigiflazzResponseKeys.Price).GetDecimal(); 
-            var brand = item.GetProperty(AppConstants.DigiflazzResponseKeys.Brand).GetString() ?? "";
-
-            var existingMeta = await _db.GameMetadata.FirstOrDefaultAsync(m => m.Brand == brand);
-
-            if (existingMeta == null)
+            _db.GameMetadata.Add(new GameMetadata
             {
-                _db.GameMetadata.Add(new GameMetadata 
-                { 
-                    Brand = brand, 
-                    InputType = AppConstants.InputTypes.UserIdOnly
-                });
-                await _db.SaveChangesAsync(); 
-            }
-            
-            var existingProduct = await _db.GameProducts.FirstOrDefaultAsync(p => p.BuyerSkuCode == sku);
-
-            decimal marginYangDipakai = existingProduct?.CustomMargin ?? 0m;
-            decimal sellingPrice = modalPrice + marginYangDipakai;
-
-            if (existingProduct != null)
-            {
-                // Hanya update jika ada perubahan harga/nama asli
-                if (existingProduct.Price != sellingPrice || existingProduct.Name != name)
-                {
-                    existingProduct.Price = sellingPrice;
-                    existingProduct.Name = name;
-                    updated++;
-                }
-            }
-            else
-            {
-                _db.GameProducts.Add(new GameProduct
-                {
-                    BuyerSkuCode = sku, Name = name, Price = sellingPrice,
-                    Brand = brand, Category = category, GameCode = brand
-                });
-                added++;
-            }
+                Brand = brand,
+                InputType = AppConstants.InputTypes.UserIdOnly
+            });
         }
 
-        await _db.SaveChangesAsync();
-        return (added, updated);
+        var existingProduct = await _db.GameProducts
+            .FirstOrDefaultAsync(p => p.BuyerSkuCode == sku);
+
+        if (existingProduct != null)
+        {
+            var margin = existingProduct.CustomMargin ?? 0m;
+            var sellingPrice = modalPrice + margin;
+
+            var hasChanges =
+                existingProduct.Price != sellingPrice ||
+                existingProduct.Name != name ||
+                existingProduct.Brand != brand ||
+                existingProduct.Category != category ||
+                !existingProduct.IsActive;
+
+            if (hasChanges)
+            {
+                existingProduct.Price = sellingPrice;
+                existingProduct.Name = name;
+                existingProduct.Brand = brand;
+                existingProduct.Category = category;
+                existingProduct.GameCode = brand;
+                existingProduct.IsActive = true;
+
+                updated++;
+            }
+        }
+        else
+        {
+            _db.GameProducts.Add(new GameProduct
+            {
+                BuyerSkuCode = sku,
+                Name = name,
+                Price = modalPrice,
+                Brand = brand,
+                Category = category,
+                GameCode = brand,
+                IsActive = true
+            });
+
+            added++;
+        }
     }
+    
+    if (activeDigiflazzSkus.Count == 0)
+    {
+        throw new InvalidOperationException(
+            "Sync dibatalkan: Digiflazz tidak mengembalikan produk kategori Games. " +
+            "Produk lama tidak dinonaktifkan untuk mencegah kehilangan katalog."
+        );
+    }
+
+    var productsToDeactivate = await _db.GameProducts
+        .Where(p =>
+            p.Category == AppConstants.Categories.Games &&
+            p.IsActive &&
+            !string.IsNullOrEmpty(p.BuyerSkuCode) &&
+            !activeDigiflazzSkus.Contains(p.BuyerSkuCode))
+        .ToListAsync();
+
+    foreach (var product in productsToDeactivate)
+    {
+        product.IsActive = false;
+        deactivated++;
+    }
+
+    await _db.SaveChangesAsync();
+
+    return (added, updated, deactivated);
+}
 
     public async Task<IEnumerable<ProductResponse>> GetAllProductsAsync()
     {

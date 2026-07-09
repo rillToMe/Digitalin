@@ -25,10 +25,10 @@ POST {{host}}/auth/local/register
 Content-Type: application/json
 
 {
-  "email": "budi@gmail.com",
+  "email": "budi1@gmail.com",
   "password": "rahasia123",
   "fullName": "Budi Santoso",
-  "otpCode": "863813"
+  "otpCode": "75675"
 }
 
 ### 2. Login Pembeli 
@@ -37,7 +37,7 @@ POST {{host}}/auth/local/login
 Content-Type: application/json
 
 {
-  "email": "budi@gmail.com",
+  "email": "budi1@gmail.com",
   "password": "rahasia123"
 }
 

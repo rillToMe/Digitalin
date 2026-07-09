@@ -24,11 +24,15 @@ public static class ProductEndpoints
         publicGroup.MapGet("/brands", async ([FromServices] DigitalinDbContext db) =>
         {
             var brands = await db.GameMetadata
+                .Where(m => db.GameProducts.Any(p =>
+                    p.Brand == m.Brand &&
+                    p.Category == AppConstants.Categories.Games &&
+                    p.IsActive))
                 .Select(m => new {
                     m.Id,
                     m.Brand,
                     Slug = m.Brand.ToLower().Replace(" ", "-"),
-                    m.ImageUrl, 
+                    m.ImageUrl,
                     m.InputType
                 })
                 .OrderBy(m => m.Brand)
@@ -46,9 +50,13 @@ public static class ProductEndpoints
             if (meta == null) return Results.NotFound(new { message = "Game tidak ditemukan" });
             
             var products = await db.GameProducts
-                .Where(p => p.Brand == meta.Brand) 
+                .Where(p =>
+                    p.Brand == meta.Brand &&
+                    p.Category == AppConstants.Categories.Games &&
+                    p.IsActive)
                 .OrderBy(p => p.Price)
-                .Select(p => new {
+                .Select(p => new
+                {
                     p.Id,
                     p.Name,
                     p.Price,
@@ -122,9 +130,13 @@ public static class ProductEndpoints
         // POST /admin/system/sync-digiflazz (SINKRONISASI MANUAL DARI TOMBOL ADMIN)
         systemGroup.MapPost("/sync-digiflazz", async ([FromServices] IProductService productService) =>
         {
-            var (added, updated) = await productService.SyncCatalogFromDigiflazzAsync();
-            
-            return Results.Ok(new { message = $"Sync selesai! {added} produk baru, {updated} produk diupdate." });
+            var (added, updated, deactivated) =
+                await productService.SyncCatalogFromDigiflazzAsync();
+
+            return Results.Ok(new
+            {
+                message = $"Sync selesai! {added} produk baru, {updated} produk diupdate, {deactivated} produk dinonaktifkan."
+            });
         });
         
         // DELETE /admin/system/clean-dummy-products (HAPUS DATA DUMMY)

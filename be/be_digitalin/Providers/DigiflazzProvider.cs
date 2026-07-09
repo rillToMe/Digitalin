@@ -103,6 +103,31 @@ public class DigiflazzProvider
         {
             throw new Exception($"[Digiflazz Error] API menolak request. Balasan: {responseString}");
         }
+        
+        var sampleGame = dataElement
+            .EnumerateArray()
+            .FirstOrDefault(item =>
+                item.TryGetProperty(
+                    AppConstants.DigiflazzResponseKeys.Category,
+                    out var category
+                ) &&
+                category.GetString() == AppConstants.Categories.Games
+            );
+
+        if (sampleGame.ValueKind != JsonValueKind.Undefined)
+        {
+            Console.WriteLine("\n========== DIGIFLAZZ SAMPLE GAME ==========");
+            Console.WriteLine(
+                JsonSerializer.Serialize(
+                    sampleGame,
+                    new JsonSerializerOptions
+                    {
+                        WriteIndented = true
+                    }
+                )
+            );
+            Console.WriteLine("============================================\n");
+        }
 
         return dataElement.EnumerateArray();
     }

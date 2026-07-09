@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation, Link } from "react-router";
-import { ChevronLeft, ChevronRight, Gamepad2, Monitor, Smartphone, MoreHorizontal, HelpCircle, ArrowRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Gamepad2, Monitor, Smartphone, MoreHorizontal, HelpCircle, ArrowRight,
+  Zap,
+  ShieldCheck,
+  CreditCard,
+  Headphones,
+ } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useQuery } from "@tanstack/react-query";
 import { bannerService, brandService } from "../../../services/api";
@@ -85,31 +90,51 @@ function GameCard({ brand }: { brand: BrandItem }) {
   const minPrice = 14000;
 
   return (
-    <motion.div
-      whileHover={{ y: -4, scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-      onClick={() => navigate(`/game/${brand.slug}`)}
-      className="cursor-pointer rounded-2xl overflow-hidden"
-      style={{ backgroundColor: "var(--color-surface, #fff)", border: "1px solid rgba(0,0,0,0.07)", transition: "box-shadow 0.2s" }}
-    >
-      <div style={{ height: 120, overflow: "hidden", position: "relative" }}>
-        {brand.imageUrl ? (
-          <img src={brand.imageUrl} alt={brand.brand} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: "var(--color-neutral, #F1F3F5)" }}>
-            <Gamepad2 size={32} style={{ color: "var(--color-brand-secondary, #4A5568)" }} />
-          </div>
-        )}
-        <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(15,20,25,0.6) 0%, transparent 50%)" }} />
-      </div>
-      <div className="px-3 py-3">
-        <p style={{ color: "var(--color-primary, #0F1419)", fontWeight: 600, fontSize: "0.9rem" }} className="truncate">{brand.brand}</p>
-        {/* <p style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.75rem", marginTop: 2 }}>
-          Mulai dari <span style={{ color: "var(--color-brand-tertiary, #2C5EF5)", fontWeight: 600 }}>Rp {minPrice.toLocaleString("id-ID")}</span>
-        </p> */}
-      </div>
-    </motion.div>
-  );
+  <motion.div
+    whileHover={{ y: -4, scale: 1.02 }}
+    whileTap={{ scale: 0.98 }}
+    onClick={() => navigate(`/game/${brand.slug}`)}
+    className="cursor-pointer overflow-hidden rounded-3xl p-3"
+    style={{
+      backgroundColor: "var(--color-surface)",
+      border: "1px solid var(--color-border)",
+      transition: "box-shadow 0.2s",
+    }}
+  >
+    <div className="relative aspect-square w-full overflow-hidden rounded-xl">
+      {brand.imageUrl ? (
+        <img
+          src={brand.imageUrl}
+          alt={brand.brand}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <div
+          className="flex h-full w-full items-center justify-center"
+          style={{ backgroundColor: "var(--color-neutral)" }}
+        >
+          <Gamepad2
+            size={32}
+            style={{ color: "var(--color-brand-secondary)" }}
+          />
+        </div>
+      )}
+    </div>
+
+    <div className="flex items-center px-3 py-3">
+      <p
+        className="line-clamp-2"
+        style={{
+          color: "var(--color-primary)",
+          fontWeight: 600,
+          fontSize: "0.9rem",
+        }}
+      >
+        {brand.brand}
+      </p>
+    </div>
+  </motion.div>
+);
 }
 
 // Skeleton Card
@@ -224,21 +249,73 @@ export default function HomePage() {
 
       {/* Trust badges */}
       <section className="mt-16">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { icon: "⚡", title: "Proses Instan", desc: "Top up langsung masuk" },
-            { icon: "🔒", title: "Aman & Terpercaya", desc: "Transaksi terenkripsi" },
-            { icon: "💳", title: "Banyak Metode", desc: "GoPay, OVO, Transfer, dll" },
-            { icon: "🎧", title: "CS 24 Jam", desc: "Siap membantu kapanpun" },
-          ].map((item, i) => (
-            <div key={i} className="rounded-2xl p-5 flex flex-col items-center text-center" style={{ backgroundColor: "var(--color-surface, #fff)", border: "1px solid rgba(0,0,0,0.07)" }}>
-              <span style={{ fontSize: "1.8rem", marginBottom: 8 }}>{item.icon}</span>
-              <p style={{ color: "var(--color-primary, #0F1419)", fontWeight: 600, fontSize: "0.9rem" }}>{item.title}</p>
-              <p style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.8rem", marginTop: 4 }}>{item.desc}</p>
-            </div>
-          ))}
+  <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+    {[
+      {
+        icon: Zap,
+        title: "Proses Instan",
+        desc: "Top up langsung masuk",
+      },
+      {
+        icon: ShieldCheck,
+        title: "Aman & Terpercaya",
+        desc: "Transaksi terenkripsi",
+      },
+      {
+        icon: CreditCard,
+        title: "Banyak Metode",
+        desc: "GoPay, OVO, Transfer, dll",
+      },
+      {
+        icon: Headphones,
+        title: "CS 24 Jam",
+        desc: "Siap membantu kapanpun",
+      },
+    ].map((item) => {
+      const Icon = item.icon;
+
+      return (
+        <div
+          key={item.title}
+          className="flex flex-col items-center rounded-2xl p-5 text-center"
+          style={{
+            backgroundColor: "var(--color-surface)",
+            border: "1px solid var(--color-border)",
+          }}
+        >
+          <Icon
+            size={28}
+            strokeWidth={2}
+            style={{
+              color: "var(--color-brand-primary)",
+              marginBottom: 8,
+            }}
+          />
+
+          <p
+            style={{
+              color: "var(--color-primary)",
+              fontWeight: 600,
+              fontSize: "0.9rem",
+            }}
+          >
+            {item.title}
+          </p>
+
+          <p
+            style={{
+              color: "var(--color-brand-secondary)",
+              fontSize: "0.8rem",
+              marginTop: 4,
+            }}
+          >
+            {item.desc}
+          </p>
         </div>
-      </section>
+      );
+    })}
+  </div>
+</section>
 
       {/* FAQ Preview */}
       <section className="mt-16">

@@ -13,5 +13,5 @@ public interface IProductService
     Task<string?> UpdateProductIconAsync(int id, IFormFile file);
     
     Task<IEnumerable<GameProduct>> GetProductsByBrandAsync(string brand);
-    Task<(int Added, int Updated)> SyncCatalogFromDigiflazzAsync();
+    Task<(int Added, int Updated, int Deactivated)> SyncCatalogFromDigiflazzAsync();
 }

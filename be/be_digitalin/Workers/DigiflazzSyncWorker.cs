@@ -52,8 +52,14 @@ public class DigiflazzSyncWorker : BackgroundService
         // Panggil IProductService lewat scope provider
         var productService = scope.ServiceProvider.GetRequiredService<IProductService>();
 
-        var (added, updated) = await productService.SyncCatalogFromDigiflazzAsync();
+        var (added, updated, deactivated) =
+            await productService.SyncCatalogFromDigiflazzAsync();
 
-        _logger.LogInformation($"[AUTO-SYNC] Selesai! {added} produk baru ditambah, {updated} produk diupdate harganya.");
+        _logger.LogInformation(
+            "[AUTO-SYNC] Selesai! {Added} produk baru, {Updated} produk diupdate, {Deactivated} produk dinonaktifkan.",
+            added,
+            updated,
+            deactivated
+        );
     }
 }

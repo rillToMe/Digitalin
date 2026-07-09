@@ -16,5 +16,7 @@ public class GameProduct
     public string? ImageUrl { get; set; }
 
     public decimal? CustomMargin { get; set; }
+    
+    public bool IsActive { get; set; } = true;
 
 }
