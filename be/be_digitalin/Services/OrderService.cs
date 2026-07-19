@@ -655,7 +655,7 @@ Silakan cek manual di dashboard Digiflazz. Jika pesanan tidak masuk, segera pros
         }
     }
 
-    private static string BuildTargetValue(
+    internal static string BuildTargetValue(
         GameMetadata metadata,
         Dictionary<string, string?> targetValues)
     {
@@ -691,7 +691,7 @@ Silakan cek manual di dashboard Digiflazz. Jika pesanan tidak masuk, segera pros
             targetValues);
     }
     
-    private static void ValidateTargetValues(
+    internal static void ValidateTargetValues(
         IReadOnlyList<GameInputField> inputFields,
         Dictionary<string, string?> targetValues)
     {
@@ -743,7 +743,7 @@ Silakan cek manual di dashboard Digiflazz. Jika pesanan tidak masuk, segera pros
         }
     }
     
-    private static string RenderTargetTemplate(
+    internal static string RenderTargetTemplate(
         string targetTemplate,
         IReadOnlyList<GameInputField> inputFields,
         Dictionary<string, string?> targetValues)

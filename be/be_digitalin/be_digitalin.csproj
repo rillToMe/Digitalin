@@ -28,6 +28,10 @@
     </ItemGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="be_digitalin.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
         <Folder Include="Data\Migrations\" />
     </ItemGroup>
 
