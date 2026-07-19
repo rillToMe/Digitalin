@@ -1,17 +1,8 @@
-/**
- * FAQ Data Source
- *
- * Centralized FAQ data structured for future backend integration.
- * When a backend FAQ endpoint becomes available, replace this file's
- * exports with API calls — no UI changes needed.
- */
-
 export interface FaqItem {
   id: string;
   question: string;
   answer: string;
   category: FaqCategory;
-  /** Whether this item appears on the HomePage preview */
   featured: boolean;
 }
 
@@ -33,7 +24,7 @@ export const FAQ_CATEGORIES: FaqCategory[] = [
 ];
 
 export const FAQ_DATA: FaqItem[] = [
-  // ── Top Up ──────────────────────────────────────────────────────────────
+  // Top Up
   {
     id: "topup-1",
     question: "Bagaimana cara melakukan top up game?",
@@ -67,7 +58,7 @@ export const FAQ_DATA: FaqItem[] = [
     featured: true,
   },
 
-  // ── Pembayaran ──────────────────────────────────────────────────────────
+  // Pembayaran
   {
     id: "pay-1",
     question: "Metode pembayaran apa saja yang didukung?",
@@ -93,7 +84,7 @@ export const FAQ_DATA: FaqItem[] = [
     featured: false,
   },
 
-  // ── Akun ────────────────────────────────────────────────────────────────
+  // Akun
   {
     id: "acc-1",
     question: "Bagaimana cara mendaftar?",
@@ -119,7 +110,7 @@ export const FAQ_DATA: FaqItem[] = [
     featured: false,
   },
 
-  // ── Transaksi ───────────────────────────────────────────────────────────
+  // Transaksi
   {
     id: "tx-1",
     question: "Bagaimana cara melihat riwayat transaksi?",
@@ -145,7 +136,7 @@ export const FAQ_DATA: FaqItem[] = [
     featured: false,
   },
 
-  // ── Voucher ─────────────────────────────────────────────────────────────
+  // Voucher
   {
     id: "vch-1",
     question: "Bagaimana cara menggunakan kode voucher?",
@@ -163,7 +154,7 @@ export const FAQ_DATA: FaqItem[] = [
     featured: false,
   },
 
-  // ── Lainnya ─────────────────────────────────────────────────────────────
+  // Lainnya
   {
     id: "other-1",
     question: "Apakah Digitalin aman?",
@@ -182,16 +173,10 @@ export const FAQ_DATA: FaqItem[] = [
   },
 ];
 
-/**
- * Returns FAQ items marked as featured (for HomePage preview).
- */
 export function getFeaturedFaqs(): FaqItem[] {
   return FAQ_DATA.filter((item) => item.featured);
 }
 
-/**
- * Returns all FAQ items, optionally filtered by category and/or search query.
- */
 export function searchFaqs(params?: {
   category?: FaqCategory | "Semua";
   query?: string;

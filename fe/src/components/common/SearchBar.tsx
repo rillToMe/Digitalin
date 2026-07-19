@@ -258,9 +258,24 @@ export default function SearchBar({ variant = "expandable", onClose }: SearchBar
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="truncate" style={{ color: "var(--color-brand-primary, #0F1419)", fontSize: "0.875rem", fontWeight: 600, margin: 0 }}>{game.brand}</p>
-                        <p className="truncate" style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.75rem", margin: "2px 0 0" }}>
-                          {game.inputType === "USER_ID_AND_ZONE_ID" ? "Player ID + Zone ID" : "Player ID"}
+                        <p className="truncate" 
+                        style={{ 
+                          color: "var(--color-brand-primary, #0F1419)", 
+                          fontSize: "0.875rem", 
+                          fontWeight: 600, 
+                          margin: 0 
+                          }}>{game.brand}
+                        </p>
+
+                        <p
+                          className="truncate"
+                            style={{
+                              color: "var(--color-brand-secondary, #4A5568)",
+                              fontSize: "0.75rem",
+                              margin: "2px 0 0",
+                            }}
+                          >
+                          Top Up Game
                         </p>
                       </div>
                     </li>
@@ -391,9 +406,24 @@ export default function SearchBar({ variant = "expandable", onClose }: SearchBar
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="truncate" style={{ color: "var(--color-brand-primary, #0F1419)", fontSize: "0.875rem", fontWeight: 600, margin: 0 }}>{game.brand}</p>
-                      <p className="truncate" style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.75rem", margin: "2px 0 0" }}>
-                        {game.inputType === "USER_ID_AND_ZONE_ID" ? "Player ID + Zone ID" : "Player ID"}
+                      <p className="truncate" 
+                      style={{ 
+                        color: "var(--color-brand-primary, #0F1419)", 
+                        fontSize: "0.875rem", 
+                        fontWeight: 600, 
+                        margin: 0 
+                        }}>{game.brand}
+                      </p>
+
+                      <p
+                        className="truncate"
+                        style={{
+                          color: "var(--color-brand-secondary, #4A5568)",
+                          fontSize: "0.75rem",
+                          margin: "2px 0 0",
+                        }}
+                      >
+                        Top Up Game
                       </p>
                     </div>
                   </li>

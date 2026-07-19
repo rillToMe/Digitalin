@@ -27,6 +27,7 @@ import type {
   MetadataListResponse,
   UpdateMetadataPayload,
   GameMetadataItem,
+  GameTemplateListResponse,
   AdminProductsListResponse,
   AdminProductResponse,
   CreateProductPayload,
@@ -213,6 +214,8 @@ export const adminService = {
     api.delete<MessageResponse>(`/admin/banners/${id}`).then((r) => r.data),
 
   // Metadata
+  getGameTemplates: () =>
+    api.get<GameTemplateListResponse>("/admin/system/game-templates").then((r) => r.data),
   getMetadata: () =>
     api.get<MetadataListResponse>("/admin/system/metadata").then((r) => r.data),
   updateMetadata: (id: number, payload: UpdateMetadataPayload) =>

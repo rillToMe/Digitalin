@@ -6,6 +6,7 @@ using be_digitalin.Constants;
 using be_digitalin.Workers;
 using be_digitalin.Providers;
 using be_digitalin.Middleware;
+using be_digitalin.Sandbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.Abstractions;
 using Microsoft.AspNetCore.RateLimiting;
@@ -40,8 +41,7 @@ builder.Services.AddScoped<CloudflareR2Provider>();
 builder.Services.Configure<GoogleAuthSettings>(builder.Configuration.GetSection("GoogleAuth"));
 builder.Services.AddScoped<GoogleProvider>();
 builder.Services.AddScoped<IGoogleAuthService, GoogleAuthService>();
-builder.Services.Configure<RecaptchaSettings>(
-    builder.Configuration.GetSection("Recaptcha"));
+builder.Services.Configure<RecaptchaSettings>(builder.Configuration.GetSection("Recaptcha"));
 builder.Services.AddScoped<IAdminAuthService, AdminAuthService>();
 builder.Services.AddHttpClient();
 
@@ -49,10 +49,13 @@ builder.Services.AddScoped<MidtransProvider>();
 builder.Services.AddScoped<DigiflazzProvider>();
 builder.Services.AddScoped<TelegramProvider>();
 builder.Services.AddHttpClient<RecaptchaProvider>();
-// Worker
 
-// builder.Services.AddHostedService<DigiflazzSyncWorker>();
-// builder.Services.AddHostedService<be_digitalin.Workers.OrderSweepWorker>();
+//Sandbox mode
+builder.Services.AddSandbox(builder.Configuration);
+// Worker
+//di komen dulu supaya tidak langsung membuat limit rate digiflazz aktif setiap kali development
+// builder.Services.AddHostedService<DigiflazzSyncWorker>();   
+builder.Services.AddHostedService<be_digitalin.Workers.OrderSweepWorker>();
 
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
@@ -66,6 +69,9 @@ builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 builder.Services.AddScoped<IAppSettingsService, AppSettingsService>();
 builder.Services.AddScoped<IRecaptchaService, RecaptchaService>();
+builder.Services.AddScoped<IAdminManagementService, AdminManagementService>();
+builder.Services.AddScoped<ITokenService, TokenService>();
+
 // EmailSettings
 builder.Services.Configure<be_digitalin.Config.EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 
@@ -167,12 +173,14 @@ builder.Services.AddCors(options =>
         policy.WithOrigins(
                 "http://localhost:5173",
                 "http://127.0.0.1:5173",  // loopback IP fallback for dev
-                "http://localhost:3000")
+                "http://localhost:3000",
+                "http://10.54.222.14:5173")
             .WithHeaders("Authorization", "Content-Type", "Accept")   
             .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE")               
             .AllowCredentials();
     });
 });
+
 
 var app = builder.Build();
 
@@ -205,13 +213,19 @@ app.Use(async (context, next) =>
     await next();
 });
 
+
+//sandbox mode untuk check Endpoint dari external api
+if (app.Environment.IsDevelopment())
+{
+    app.MapSandbox();
+}
 // Rate Limiter must be placed BEFORE Authentication/Authorization
 app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Maintenance Mode — runs AFTER Auth so that JWT is parsed and we can check Admin role
+// Maintenance Mode — runs AFTER Auth so that JWT is parsed & we can check Admin role
 app.UseMaintenanceMode();
 
 app.MapAuthEndpoints();

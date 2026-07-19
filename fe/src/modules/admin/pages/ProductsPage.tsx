@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Search, Pencil, Trash2, X, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "../../../layouts/AdminLayout";
@@ -31,9 +31,9 @@ export default function ProductsPage() {
     queryFn: () => adminService.getProducts({ page, limit: PAGE_SIZE, search: search || undefined }),
   });
 
-  const products = data?.items ?? [];
-  const totalCount = data?.totalCount ?? 0;
-  const totalPages = data ? Math.ceil(data.totalCount / data.limit) : 1;
+  const products = data?.data ?? [];
+  const totalCount = data?.totalItems ?? 0;
+  const totalPages = data?.totalPages ?? 1;
 
   const createMutation = useMutation({
     mutationFn: (payload: CreateProductPayload) => adminService.createProduct(payload),

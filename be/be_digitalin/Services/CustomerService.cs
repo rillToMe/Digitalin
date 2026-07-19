@@ -1,6 +1,4 @@
-﻿using System.Security.Claims;
-using System.Text;
-using be_digitalin.Config;
+﻿using be_digitalin.Config;
 using be_digitalin.Data;
 using be_digitalin.DTOs;
 using be_digitalin.Models;
@@ -10,24 +8,22 @@ using System.Security.Cryptography;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.JsonWebTokens;
-using Microsoft.IdentityModel.Tokens;
 
 namespace be_digitalin.Services;
 
 public class CustomerService : ICustomerService
 {
     private readonly DigitalinDbContext _db;
-    private readonly JwtSettings _jwtSettings;
+    private readonly ITokenService _tokenService;
     private readonly IOrderService _orderService;
     private readonly IRecaptchaService _recaptchaService;
     private readonly RecaptchaSettings _recaptchaSettings;
     private readonly EmailProvider _emailProvider;
     private readonly IMemoryCache _cache;
-    
+
     public CustomerService(
         DigitalinDbContext db,
-        IOptions<JwtSettings> jwtSettings,
+        ITokenService tokenService,
         IOrderService orderService,
         IRecaptchaService recaptchaService,
         IOptions<RecaptchaSettings> recaptchaSettings,
@@ -35,7 +31,7 @@ public class CustomerService : ICustomerService
         IMemoryCache cache)
     {
         _db = db;
-        _jwtSettings = jwtSettings.Value;
+        _tokenService = tokenService;
         _orderService = orderService;
         _recaptchaService = recaptchaService;
         _recaptchaSettings = recaptchaSettings.Value;
@@ -79,7 +75,7 @@ public class CustomerService : ICustomerService
 
         _cache.Remove($"OTP_{email}");
 
-        return CreateCustomerToken(customer);
+        return _tokenService.CreateCustomerToken(customer.Id);
     }
     
     public async Task<(bool Success, string Message)> RequestRegistrationOtpAsync(
@@ -164,40 +160,9 @@ public class CustomerService : ICustomerService
             return null;
         }
 
-        return CreateCustomerToken(customer);
+        return _tokenService.CreateCustomerToken(customer.Id);
     }
-    
-    private string CreateCustomerToken(Customer customer)
-    {
-        var securityKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(_jwtSettings.Key));
 
-        var credentials = new SigningCredentials(
-            securityKey,
-            SecurityAlgorithms.HmacSha256);
-
-        var tokenDescriptor = new SecurityTokenDescriptor
-        {
-            Issuer = _jwtSettings.Issuer,
-            Audience = _jwtSettings.Audience,
-            Subject = new ClaimsIdentity(new[]
-            {
-                new Claim(
-                    ClaimTypes.NameIdentifier,
-                    customer.Id.ToString()),
-
-                new Claim(
-                    ClaimTypes.Role,
-                    AppConstants.Roles.Customer)
-            }),
-            Expires = DateTime.UtcNow.AddHours(24),
-            SigningCredentials = credentials
-        };
-
-        return new JsonWebTokenHandler()
-            .CreateToken(tokenDescriptor);
-    }
-    
     //check email yang sudah di pakai
     public async Task<bool> CheckEmailExistsAsync(string email)
     {

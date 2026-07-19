@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Mail, Loader2, ArrowRight } from "lucide-react";
 
 import type { ForgotPasswordEmailStepProps } from "../../api/index";

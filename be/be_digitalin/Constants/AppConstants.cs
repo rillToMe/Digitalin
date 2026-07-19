@@ -128,14 +128,27 @@ public static class AppConstants
         public const string Games = "Games";
         public const string Pulsa = "Pulsa"; 
     }
-    
-    // Tipe Input Form untuk Frontend
-    public static class InputTypes
+
+    public static class GameInputFieldTypes
     {
-        public const string UserIdOnly = "USER_ID_ONLY";
-        public const string UserIdAndZoneId = "USER_ID_AND_ZONE_ID";
+        public const string Text = "text";
+        public const string Select = "select";
+        public const string Number = "number";
     }
 
+    // Key input field standar untuk template game (dipakai di InputFields & TargetTemplate)
+    public static class GameFieldKeys
+    {
+        public const string UserId = "userId";
+        public const string PlayerId = "playerId";
+        public const string RoleId = "roleId";
+        public const string Username = "username";
+        public const string RiotId = "riotId";
+        public const string IdPlatform = "idPlatform";
+        public const string Server = "server";
+        public const string Zone = "zone";
+    }
+    
     // Nama Folder di Cloudflare R2
     public static class StorageFolders
     {

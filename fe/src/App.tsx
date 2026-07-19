@@ -1,43 +1,47 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router";
+import { Suspense, lazy } from "react";
 import { Toaster } from "sonner";
-import ScrollToTop from "./app/components/ScrollToTop";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GoogleOAuthProvider } from "@react-oauth/google";
-import { useAuthStore } from "./store/authStore";
+
+import ScrollToTop from "./app/components/ScrollToTop";
 import { CustomerLayout } from "./layouts/CustomerLayout";
+import { useAuthStore } from "./store/authStore";
+import PageLoader from "./components/common/PageLoader";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 2,
+      gcTime: 1000 * 60 * 10,
       retry: 1,
       refetchOnWindowFocus: false,
     },
   },
 });
 
-// Customer pages
-import HomePage from "./modules/customer/pages/HomePage";
-import GameDetailPage from "./modules/customer/pages/GameDetailPage";
-import LoginPage from "./modules/customer/pages/LoginPage";
-import RegisterPage from "./modules/customer/pages/RegisterPage";
-import ForgotPasswordPage from "./modules/customer/pages/ForgotPasswordPage";
-import MaintenancePage from "./modules/customer/pages/MaintenancePage";
-import ProfilePage from "./modules/customer/pages/ProfilePage";
-import HistoryPage from "./modules/customer/pages/HistoryPage";
-import FaqPage from "./modules/customer/pages/FaqPage";
-import ContactPage from "./modules/customer/pages/ContactPage";
-import VouchersPage from "./modules/customer/pages/VouchersPage";
+// Customer Pages
+const HomePage = lazy(() => import("./modules/customer/pages/HomePage"));
+const GameDetailPage = lazy(() => import("./modules/customer/pages/GameDetailPage"));
+const LoginPage = lazy(() => import("./modules/customer/pages/LoginPage"));
+const RegisterPage = lazy(() => import("./modules/customer/pages/RegisterPage"));
+const ForgotPasswordPage = lazy(() => import("./modules/customer/pages/ForgotPasswordPage"));
+const MaintenancePage = lazy(() => import("./modules/customer/pages/MaintenancePage"));
+const ProfilePage = lazy(() => import("./modules/customer/pages/ProfilePage"));
+const HistoryPage = lazy(() => import("./modules/customer/pages/HistoryPage"));
+const FaqPage = lazy(() => import("./modules/customer/pages/FaqPage"));
+const ContactPage = lazy(() => import("./modules/customer/pages/ContactPage"));
+const VouchersPage = lazy(() => import("./modules/customer/pages/VouchersPage"));
 
-// Admin pages
-import AdminLoginPage from "./modules/admin/pages/AdminLoginPage";
-import DashboardPage from "./modules/admin/pages/DashboardPage";
-import OrdersPage from "./modules/admin/pages/OrdersPage";
-import BannersPage from "./modules/admin/pages/BannersPage";
-import MetadataPage from "./modules/admin/pages/MetadataPage";
-import AdminVouchersPage from "./modules/admin/pages/VouchersPage";
-import SettingsPage from "./modules/admin/pages/settings/SettingsPage";
-import AdminManagementPage from "./modules/admin/pages/AdminManagementPage";
+//Admin Pages
+const AdminLoginPage = lazy(() => import("./modules/admin/pages/AdminLoginPage"));
+const DashboardPage = lazy(() => import("./modules/admin/pages/DashboardPage"));
+const OrdersPage = lazy(() => import("./modules/admin/pages/OrdersPage"));
+const BannersPage = lazy(() => import("./modules/admin/pages/BannersPage"));
+const MetadataPage = lazy(() => import("./modules/admin/pages/MetadataPage"));
+const AdminVouchersPage = lazy(() => import("./modules/admin/pages/VouchersPage"));
+const SettingsPage = lazy(() => import("./modules/admin/pages/settings/SettingsPage"));
+const AdminManagementPage = lazy(() => import("./modules/admin/pages/AdminManagementPage"));
 
 function CustomerRoute({ children }: { children: React.ReactNode }) {
   return <CustomerLayout>{children}</CustomerLayout>;
@@ -46,45 +50,38 @@ function CustomerRoute({ children }: { children: React.ReactNode }) {
 function ProtectedCustomerRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, hasHydrated } = useAuthStore();
   const location = useLocation();
-  if (!hasHydrated) return null;
-  if (!isAuthenticated()) return <Navigate to="/login" state={{ from: location }} replace />;
+
+  if (!hasHydrated) return <PageLoader />;
+
+  if (!isAuthenticated()) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
   return <CustomerLayout>{children}</CustomerLayout>;
 }
 
-/**
- * Smart /admin entry route.
- * - No token / token expired → /admin/login
- * - Valid token → /admin/dashboard
- * Validates JWT exp claim before allowing access.
- */
 function AdminEntryRoute() {
   const { isAdmin, isAdminTokenValid, adminLogout, hasHydrated } = useAuthStore();
 
-  if (!hasHydrated) return null;
+  if (!hasHydrated) return <PageLoader />;
 
-  // No token at all → login
-  if (!isAdmin()) return <Navigate to="/admin/login" replace />;
+  if (!isAdmin()) {
+    return <Navigate to="/admin/login" replace />;
+  }
 
-  // Token exists but expired → clear and redirect to login
   if (!isAdminTokenValid()) {
     adminLogout();
     return <Navigate to="/admin/login" replace />;
   }
 
-  // Token is present and not expired → dashboard
   return <Navigate to="/admin/dashboard" replace />;
 }
 
-/**
- * If admin is already logged in with a valid token,
- * redirect /admin/login → /admin/dashboard automatically.
- */
 function AdminLoginRoute() {
   const { isAdmin, isAdminTokenValid, hasHydrated } = useAuthStore();
 
-  if (!hasHydrated) return null;
+  if (!hasHydrated) return <PageLoader />;
 
-  // Already authenticated with valid token → go to dashboard
   if (isAdmin() && isAdminTokenValid()) {
     return <Navigate to="/admin/dashboard" replace />;
   }
@@ -94,82 +91,219 @@ function AdminLoginRoute() {
 
 function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
   const { isAdmin, isAdminTokenValid, adminLogout, hasHydrated } = useAuthStore();
-  if (!hasHydrated) return null;
-  if (!isAdmin() || !isAdminTokenValid()) {
-    if (isAdmin()) adminLogout(); // clear expired session
-    return <Navigate to="/admin/login" replace />;
-  }
-  return <>{children}</>;
-}
 
-/**
- * Protects routes that require SUPER_ADMIN role.
- * Redirects ADMIN-only users to /admin/dashboard (not login).
- */
-function ProtectedSuperAdminRoute({ children }: { children: React.ReactNode }) {
-  const { isAdmin, isAdminTokenValid, isSuperAdmin, adminLogout, hasHydrated } = useAuthStore();
-  if (!hasHydrated) return null;
-  // No valid admin token at all → login
+  if (!hasHydrated) return <PageLoader />;
+
   if (!isAdmin() || !isAdminTokenValid()) {
     if (isAdmin()) adminLogout();
     return <Navigate to="/admin/login" replace />;
   }
-  // Valid admin token but not SUPER_ADMIN → back to dashboard
-  if (!isSuperAdmin()) return <Navigate to="/admin/dashboard" replace />;
-  return <>{children}</>;
+
+  return children;
+}
+
+function ProtectedSuperAdminRoute({ children }: { children: React.ReactNode }) {
+  const {
+    isAdmin,
+    isAdminTokenValid,
+    isSuperAdmin,
+    adminLogout,
+    hasHydrated,
+  } = useAuthStore();
+
+  if (!hasHydrated) return <PageLoader />;
+
+  if (!isAdmin() || !isAdminTokenValid()) {
+    if (isAdmin()) adminLogout();
+    return <Navigate to="/admin/login" replace />;
+  }
+
+  if (!isSuperAdmin()) {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
+  return children;
 }
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
 function AppProviders({ children }: { children: React.ReactNode }) {
-  const inner = (
+  const content = (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        {children}
-      </BrowserRouter>
+      <BrowserRouter>{children}</BrowserRouter>
     </QueryClientProvider>
   );
 
   if (googleClientId) {
-    return <GoogleOAuthProvider clientId={googleClientId}>{inner}</GoogleOAuthProvider>;
+    return (
+      <GoogleOAuthProvider clientId={googleClientId}>
+        {content}
+      </GoogleOAuthProvider>
+    );
   }
 
-  return inner;
+  return content;
 }
 
 export default function App() {
   return (
     <AppProviders>
       <ScrollToTop />
-      <Toaster position="top-right" richColors closeButton />
-      <Routes>
-        {/* Customer routes */}
-        <Route path="/" element={<CustomerRoute><HomePage /></CustomerRoute>} />
-        <Route path="/game/:slug" element={<CustomerRoute><GameDetailPage /></CustomerRoute>} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/maintenance" element={<MaintenancePage />} />
-        <Route path="/profile" element={<ProtectedCustomerRoute><ProfilePage /></ProtectedCustomerRoute>} />
-        <Route path="/history" element={<ProtectedCustomerRoute><HistoryPage /></ProtectedCustomerRoute>} />
-        <Route path="/faq" element={<CustomerRoute><FaqPage /></CustomerRoute>} />
-        <Route path="/contact" element={<CustomerRoute><ContactPage /></CustomerRoute>} />
-        <Route path="/vouchers" element={<CustomerRoute><VouchersPage /></CustomerRoute>} />
 
-        {/* Admin routes */}
-        <Route path="/admin" element={<AdminEntryRoute />} />
-        <Route path="/admin/login" element={<AdminLoginRoute />} />
-        <Route path="/admin/dashboard" element={<ProtectedAdminRoute><DashboardPage /></ProtectedAdminRoute>} />
-        <Route path="/admin/orders" element={<ProtectedAdminRoute><OrdersPage /></ProtectedAdminRoute>} />
-        <Route path="/admin/banners" element={<ProtectedAdminRoute><BannersPage /></ProtectedAdminRoute>} />
-        <Route path="/admin/metadata" element={<ProtectedAdminRoute><MetadataPage /></ProtectedAdminRoute>} />
-        <Route path="/admin/vouchers" element={<ProtectedAdminRoute><AdminVouchersPage /></ProtectedAdminRoute>} />
-        <Route path="/admin/settings" element={<ProtectedAdminRoute><SettingsPage /></ProtectedAdminRoute>} />
-        <Route path="/admin/admins" element={<ProtectedSuperAdminRoute><AdminManagementPage /></ProtectedSuperAdminRoute>} />
+      <Toaster
+        position="top-right"
+        richColors
+        closeButton
+      />
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          {/* Customer */}
+          <Route
+            path="/"
+            element={
+              <CustomerRoute>
+                <HomePage />
+              </CustomerRoute>
+            }
+          />
+
+          <Route
+            path="/game/:slug"
+            element={
+              <CustomerRoute>
+                <GameDetailPage />
+              </CustomerRoute>
+            }
+          />
+
+          <Route path="/login" element={<LoginPage />} />
+
+          <Route path="/register" element={<RegisterPage />} />
+
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
+          <Route path="/maintenance" element={<MaintenancePage />} />
+
+          <Route
+            path="/profile"
+            element={
+              <ProtectedCustomerRoute>
+                <ProfilePage />
+              </ProtectedCustomerRoute>
+            }
+          />
+
+          <Route
+            path="/history"
+            element={
+              <ProtectedCustomerRoute>
+                <HistoryPage />
+              </ProtectedCustomerRoute>
+            }
+          />
+
+          <Route
+            path="/faq"
+            element={
+              <CustomerRoute>
+                <FaqPage />
+              </CustomerRoute>
+            }
+          />
+
+          <Route
+            path="/contact"
+            element={
+              <CustomerRoute>
+                <ContactPage />
+              </CustomerRoute>
+            }
+          />
+
+          <Route
+            path="/vouchers"
+            element={
+              <CustomerRoute>
+                <VouchersPage />
+              </CustomerRoute>
+            }
+          />
+
+          {/* Admin */}
+
+          <Route path="/admin" element={<AdminEntryRoute />} />
+
+          <Route path="/admin/login" element={<AdminLoginRoute />} />
+
+          <Route
+            path="/admin/dashboard"
+            element={
+              <ProtectedAdminRoute>
+                <DashboardPage />
+              </ProtectedAdminRoute>
+            }
+          />
+
+          <Route
+            path="/admin/orders"
+            element={
+              <ProtectedAdminRoute>
+                <OrdersPage />
+              </ProtectedAdminRoute>
+            }
+          />
+
+          <Route
+            path="/admin/banners"
+            element={
+              <ProtectedAdminRoute>
+                <BannersPage />
+              </ProtectedAdminRoute>
+            }
+          />
+
+          <Route
+            path="/admin/metadata"
+            element={
+              <ProtectedAdminRoute>
+                <MetadataPage />
+              </ProtectedAdminRoute>
+            }
+          />
+
+          <Route
+            path="/admin/vouchers"
+            element={
+              <ProtectedAdminRoute>
+                <AdminVouchersPage />
+              </ProtectedAdminRoute>
+            }
+          />
+
+          <Route
+            path="/admin/settings"
+            element={
+              <ProtectedAdminRoute>
+                <SettingsPage />
+              </ProtectedAdminRoute>
+            }
+          />
+
+          <Route
+            path="/admin/admins"
+            element={
+              <ProtectedSuperAdminRoute>
+                <AdminManagementPage />
+              </ProtectedSuperAdminRoute>
+            }
+          />
+
+          {/* Fallback */}
+
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
     </AppProviders>
   );
 }

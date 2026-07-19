@@ -4,7 +4,22 @@ import type { ReactNode, FormEvent } from "react";
 // Never use `any`. Always reference these types.
 
 // Enums / Literals
-export type InputType = "USER_ID_ONLY" | "USER_ID_AND_ZONE_ID";
+export type GameInputFieldType =
+  | "text"
+  | "number"
+  | "select";
+
+export interface GameInputField {
+  key: string;
+  label: string;
+  placeholder: string;
+  type: GameInputFieldType;
+  required: boolean;
+  order: number;
+  options: string[];
+}
+
+export type TargetValues = Record<string, string>;
 
 export type OrderStatus =
   | "PENDING"
@@ -79,7 +94,6 @@ export interface BrandItem {
   brand: string;
   slug: string;
   imageUrl: string | null;
-  inputType: InputType;
 }
 
 export type BrandsResponse = BrandItem[];
@@ -98,7 +112,7 @@ export interface ProductItem {
 export interface BrandDetailResponse {
   brand: string;
   gameCode: string;
-  inputType: InputType;
+  inputFields: GameInputField[];
   imageUrl: string | null;
   products: ProductItem[];
 }
@@ -118,10 +132,10 @@ export interface AdminProductResponse {
 }
 
 export interface AdminProductsListResponse {
-  items: AdminProductResponse[];
-  totalCount: number;
-  page: number;
-  limit: number;
+  data: AdminProductResponse[];
+  totalItems: number;
+  totalPages: number;
+  currentPage: number;
 }
 
 export interface CreateProductPayload {
@@ -143,8 +157,7 @@ export interface SetMarginPayload {
 
 export interface CreateOrderPayload {
   productId: number;
-  targetId: string;
-  zoneId: string | null;
+  targetValues: TargetValues;
   voucherCode: string | null;
 }
 
@@ -256,17 +269,27 @@ export interface ChartQueryParams {
 export interface GameMetadataItem {
   id: number;
   brand: string;
-  inputType: InputType;
-  serverList: string | null;
   imageUrl: string | null;
+  inputFields: GameInputField[];
+  targetTemplate: string;
 }
 
 export type MetadataListResponse = GameMetadataItem[];
 
 export interface UpdateMetadataPayload {
-  inputType: InputType;
-  serverList: string | null;
+  inputFields: GameInputField[];
+  targetTemplate: string;
 }
+
+// Built-in input schema presets (SSOT: backend GameTemplateFactory)
+export interface GameTemplate {
+  type: string;
+  displayName: string;
+  targetTemplate: string;
+  inputFields: GameInputField[];
+}
+
+export type GameTemplateListResponse = GameTemplate[];
 
 export interface MidtransExpiryResponse {
   expiry: number;
@@ -291,7 +314,6 @@ export interface GameSearchResult {
   brand: string;
   slug: string;
   imageUrl: string | null;
-  inputType: InputType;
 }
 
 export type SearchGamesResponse = GameSearchResult[];
@@ -325,6 +347,7 @@ export interface PaginationParams {
 
 export interface AdminProductsQueryParams extends PaginationParams {
   search?: string;
+  brand?: string;
 }
 
 // Vouchers
@@ -463,30 +486,48 @@ export type ModalTab = "info" | "products";
 
 export interface GameEditModalProps {
   item: GameMetadataItem;
-  form: { inputType: InputType; serverList: string };
-  setForm: (form: { inputType: InputType; serverList: string }) => void;
+
+  form: UpdateMetadataPayload;
+  setForm: (form: UpdateMetadataPayload) => void;
+
   activeTab: ModalTab;
   setActiveTab: (tab: ModalTab) => void;
+
   coverFile: File | null;
   setCoverFile: (file: File | null) => void;
+
   coverPreview: string | null;
   setCoverPreview: (url: string | null) => void;
+
   products: AdminProductResponse[];
   productsLoading: boolean;
   productsError: Error | null;
   totalProducts: number;
+
   updateMutation: {
-    mutate: (vars: { id: number; payload: { inputType: InputType; serverList: string | null } }) => void;
+    mutate: (vars: {
+      id: number;
+      payload: UpdateMetadataPayload;
+    }) => void;
     isPending: boolean;
   };
+
   coverMutation: {
-    mutate: (vars: { id: number; formData: FormData }) => void;
+    mutate: (vars: {
+      id: number;
+      formData: FormData;
+    }) => void;
     isPending: boolean;
   };
+
   marginMutation: {
-    mutate: (vars: { id: number; margin: number | null }) => void;
+    mutate: (vars: {
+      id: number;
+      margin: number | null;
+    }) => void;
     isPending: boolean;
   };
+
   onClose: () => void;
 }
 

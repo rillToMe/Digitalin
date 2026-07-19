@@ -1,4 +1,3 @@
-import React from "react";
 import { CreditCard, Save, Loader2, RefreshCw, AlertTriangle } from "lucide-react";
 import { usePaymentSettings } from "../hooks/usePaymentSettings";
 import { SettingSectionHeader } from "./SettingSectionHeader";

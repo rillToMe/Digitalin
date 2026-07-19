@@ -1,13 +1,18 @@
 import { useState } from "react";
 import { Pencil, X, Loader2, Save, DollarSign } from "lucide-react";
 import type { AdminProductResponse } from "../../../../api/index";
-import { formatRp } from "./utils";
+import { formatNumberInput, formatRp } from "./utils";
 
 interface ProductMarginListProps {
   products: AdminProductResponse[];
   brand: string;
   marginMutation: {
-    mutate: (vars: { id: number; margin: number | null }) => void;
+    mutate: (
+      vars: { id: number; margin: number | null },
+      options?: {
+        onSuccess?: () => void;
+      }
+    ) => void;
     isPending: boolean;
   };
   loading: boolean;
@@ -64,9 +69,23 @@ export function ProductMarginList({ products, brand, marginMutation, loading, er
   };
 
   const saveMargin = (productId: number) => {
-    const margin = marginValue.trim() === "" ? null : Number(marginValue);
-    marginMutation.mutate({ id: productId, margin });
-    setEditingId(null);
+    const margin =
+      marginValue.trim() === ""
+        ? null
+        : Number(marginValue);
+
+    marginMutation.mutate(
+      {
+        id: productId,
+        margin,
+      },
+      {
+        onSuccess: () => {
+          setEditingId(null);
+          setMarginValue("");
+        },
+      }
+    );
   };
 
   return (
@@ -87,14 +106,39 @@ export function ProductMarginList({ products, brand, marginMutation, loading, er
           </div>
           {editingId === product.id ? (
             <div className="flex items-center gap-2">
-              <input
-                value={marginValue}
-                onChange={(e) => setMarginValue(e.target.value.replace(/[^0-9]/g, ""))}
-                placeholder="0"
-                className="w-24 px-3 py-1.5 rounded-lg outline-none text-right"
-                style={{ border: "1.5px solid var(--color-brand-tertiary,#2C5EF5)", fontSize: "0.85rem", color: "var(--color-brand-primary,#0F1419)" }}
-                autoFocus
-              />
+              <div
+  className="flex items-center w-32 rounded-lg overflow-hidden"
+  style={{
+    border: "1.5px solid var(--color-brand-tertiary,#2C5EF5)",
+    backgroundColor: "var(--color-surface,#fff)",
+  }}
+>
+  <span
+    className="pl-3"
+    style={{
+      color: "var(--color-brand-secondary,#4A5568)",
+      fontSize: "0.85rem",
+    }}
+  >
+    Rp
+  </span>
+
+  <input
+    value={formatNumberInput(marginValue)}
+    onChange={(e) =>
+      setMarginValue(e.target.value.replace(/\D/g, ""))
+    }
+    inputMode="numeric"
+    placeholder="0"
+    className="w-full px-2 py-1.5 outline-none text-right"
+    style={{
+      backgroundColor: "transparent",
+      fontSize: "0.85rem",
+      color: "var(--color-brand-primary,#0F1419)",
+    }}
+    autoFocus
+  />
+</div>
               <button onClick={() => saveMargin(product.id)} disabled={marginMutation.isPending} className="px-3 py-1.5 rounded-lg" style={{ backgroundColor: "var(--color-brand-tertiary,#2C5EF5)", color: "#fff", fontSize: "0.8rem", fontWeight: 600 }}>
                 {marginMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
               </button>

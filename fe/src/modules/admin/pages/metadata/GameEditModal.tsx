@@ -1,8 +1,19 @@
 import { useRef } from "react";
-import { X, Loader2, Save, Upload, Image } from "lucide-react";
+import {
+  X,
+  Loader2,
+  Save,
+  Upload,
+  Image
+} from "lucide-react";
 import { toast } from "sonner";
-import type { InputType, GameEditModalProps, ModalTab } from "../../../../api/index";
+import type {
+  GameEditModalProps,
+  ModalTab,
+} from "../../../../api/index";
 import { ProductMarginList } from "./ProductMarginList";
+import { DynamicInputFieldsEditor } from "./DynamicInputFieldsEditor";
+import { PresetTemplatePicker } from "./PresetTemplatePicker";
 
 export function GameEditModal({
   item, form, setForm, activeTab, setActiveTab,
@@ -33,7 +44,7 @@ export function GameEditModal({
   const handleSaveMetadata = () => {
     updateMutation.mutate({
       id: item.id,
-      payload: { inputType: form.inputType, serverList: form.serverList || null },
+      payload: form,
     });
   };
 
@@ -104,41 +115,16 @@ export function GameEditModal({
                 </div>
               </div>
 
-              {/* Input Type */}
-              <div>
-                <label style={{ color: "var(--color-brand-primary,#0F1419)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 6 }}>Input Type</label>
-                <div className="flex gap-3">
-                  {(["USER_ID_ONLY", "USER_ID_AND_ZONE_ID"] as InputType[]).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setForm({ ...form, inputType: t })}
-                      className="flex-1 py-2.5 rounded-xl transition-all"
-                      style={{
-                        border: form.inputType === t ? "2px solid var(--color-brand-tertiary,#2C5EF5)" : "1.5px solid rgba(0,0,0,0.1)",
-                        backgroundColor: form.inputType === t ? "rgba(44,94,245,0.06)" : "transparent",
-                        color: form.inputType === t ? "var(--color-brand-tertiary,#2C5EF5)" : "var(--color-brand-secondary,#4A5568)",
-                        fontSize: "0.8rem", fontWeight: form.inputType === t ? 600 : 400,
-                      }}
-                    >
-                      {t === "USER_ID_ONLY" ? "User ID Only" : "User ID + Zone ID"}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <PresetTemplatePicker
+                form={form}
+                setForm={setForm}
+              />
 
-              {/* Server List */}
-              <div>
-                <label style={{ color: "var(--color-brand-primary,#0F1419)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 6 }}>
-                  Server List <span style={{ color: "var(--color-brand-secondary,#4A5568)", fontWeight: 400 }}>(pisahkan dengan koma)</span>
-                </label>
-                <input
-                  value={form.serverList}
-                  onChange={(e) => setForm({ ...form, serverList: e.target.value })}
-                  placeholder="Asia,Europe,America"
-                  className="w-full px-4 py-2.5 rounded-xl outline-none"
-                  style={{ border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.9rem", color: "var(--color-brand-primary,#0F1419)" }}
-                />
-              </div>
+              <DynamicInputFieldsEditor
+                form={form}
+                setForm={setForm}
+              />
+
             </div>
           ) : (
             <ProductMarginList

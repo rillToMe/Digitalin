@@ -1,15 +1,9 @@
-﻿using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
-using be_digitalin.Config;
-using be_digitalin.Data;
-using be_digitalin.Models;
+﻿using be_digitalin.Models;
 using be_digitalin.Constants;
 using be_digitalin.Services;
-using Microsoft.AspNetCore.Mvc; 
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
-
+using be_digitalin.Services.GameTemplates;
+using be_digitalin.DTOs;
+using Microsoft.AspNetCore.Mvc;
 namespace be_digitalin.Endpoints;
 
 public static class ProductEndpoints
@@ -21,60 +15,23 @@ public static class ProductEndpoints
             .WithTags("Katalog Game (Public)");
         
         // GET /games/brands
-        publicGroup.MapGet("/brands", async ([FromServices] DigitalinDbContext db) =>
+        publicGroup.MapGet("/brands", async (
+            [FromServices] IProductService productService) =>
         {
-            var brands = await db.GameMetadata
-                .Where(m => db.GameProducts.Any(p =>
-                    p.Brand == m.Brand &&
-                    p.Category == AppConstants.Categories.Games &&
-                    p.IsActive))
-                .Select(m => new {
-                    m.Id,
-                    m.Brand,
-                    Slug = m.Brand.ToLower().Replace(" ", "-"),
-                    m.ImageUrl,
-                    m.InputType
-                })
-                .OrderBy(m => m.Brand)
-                .ToListAsync();
-
+            var brands = await productService.GetUniqueGameBrandsAsync();
             return Results.Ok(brands);
         });
 
         // GET /games/{brandSlug}
-        publicGroup.MapGet("/{brandSlug}", async (string brandSlug, [FromServices] DigitalinDbContext db) =>
+        publicGroup.MapGet("/{brandSlug}", async (
+            string brandSlug,
+            [FromServices] IProductService productService) =>
         {
-            var meta = await db.GameMetadata
-                .FirstOrDefaultAsync(m => m.Brand.ToLower().Replace(" ", "-") == brandSlug);
+            var game = await productService.GetGameDetailAsync(brandSlug);
 
-            if (meta == null) return Results.NotFound(new { message = "Game tidak ditemukan" });
-            
-            var products = await db.GameProducts
-                .Where(p =>
-                    p.Brand == meta.Brand &&
-                    p.Category == AppConstants.Categories.Games &&
-                    p.IsActive)
-                .OrderBy(p => p.Price)
-                .Select(p => new
-                {
-                    p.Id,
-                    p.Name,
-                    p.Price,
-                    p.GameCode,
-                    p.Brand,
-                    p.Category,
-                    p.ImageUrl,
-                    p.CustomMargin
-                })
-                .ToListAsync();
-            
-            return Results.Ok(new {
-                brand = meta.Brand,
-                gameCode = meta.Brand, 
-                inputType = meta.InputType, // Kirim input type langsung dari sini
-                imageUrl = meta.ImageUrl,   // Ini gambar COVER utama
-                products = products         // Ini list pilihan diamond-nya
-            });
+            return game == null
+                ? Results.NotFound(new { message = "Game tidak ditemukan" })
+                : Results.Ok(game);
         });
         
         // AREA ADMIN 
@@ -85,6 +42,7 @@ public static class ProductEndpoints
         // GET /admin/products (PENCARIAN & PAGINASI) 
         adminGroup.MapGet("/", async (
             [FromQuery] string? search, 
+            [FromQuery] string? brand,
             [FromQuery] int page = 1, 
             [FromQuery] int limit = 20, 
             [FromServices] IProductService productService = null!) => 
@@ -92,7 +50,11 @@ public static class ProductEndpoints
             if (limit > 100) limit = 100;
             if (page < 1) page = 1;
 
-            var result = await productService.GetPagedProductsAsync(search, page, limit);
+            var result = await productService.GetPagedProductsAsync(
+                search, 
+                brand,
+                page, 
+                limit);
             return Results.Ok(result);
         });
         
@@ -140,89 +102,90 @@ public static class ProductEndpoints
         });
         
         // DELETE /admin/system/clean-dummy-products (HAPUS DATA DUMMY)
-        systemGroup.MapDelete("/clean-dummy-products", async ([FromServices] DigitalinDbContext db) =>
+        systemGroup.MapDelete("/clean-dummy-products", async ([FromServices] IProductService productService) =>
         {
-            var dummyProducts = await db.GameProducts.Where(p => string.IsNullOrEmpty(p.BuyerSkuCode)).ToListAsync();
+            var count = await productService.CleanDummyProductsAsync();
 
-            if (!dummyProducts.Any()) return Results.Ok(new { message = "Database sudah bersih!" });
-
-            int count = dummyProducts.Count;
-            db.GameProducts.RemoveRange(dummyProducts);
-            await db.SaveChangesAsync();
-
-            return Results.Ok(new { message = $"Sapu bersih berhasil! {count} data dummy telah dihapus." });
+            return count == 0
+                ? Results.Ok(new { message = "Database sudah bersih!" })
+                : Results.Ok(new { message = $"Sapu bersih berhasil! {count} data dummy telah dihapus." });
         });
-        
+
         // PUT /admin/products/{id}/margin (SET MARGIN KHUSUS PER ITEM)
-        adminGroup.MapPut("/{id}/margin", async (int id, [FromBody] UpdateCustomMarginRequest req, [FromServices] DigitalinDbContext db) =>
+        adminGroup.MapPut("/{id}/margin", async (int id, [FromBody] UpdateCustomMarginRequest req, [FromServices] IProductService productService) =>
         {
-            var product = await db.GameProducts.FindAsync(id);
-            if (product == null) return Results.NotFound();
-
-            decimal oldMargin = product.CustomMargin ?? 0m;
-            decimal modalPrice = product.Price - oldMargin;
-
-            decimal newMargin = req.Margin ?? 0m;
-
-            product.Price = modalPrice + newMargin;            
-            product.CustomMargin = req.Margin; 
-            await db.SaveChangesAsync();
-
-            return Results.Ok(new { message = "Margin berhasil diatur!" });
+            var updated = await productService.UpdateProductMarginAsync(id, req.Margin);
+            return updated
+                ? Results.Ok(new { message = "Margin berhasil diatur!" })
+                : Results.NotFound();
         });
-        
+
         // GET /admin/system/midtrans-expiry
-        systemGroup.MapGet("/midtrans-expiry", async ([FromServices] DigitalinDbContext db) =>
+        systemGroup.MapGet("/midtrans-expiry", async ([FromServices] IProductService productService) =>
         {
-            var setting = await db.AppSettings.FirstOrDefaultAsync(s => s.Key == AppConstants.SystemSettings.MidtransExpiry);
-            int currentExpiry = setting != null ? int.Parse(setting.Value) : 5; // untuk mengganti menit
+            var currentExpiry = await productService.GetMidtransExpiryAsync();
             return Results.Ok(new { expiry = currentExpiry });
         });
 
         // PUT /admin/system/midtrans-expiry (UBAH WAKTU EXPIRY)
-        systemGroup.MapPut("/midtrans-expiry", async ([FromServices] DigitalinDbContext db, [FromBody] UpdateExpiryRequest req) =>
+        systemGroup.MapPut("/midtrans-expiry", async ([FromServices] IProductService productService, [FromBody] UpdateExpiryRequest req) =>
         {
-            var setting = await db.AppSettings.FirstOrDefaultAsync(s => s.Key == AppConstants.SystemSettings.MidtransExpiry);
-            
-            if (setting == null)
-            {
-                db.AppSettings.Add(new AppSetting { Key = AppConstants.SystemSettings.MidtransExpiry, Value = req.Expiry.ToString() });
-            }
-            else
-            {
-                setting.Value = req.Expiry.ToString();
-            }
-
-            await db.SaveChangesAsync();
+            await productService.SetMidtransExpiryAsync(req.Expiry);
             return Results.Ok(new { message = "Waktu kedaluwarsa Midtrans berhasil diubah!" });
         });
-        
-        // GET /admin/system/metadata
-        systemGroup.MapGet("/metadata", async ([FromServices] DigitalinDbContext db) =>
+
+        // GET /admin/system/game-templates (DAFTAR PRESET TEMPLATE GAME - SSOT)
+        systemGroup.MapGet("/game-templates", () =>
         {
-            var metadata = await db.GameMetadata.OrderBy(m => m.Brand).ToListAsync();
+            var templates = GameTemplateFactory.All
+                .Select(template => new
+                {
+                    type = template.Type.ToString(),
+                    displayName = template.DisplayName,
+                    targetTemplate = template.TargetTemplate,
+                    inputFields = template.InputFields
+                });
+
+            return Results.Ok(templates);
+        });
+
+        // GET /admin/system/metadata
+        systemGroup.MapGet("/metadata", async (
+            [FromServices] IProductService productService) =>
+        {
+            var metadata = await productService.GetGameMetadataAsync();
             return Results.Ok(metadata);
         });
 
         // PUT /admin/system/metadata/{id} 
-        systemGroup.MapPut("/metadata/{id}", async (int id, [FromBody] UpdateMetadataRequest req, [FromServices] DigitalinDbContext db) =>
+        systemGroup.MapPut("/metadata/{id}", async (
+            int id,
+            [FromBody] UpdateGameMetadataRequest req,
+            [FromServices] IProductService productService) =>
         {
-            var meta = await db.GameMetadata.FindAsync(id);
-            if (meta == null) return Results.NotFound(new { message = "Metadata tidak ditemukan." });
+            try
+            {
+                var metadata = await productService.UpdateGameMetadataAsync(id, req);
 
-            meta.InputType = req.InputType;
-            meta.ServerList = req.ServerList; 
-            await db.SaveChangesAsync();
-
-            return Results.Ok(new { message = "Pengaturan game berhasil diperbarui!" });
+                return metadata == null
+                    ? Results.NotFound(new { message = "Metadata tidak ditemukan." })
+                    : Results.Ok(new
+                    {
+                        message = "Pengaturan game berhasil diperbarui!",
+                        metadata
+                    });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
         });
         
         // POST /admin/system/metadata/{id}/upload-game-cover (UPLOAD GAMBAR COVER GAME UTAMA)
         systemGroup.MapPost("/metadata/{id}/upload-game-cover", async (
-            int id, 
-            IFormFile file, 
-            [FromServices] DigitalinDbContext db,
-            [FromServices] be_digitalin.Providers.CloudflareR2Provider r2) =>
+            int id,
+            IFormFile file,
+            [FromServices] IProductService productService) =>
         {
             if (file == null || file.Length == 0) return Results.BadRequest("File tidak boleh kosong.");
 
@@ -230,19 +193,8 @@ public static class ProductEndpoints
             if (file.Length > AppConstants.FileLimits.MaxImageBytes)
                 return Results.BadRequest($"Ukuran file terlalu besar. Maksimal {AppConstants.FileLimits.MaxImageBytes / (1024 * 1024)} MB.");
 
-            var meta = await db.GameMetadata.FindAsync(id);
-            if (meta == null) return Results.NotFound(new { message = "Metadata Game tidak ditemukan." });
-
-            // hapus gambar lama
-            if (!string.IsNullOrEmpty(meta.ImageUrl))
-            {
-                await r2.DeleteFileAsync(meta.ImageUrl); 
-            }
-            
-            var imageUrl = await r2.UploadFileAsync(file, "icon-cover"); 
-
-            meta.ImageUrl = imageUrl;
-            await db.SaveChangesAsync();
+            var imageUrl = await productService.UpdateGameCoverAsync(id, file);
+            if (imageUrl == null) return Results.NotFound(new { message = "Metadata Game tidak ditemukan." });
 
             return Results.Ok(new { message = "Gambar cover game berhasil diperbarui!", url = imageUrl });
         }).DisableAntiforgery();
@@ -251,4 +203,3 @@ public static class ProductEndpoints
 
 public record UpdateCustomMarginRequest(decimal? Margin);
 public record UpdateExpiryRequest(int Expiry);
-public record UpdateMetadataRequest(string InputType, string? ServerList);

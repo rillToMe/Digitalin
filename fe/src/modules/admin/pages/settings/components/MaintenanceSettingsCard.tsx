@@ -1,5 +1,4 @@
-import React from "react";
-import { Save, Loader2, RefreshCw, AlertTriangle, WrenchIcon, Power, PowerOff } from "lucide-react";
+import { Save, Loader2, RefreshCw, AlertTriangle, WrenchIcon } from "lucide-react";
 import { useMaintenanceSettings } from "../hooks/useMaintenanceSettings";
 import { SettingSectionHeader } from "./SettingSectionHeader";
 import { SettingToggle } from "./SettingToggle";

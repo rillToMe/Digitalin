@@ -1,3 +1,7 @@
 ﻿namespace be_digitalin.DTOs;
 
-public record CreateOrderRequest(int ProductId, string TargetId, string? ZoneId, string? VoucherCode = null);
+public record CreateOrderRequest(
+    int ProductId,
+    Dictionary<string, string?> TargetValues,
+    string? VoucherCode = null
+);

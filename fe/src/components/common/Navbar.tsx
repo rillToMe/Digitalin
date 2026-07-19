@@ -10,7 +10,6 @@ import {
   ShoppingBag,
   User,
   X,
-  Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 
@@ -119,15 +118,11 @@ export default function Navbar() {
           <Link to="/" className="flex items-center gap-2 no-underline">
             <div
               className="w-8 h-8 flex items-center justify-center"
-              style={{
-                backgroundColor: "var(--color-brand-tertiary)",
-                borderRadius: 8,
-              }}
             >
-              <Zap
-                size={16}
-                color="var(--background)"
-                fill="var(--background)"
+              <img
+                src="/favicon.svg"
+                alt="Digitalin Logo"
+                className="h-10 w-auto"
               />
             </div>
 

@@ -1,6 +1,4 @@
-import React from "react";
 import { CheckCircle2, ArrowLeft } from "lucide-react";
-
 import type { ForgotPasswordSuccessStepProps } from "../../api/index";
 
 export default function ForgotPasswordSuccessStep({ onBackToLogin }: ForgotPasswordSuccessStepProps) {

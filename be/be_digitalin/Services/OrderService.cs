@@ -5,6 +5,7 @@ using be_digitalin.Providers;
 using be_digitalin.Constants;
 using Microsoft.EntityFrameworkCore;
 using System.Transactions;
+using System.Text.Json;
 
 namespace be_digitalin.Services;
 
@@ -33,16 +34,32 @@ public class OrderService : IOrderService
         _logger = logger;
     }
 
-    public async Task<OrderResponse> PlaceOrderAsync(CreateOrderRequest request, int? customerId = null)
+    public async Task<OrderResponse> PlaceOrderAsync(
+        CreateOrderRequest request,
+        int? customerId = null)
     {
-        string fullPlayerId = request.TargetId;
-        if (!string.IsNullOrWhiteSpace(request.ZoneId))
-        {
-            fullPlayerId = $"{request.TargetId}{request.ZoneId}"; 
-        }
+        var product = await _db.GameProducts
+            .AsNoTracking()
+            .FirstOrDefaultAsync(product =>
+                product.Id == request.ProductId &&
+                product.IsActive);
 
-        var product = await _db.GameProducts.FindAsync(request.ProductId);
-        if (product == null) throw new InvalidOperationException("Produk tidak ditemukan!");
+        if (product == null)
+            throw new InvalidOperationException(
+                "Produk tidak ditemukan atau sudah tidak aktif.");
+
+        var metadata = await _db.GameMetadata
+            .AsNoTracking()
+            .FirstOrDefaultAsync(metadata =>
+                metadata.Brand == product.Brand);
+
+        if (metadata == null)
+            throw new InvalidOperationException(
+                "Konfigurasi input game tidak ditemukan.");
+
+        var fullPlayerId = BuildTargetValue(
+            metadata,
+            request.TargetValues);
 
         // Voucher validasi & Diskon validasi (menggunakan shared logic dari VoucherService)
         decimal discountAmount = 0m;
@@ -272,7 +289,340 @@ public class OrderService : IOrderService
         }
     }
 
-    // Private Helpers 
+    // ── Admin: retry pesanan yang nyangkut (NEEDS_ACTION) ─────────
+    public async Task<OrderActionResult> RetryOrderAsync(string orderNo)
+    {
+        // Cari data order — tanpa join Product (gunakan snapshot)
+        var order = await _db.TopupOrders
+            .FirstOrDefaultAsync(o => o.OrderNo == orderNo);
+
+        if (order == null)
+            return new OrderActionResult(OrderActionOutcome.NotFound, "Pesanan tidak ditemukan");
+
+        // Hanya boleh di-retry jika statusnya NEEDS_ACTION (nyangkut)
+        if (order.Status != AppConstants.OrderStatus.NeedsAction)
+            return new OrderActionResult(
+                OrderActionOutcome.InvalidState,
+                $"Tidak bisa retry. Status pesanan saat ini adalah: {order.Status}");
+
+        try
+        {
+            try
+            {
+                var (upstreamStatus, upstreamSn, _) = await _digiflazzProvider.CheckStatusAsync(
+                    order.BuyerSkuCode, order.PlayerId, order.OrderNo);
+
+                if (upstreamStatus == AppConstants.DigiflazzStatus.Sukses)
+                {
+                    order.Status = AppConstants.OrderStatus.Completed;
+                    order.Sn = upstreamSn;
+                    await _db.SaveChangesAsync();
+                    return new OrderActionResult(
+                        OrderActionOutcome.Success,
+                        "Order sudah selesai di Digiflazz sebelumnya. SN berhasil disimpan.",
+                        order.Status);
+                }
+
+                if (upstreamStatus == AppConstants.DigiflazzStatus.Pending)
+                {
+                    return new OrderActionResult(
+                        OrderActionOutcome.InvalidState,
+                        "Digiflazz masih memproses pesanan ini. Harap tunggu sebelum mencoba retry.");
+                }
+            }
+            catch
+            {
+                _logger.LogWarning("[RETRY] CheckStatus failed for Order {OrderNo}. Proceeding with retry.", order.OrderNo);
+            }
+
+            // Ubah status ke PROCESSING dulu
+            order.Status = AppConstants.OrderStatus.Processing;
+            await _db.SaveChangesAsync();
+
+            // Tembak ulang API Digiflazz — gunakan snapshot BuyerSkuCode
+            string? sn = await _digiflazzProvider.TopupAsync(order.BuyerSkuCode, order.PlayerId, order.OrderNo);
+
+            // Jika entah kenapa Digiflazz ngasih SN secara instan saat itu juga
+            if (!string.IsNullOrEmpty(sn))
+            {
+                order.Sn = sn;
+                order.Status = AppConstants.OrderStatus.Completed;
+            }
+
+            await _db.SaveChangesAsync();
+            return new OrderActionResult(
+                OrderActionOutcome.Success,
+                "Retry berhasil dikirim ke Digiflazz! Silakan tunggu SN masuk.",
+                order.Status);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            _logger.LogWarning("[RETRY] Concurrency conflict on Order {OrderNo}. Retry was aborted.", order.OrderNo);
+            return new OrderActionResult(
+                OrderActionOutcome.Conflict,
+                "Pesanan sedang diproses oleh sistem lain. Coba lagi beberapa saat.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[RETRY] Unexpected error on Order {OrderNo}", order.OrderNo);
+            order.Status = AppConstants.OrderStatus.NeedsAction;
+            try { await _db.SaveChangesAsync(); } catch (DbUpdateConcurrencyException) { /* already handled elsewhere */ }
+
+            return new OrderActionResult(
+                OrderActionOutcome.Error,
+                "Retry ke Digiflazz gagal. Silakan coba lagi atau hubungi tim teknis.");
+        }
+    }
+
+    // ── Admin: refund manual (NEEDS_ACTION → REFUNDED) ────────────
+    public async Task<OrderActionResult> RefundOrderAsync(string orderNo)
+    {
+        _logger.LogInformation("[REFUND REQUEST] Meminta pengembalian dana manual untuk Order: {OrderNo}", orderNo);
+
+        try
+        {
+            var order = await _db.TopupOrders.FirstOrDefaultAsync(o => o.OrderNo == orderNo);
+
+            if (order == null)
+            {
+                _logger.LogWarning("[REFUND WARNING] Gagal: Order {OrderNo} tidak ditemukan di database.", orderNo);
+                return new OrderActionResult(OrderActionOutcome.NotFound, "Pesanan tidak ditemukan");
+            }
+
+            // Cuma boleh nge-refund pesanan yang memang bermasalah / nyangkut
+            if (order.Status != AppConstants.OrderStatus.NeedsAction)
+            {
+                _logger.LogWarning(
+                    "[REFUND WARNING] Ditolak: Order {OrderNo} berstatus '{Status}'. Hanya status '{Required}' yang bisa di-refund.",
+                    orderNo, order.Status, AppConstants.OrderStatus.NeedsAction);
+                return new OrderActionResult(
+                    OrderActionOutcome.InvalidState,
+                    $"Tidak bisa di-refund. Status pesanan saat ini: {order.Status}");
+            }
+
+            // Ubah statusnya
+            order.Status = AppConstants.OrderStatus.Refunded;
+            await _db.SaveChangesAsync();
+
+            _logger.LogInformation("[REFUND SUCCESS] Order {OrderNo} berhasil diubah menjadi REFUNDED.", orderNo);
+
+            return new OrderActionResult(
+                OrderActionOutcome.Success,
+                "Pesanan berhasil ditandai sebagai REFUNDED. Segera hubungi pembeli untuk transfer pengembalian dana secara manual via WA.",
+                order.Status);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            _logger.LogWarning("[REFUND CONCURRENCY] Order {OrderNo} diubah oleh proses lain sebelum refund disimpan.", orderNo);
+            return new OrderActionResult(
+                OrderActionOutcome.Conflict,
+                "Pesanan sedang diproses oleh sistem lain. Coba lagi beberapa saat.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[REFUND CRITICAL ERROR] Sistem gagal mengeksekusi refund untuk Order {OrderNo}", orderNo);
+            return new OrderActionResult(
+                OrderActionOutcome.ServerError,
+                "Terjadi kesalahan internal saat memproses refund.");
+        }
+    }
+
+    // ── Webhook: terapkan update status dari Digiflazz ────────────
+    public async Task<string> HandleDigiflazzWebhookAsync(DigiflazzWebhookData data)
+    {
+        _logger.LogInformation("[WEBHOOK] Pesanan: {RefId} | Status: {Status} | SN: {SN}",
+            data.ref_id, data.status, data.sn);
+
+        var order = await _db.TopupOrders.FirstOrDefaultAsync(o => o.OrderNo == data.ref_id);
+        if (order == null)
+            return "Webhook Digiflazz diterima";
+
+        if (data.status == AppConstants.DigiflazzStatus.Sukses)
+        {
+            // Update hanya jika belum COMPLETED
+            if (order.Status == AppConstants.OrderStatus.Completed)
+            {
+                _logger.LogWarning("[WEBHOOK] Duplicate success webhook untuk {OrderNo}. Sudah COMPLETED - diabaikan.", order.OrderNo);
+                return "Webhook Digiflazz received (already processed)";
+            }
+            order.Sn = data.sn;
+            order.Status = AppConstants.OrderStatus.Completed;
+            _logger.LogInformation("[WEBHOOK] SUCCESS! SN berhasil ditanam ke database");
+        }
+        else if (data.status == AppConstants.DigiflazzStatus.Gagal)
+        {
+            // INI YANG PALING PENTING! Uang udah di tangan kita, tapi Digiflazz gagal proses
+            order.Status = AppConstants.OrderStatus.NeedsAction;
+            _logger.LogWarning("[WEBHOOK CRITICAL] DIGIFLAZZ GAGAL! Order: {OrderNo} butuh penanganan manual.", order.OrderNo);
+        }
+
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            _logger.LogWarning(
+                "[WEBHOOK] Concurrency conflict pada Order {OrderNo}. Sudah di-update oleh proses lain.",
+                order.OrderNo);
+        }
+
+        return "Webhook Digiflazz diterima";
+    }
+
+    // Private Helpers
+
+    private static string BuildTargetValue(
+        GameMetadata metadata,
+        Dictionary<string, string?> targetValues)
+    {
+        if (targetValues == null || targetValues.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "Data tujuan wajib diisi.");
+        }
+
+        var inputFields = DeserializeInputFields(
+            metadata.InputSchemaJson);
+        
+        var allowedKeys = inputFields
+            .Select(field => field.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var unknownKey = targetValues.Keys
+            .FirstOrDefault(key => !allowedKeys.Contains(key));
+
+        if (unknownKey != null)
+        {
+            throw new InvalidOperationException(
+                $"Field input '{unknownKey}' tidak dikenali.");
+        }
+
+        ValidateTargetValues(
+            inputFields,
+            targetValues);
+
+        return RenderTargetTemplate(
+            metadata.TargetTemplate,
+            inputFields,
+            targetValues);
+    }
+    
+    private static IReadOnlyList<GameInputField> DeserializeInputFields(
+        string inputSchemaJson)
+    {
+        if (string.IsNullOrWhiteSpace(inputSchemaJson))
+            return [];
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<GameInputField>>(
+                inputSchemaJson,
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                }) ?? [];
+        }
+        catch (JsonException)
+        {
+            throw new InvalidOperationException(
+                "Konfigurasi input game tidak valid.");
+        }
+    }
+    
+    private static void ValidateTargetValues(
+        IReadOnlyList<GameInputField> inputFields,
+        Dictionary<string, string?> targetValues)
+    {
+        if (inputFields.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "Game belum memiliki konfigurasi input.");
+        }
+
+        foreach (var field in inputFields)
+        {
+            targetValues.TryGetValue(
+                field.Key,
+                out var rawValue);
+
+            var value = rawValue?.Trim();
+
+            if (field.Required &&
+                string.IsNullOrWhiteSpace(value))
+            {
+                throw new InvalidOperationException(
+                    $"{field.Label} wajib diisi.");
+            }
+
+            if (string.IsNullOrWhiteSpace(value))
+                continue;
+            
+            if (field.Type == AppConstants.GameInputFieldTypes.Number &&
+                value.Any(character => !char.IsDigit(character)))
+            {
+                throw new InvalidOperationException(
+                    $"{field.Label} hanya boleh berisi angka.");
+            }
+
+            if (field.Type == AppConstants.GameInputFieldTypes.Select)
+            {
+                var isValidOption = field.Options.Any(option =>
+                    string.Equals(
+                        option,
+                        value,
+                        StringComparison.OrdinalIgnoreCase));
+
+                if (!isValidOption)
+                {
+                    throw new InvalidOperationException(
+                        $"Pilihan {field.Label} tidak valid.");
+                }
+            }
+        }
+    }
+    
+    private static string RenderTargetTemplate(
+        string targetTemplate,
+        IReadOnlyList<GameInputField> inputFields,
+        Dictionary<string, string?> targetValues)
+    {
+        if (string.IsNullOrWhiteSpace(targetTemplate))
+        {
+            throw new InvalidOperationException(
+                "Template tujuan game belum dikonfigurasi.");
+        }
+
+        var result = targetTemplate;
+
+        foreach (var field in inputFields)
+        {
+            targetValues.TryGetValue(
+                field.Key,
+                out var rawValue);
+
+            var value = rawValue?.Trim() ?? string.Empty;
+
+            result = result.Replace(
+                $"{{{field.Key}}}",
+                value,
+                StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (result.Contains('{') || result.Contains('}'))
+        {
+            throw new InvalidOperationException(
+                "Template tujuan game memiliki field yang tidak valid.");
+        }
+
+        if (string.IsNullOrWhiteSpace(result))
+        {
+            throw new InvalidOperationException(
+                "Data tujuan tidak valid.");
+        }
+
+        return result;
+    }
 
     private async Task SafeSaveChangesAsync(string orderNo)
     {

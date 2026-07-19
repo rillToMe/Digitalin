@@ -1,0 +1,142 @@
+INI ADALAH JENIS USER ID YANG SUDAH DI CARI FORMATNYA UNTUK TOPUP GAME
+
+
+Jumlah diamond sesuai diamond normal, bonus tidak dihitung
+Format no tujuan [UID]|[Server]
+-
+Masukkan User ID. 100 Gold utama.
+Kartu Upgrade Royal Pass + Bonus
+Masukkan Player ID dan Platform.
+Token Utama, bonus sesuai akun pengguna
+Input ID Akun dan Server
+Masukkan User ID
+Format no tujuan [UID]|[Server]
+Format no tujuan [UID]|[Server]
+40 + 8 Bonus, Bonus bisa berubah. Masukkan UID.
+Call of Duty Mobile 5280CP
+1200 Point Blank Cash
+Format no tujuan [UID]|[Server]
+Masukkan User ID
+no pelanggan = gabungan antara user_id dan zone_id
+1 Big Cat Coins
+AOV 7 Vouchers
+Masukkan ID
+Laplace M 60 Spirals
+Masukkan User ID
+-
+-
+-
+Format no tujuan [UID]|[Server]
+Masukkan ID
+-
+Masukkan User ID.
+Masukkan gabungan User Id dan Server. Contoh jika User Id adalah 9999999999 dan Server S1, maka tujuan diisi 9999999999S1
+Masukkan Riot Id Anda + Tag. Buka halaman profil akun dan salin Riot ID+Tag menggunakan tombol yang tersedia disamping Riot ID. (Contoh: contohriotid#SEA)
+Masukkan User ID
+Format no tujuan [UID]|[Server]
+Input user id game Super Sus.
+Masukkan userid dan server
+Masukkan Role ID. Untuk menemukan ID Peran Anda, masuk ke dalam akun Anda di aplikasi. Ketuk ikon menu, lalu ketuk ikon pengaturan, Anda akan menemukan tombol Salin ID Peran.
+Masukkan username.
+Untuk menemukan User ID Anda, buka aplikasi Honkai Impact 3, klik pada informasi level yang terletak di kiri atas layar, temukan User ID Anda disana. Silakan masukan User ID Anda.
+Masukkan ID Anda. Untuk menemukan ID Anda, Klik gambar karakter Anda. Anda akan menemukan ID Anda di layar tersebut
+Masukkan ID Pengguna
+Masukkan username Zepeto.
+Masukkan ID Player.
+Gabungan CS Code dan server
+Masukkan ID pengguna.
+Masukkan GrowID
+Format no tujuan [UID]|[Server]
+Masukkan User ID.
+Masukkan Role ID
+Masukkan User Id dan server
+Masukkan ID
+Masukkan ID.
+Masukkan User ID dan Server
+Masukkin User ID.
+Masukkan ID Pengguna dan server.
+Masukkan ID
+Masukkan User ID.
+Masukkan User ID dan Zone ID.
+Masukkan User ID.
+Masukkan User Id
+no tujuan = gabungan user id dan zone id
+Masukkan User ID
+Masukkan Player ID dan Server
+Format no tujuan [Role ID]|[Server]
+Masukkan ID
+Masukkan User ID
+Masukkan User ID
+Masukkan User ID
+-
+Masukkan User ID
+Masukkan User ID
+Format no tujuan [UID]|[Server]
+Masukkan UID
+Masukkan ID
+Masukkan ID Akun
+Masukkan ID
+Masukkan User ID dan Zone ID
+Masukkan ID dan Server Anda
+Masukkan ID Akun
+Masukkan Userid dan Server
+Masukkan ID
+Masukkan ID
+Masukkan Role ID
+Masukkan User ID dan Server
+Masukkan DeNA ID
+Masukkan ID dan Server
+Masukkan User ID
+Masukkan ID Akun dan Server
+Masukkan ID Akun
+Masukkan ID Akun
+Masukkan ID
+Masukkan ID
+Masukkan User Id, Region, dan Server.
+Masukkan UID
+Masukkan UID
+Masukkan ID dan Platform
+Masukkan Secret Code dan Server
+Masukkan ID
+Masukkan ID dan Server
+Masukkan ID
+Masukkan ID
+Masukkan ID
+Masukkan ID dan Server
+-
+Format no tujuan [UID]|[Server]
+Masukkan ID
+Input ID Akun dan Server
+Masukkan ID Akun Anda
+Masukkan ID Akun Anda
+Format no tujuan [UID]|[Server]
+Masukan user Id
+Masukan Id
+Input Gameloft Player ID.
+Masukkan ID Akun,Nickname dan Pilih Server
+Masukkan ID Akun dan Server
+Masukkan ID Akun Anda
+Masukkan ID Akun
+Masukkan ID Akun Anda
+Masukkan ID Akun Anda
+Masukkan ID Akun
+masukkan UID dan Server ID
+Masukkan ID Akun Anda
+Masukkan ID Akun dan Server
+Masukkan User Id 
+Masukkan ID Akun Anda
+Masukkan ID Akun
+Masukkan ID
+Masukkan ID Akun Anda
+Masukkan ID Akun dan Nickname
+Masukkan ID dan Role ID
+Masukkan ID Akun
+Masukkan ID Akun dan Server
+Format no tujuan [UID]|[Server]
+Masukkan User ID
+Masukkan ID Akun Anda
+Masukkan User ID
+Masukan Riot ID
+Format no tujuan [UID]|[Server]
+Masukkan ID
+Masukkan ID Akun

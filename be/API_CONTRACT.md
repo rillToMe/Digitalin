@@ -1613,6 +1613,53 @@ interface UpdateExpiryResponse {
 
 ---
 
+### GET /admin/system/game-templates
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `GET` |
+| Path | `/admin/system/game-templates` |
+| Description | List all built-in game input template presets (SSOT for input schema & target template) |
+| Auth | Admin JWT Required |
+| Headers | `Authorization: Bearer <token>` |
+
+#### REQUEST PAYLOAD
+
+_No request body._
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK
+type GameTemplateListResponse = GameTemplate[];
+
+interface GameTemplate {
+  type: string;            // e.g. "UserId", "UserIdServer", "RiotId", "Custom"
+  displayName: string;     // human-readable label, e.g. "User ID + Server"
+  targetTemplate: string;  // e.g. "{userId}{server}"
+  inputFields: GameInputField[];
+}
+
+interface GameInputField {
+  key: string;
+  label: string;
+  placeholder: string;
+  type: "text" | "number" | "select";
+  required: boolean;
+  order: number;
+  options: string[];
+}
+```
+
+#### BUSINESS RULES & EDGE CASES
+
+- Read-only. Presets are defined in code (`GameTemplateFactory`) and are the single source of truth for default input fields and target templates.
+- Consumed by the admin metadata editor as a preset picker (auto-fills `inputFields` + `targetTemplate`); admin can still edit manually afterwards.
+
+---
+
 ### GET /admin/system/metadata
 
 #### ENDPOINT SUMMARY

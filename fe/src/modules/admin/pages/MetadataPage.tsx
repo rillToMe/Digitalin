@@ -3,9 +3,11 @@ import { Pencil, Image } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "../../../layouts/AdminLayout";
-import { adminService, brandService } from "../../../services/api";
-import type { GameMetadataItem, InputType, UpdateMetadataPayload, AdminProductResponse } from "../../../api/index";
-import { getSlugForBrand } from "./metadata/utils";
+import { adminService } from "../../../services/api";
+import type {
+  GameMetadataItem,
+  UpdateMetadataPayload
+} from "../../../api/index";
 import type { ModalTab } from "./metadata/utils";
 import { SyncButton } from "./metadata/SyncButton";
 import { GameEditModal } from "./metadata/GameEditModal";
@@ -14,7 +16,10 @@ export default function MetadataPage() {
   const queryClient = useQueryClient();
   const [editTarget, setEditTarget] = useState<GameMetadataItem | null>(null);
   const [activeTab, setActiveTab] = useState<ModalTab>("info");
-  const [form, setForm] = useState<{ inputType: InputType; serverList: string }>({ inputType: "USER_ID_ONLY", serverList: "" });
+  const [form, setForm] = useState<UpdateMetadataPayload>({
+    inputFields: [],
+    targetTemplate: "",
+  });
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
 
@@ -25,30 +30,33 @@ export default function MetadataPage() {
     queryFn: adminService.getMetadata,
   });
 
-  const { data: brands = [] } = useQuery({
-    queryKey: ["brands"],
-    queryFn: () => brandService.getAll(),
-  });
 
-  const { data: productsData, isLoading: productsLoading, error: productsError } = useQuery({
-    queryKey: ["brand-products", editTarget?.brand],
-    queryFn: () => {
-      const slug = getSlugForBrand(editTarget!.brand, brands);
-      return brandService.getBySlug(slug);
-    },
+  const {
+    data: productsData,
+    isLoading: productsLoading,
+    error: productsError,
+  } = useQuery({
+    queryKey: ["admin-products", editTarget?.brand],
+    queryFn: () =>
+      adminService.getProducts({
+        brand: editTarget!.brand,
+        page: 1,
+        limit: 100,
+      }),
     enabled: !!editTarget && activeTab === "products",
-    select: (data) => data?.products ?? [],
   });
 
-  const products = (productsData ?? []) as unknown as AdminProductResponse[];
-  const totalProducts = products.length;
+  const products = productsData?.data ?? [];
+  const totalProducts = productsData?.totalItems ?? 0;
 
   // --- Mutations ---
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: UpdateMetadataPayload }) => adminService.updateMetadata(id, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-metadata"] });
+      queryClient.invalidateQueries({
+        queryKey: ["admin-products", editTarget?.brand],
+      });
       toast.success("Metadata berhasil diperbarui");
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {
@@ -59,7 +67,9 @@ export default function MetadataPage() {
   const coverMutation = useMutation({
     mutationFn: ({ id, formData }: { id: number; formData: FormData }) => adminService.uploadGameCover(id, formData),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["admin-metadata"] });
+      queryClient.invalidateQueries({
+        queryKey: ["admin-products", editTarget?.brand],
+      });
       toast.success("Cover game berhasil diperbarui!");
       if (editTarget && data.url) {
         setEditTarget({ ...editTarget, imageUrl: data.url });
@@ -74,10 +84,13 @@ export default function MetadataPage() {
 
   const marginMutation = useMutation({
     mutationFn: ({ id, margin }: { id: number; margin: number | null }) => adminService.setMargin(id, { margin }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["brand-products"] });
-      toast.success("Margin berhasil diatur!");
-    },
+    onSuccess: async () => {
+        await queryClient.invalidateQueries({
+          queryKey: ["admin-products", editTarget?.brand],
+        });
+
+        toast.success("Margin berhasil diatur!");
+      },
     onError: (err: { response?: { data?: { message?: string } } }) => {
       toast.error(err?.response?.data?.message ?? "Gagal mengatur margin");
     },
@@ -87,7 +100,15 @@ export default function MetadataPage() {
 
   const openEdit = (item: GameMetadataItem) => {
     setEditTarget(item);
-    setForm({ inputType: item.inputType, serverList: item.serverList ?? "" });
+
+    setForm({
+      inputFields: item.inputFields.map((field) => ({
+        ...field,
+        options: [...field.options],
+      })),
+      targetTemplate: item.targetTemplate,
+    });
+
     setActiveTab("info");
     setCoverFile(null);
     setCoverPreview(null);
@@ -126,18 +147,30 @@ export default function MetadataPage() {
                 <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 50%)" }} />
                 <div className="absolute bottom-2 left-3 right-3 flex items-end justify-between">
                   <span style={{ color: "#fff", fontWeight: 700, fontSize: "0.85rem", textShadow: "0 1px 3px rgba(0,0,0,0.5)" }} className="truncate">{item.brand}</span>
-                  <span className="px-1.5 py-0.5 rounded" style={{
-                    backgroundColor: item.inputType === "USER_ID_ONLY" ? "#1d4ed8" : "#6d28d9",
-                    color: "#fff", fontSize: "0.6rem", fontWeight: 700,
-                  }}>
-                    {item.inputType === "USER_ID_ONLY" ? "ID" : "ID+Zone"}
-                  </span>
+                  <span
+                      className="px-1.5 py-0.5 rounded"
+                      style={{
+                        backgroundColor: "var(--color-brand-tertiary)",
+                        color: "var(--color-text-on-primary)",
+                        fontSize: "0.6rem",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {item.inputFields.length} Field
+                    </span>
                 </div>
               </div>
               <div className="p-3 flex items-center justify-between">
-                <span style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.75rem" }}>
-                  {item.serverList ? `${item.serverList.split(",").length} server` : "No server list"}
-                </span>
+                <span
+                    style={{
+                      color: "var(--color-brand-secondary)",
+                      fontSize: "0.75rem",
+                    }}
+                  >
+                    {item.inputFields
+                      .map((field) => field.label)
+                      .join(" · ")}
+                  </span>
                 <button onClick={(e) => { e.stopPropagation(); openEdit(item); }} className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ color: "var(--color-brand-tertiary,#2C5EF5)", fontSize: "0.75rem" }}>
                   <Pencil size={11} /> Kelola
                 </button>

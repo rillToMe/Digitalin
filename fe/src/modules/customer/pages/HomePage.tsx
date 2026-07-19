@@ -48,6 +48,8 @@ function HeroCarousel({ banners }: { banners: BannerItem[] }) {
             src={banners[current].imageUrl}
             alt={banners[current].title}
             className="w-full h-full object-cover"
+            loading="eager"
+            decoding="async"
           />
           <div className="absolute inset-0" style={{ background: "linear-gradient(to right, rgba(15,20,25,0.7) 0%, transparent 60%)" }} />
           <div className="absolute bottom-6 left-6">
@@ -87,13 +89,17 @@ function HeroCarousel({ banners }: { banners: BannerItem[] }) {
 
 function GameCard({ brand }: { brand: BrandItem }) {
   const navigate = useNavigate();
-  const minPrice = 14000;
+
+  const slug = brand.brand
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-");
 
   return (
-  <motion.div
-    whileHover={{ y: -4, scale: 1.02 }}
-    whileTap={{ scale: 0.98 }}
-    onClick={() => navigate(`/game/${brand.slug}`)}
+    <motion.div
+      whileHover={{ y: -4, scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={() => navigate(`/game/${slug}`)}
     className="cursor-pointer overflow-hidden rounded-3xl p-3"
     style={{
       backgroundColor: "var(--color-surface)",
@@ -107,6 +113,8 @@ function GameCard({ brand }: { brand: BrandItem }) {
           src={brand.imageUrl}
           alt={brand.brand}
           className="h-full w-full object-cover"
+          loading="lazy"
+          decoding="async"
         />
       ) : (
         <div
@@ -235,8 +243,15 @@ export default function HomePage() {
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
           {loading
-            ? Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
-            : filteredBrands.map((brand) => <GameCard key={brand.id} brand={brand} />)}
+            ? Array.from({ length: 8 }).map((_, i) => (
+                <SkeletonCard key={i} />
+              ))
+            : filteredBrands.map((brand) => (
+                <GameCard
+                  key={brand.brand}
+                  brand={brand}
+                />
+              ))}
         </div>
 
         {!loading && filteredBrands.length === 0 && (

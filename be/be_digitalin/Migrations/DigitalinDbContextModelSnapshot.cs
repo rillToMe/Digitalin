@@ -178,19 +178,25 @@ namespace be_digitalin.Migrations
 
                     b.Property<string>("Brand")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
 
                     b.Property<string>("ImageUrl")
                         .HasColumnType("longtext");
 
-                    b.Property<string>("InputType")
+                    b.Property<string>("InputSchemaJson")
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<string>("ServerList")
-                        .HasColumnType("longtext");
+                    b.Property<string>("TargetTemplate")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Brand")
+                        .IsUnique();
 
                     b.ToTable("GameMetadata");
                 });

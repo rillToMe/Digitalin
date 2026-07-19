@@ -38,6 +38,25 @@ public class DigitalinDbContext : DbContext
                 .HasPrecision(18, 2);
         });
 
+        // GAME METADATA
+        modelBuilder.Entity<GameMetadata>(entity =>
+        {
+            entity.Property(m => m.Brand)
+                .IsRequired()
+                .HasMaxLength(255);
+
+            entity.HasIndex(m => m.Brand)
+                .IsUnique();
+
+            entity.Property(m => m.InputSchemaJson)
+                .IsRequired()
+                .HasColumnType("longtext");
+
+            entity.Property(m => m.TargetTemplate)
+                .IsRequired()
+                .HasMaxLength(500);
+        });
+        
         // TOPUP ORDER
         modelBuilder.Entity<TopupOrder>(entity =>
         {

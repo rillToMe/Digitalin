@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { brandService, orderService } from "../../../services/api";
 import { useCheckoutStore } from "../../../store/checkoutStore";
-import type { ProductItem, CreateOrderPayload, CheckoutPreviewResponse } from "../../../api/index";
+import type { CreateOrderPayload, CheckoutPreviewResponse } from "../../../api/index";
 import VoucherCard from "../../../components/common/VoucherCard";
 import {
   Dialog,
@@ -36,11 +36,14 @@ export default function GameDetailPage() {
   const [previewError, setPreviewError] = useState<string | null>(null);
 
   const {
-    selectedProduct, setSelectedProduct,
-    playerId, setPlayerId,
-    zoneId, setZoneId,
-    setBrand, reset,
-    voucherCode, setVoucherCode,
+    selectedProduct,
+    setSelectedProduct,
+    targetValues,
+    setTargetValue,
+    setBrand,
+    reset,
+    voucherCode,
+    setVoucherCode,
   } = useCheckoutStore();
 
   const { data: brand, isLoading: loading, isError } = useQuery({
@@ -58,7 +61,7 @@ export default function GameDetailPage() {
     setVoucherCode(null);
     setPreviewResult(null);
     setPreviewError(null);
-  }, [selectedProduct?.id, playerId, zoneId]);
+  }, [selectedProduct?.id, targetValues, setVoucherCode]);
 
   // Voucher preview mutation
   const previewMutation = useMutation({
@@ -121,7 +124,7 @@ export default function GameDetailPage() {
             });
             setShowSuccessDialog(true);
             // Reset checkout form so user can make another purchase immediately
-            setSelectedProduct(null as unknown as ProductItem);
+            setSelectedProduct(null);
             setVoucherCode(null);
           },
           onPending: () => {
@@ -193,25 +196,41 @@ export default function GameDetailPage() {
     );
   }
 
-  const handleNumericInput = (value: string, setter: (v: string) => void) => {
-    // Only allow digits
-    setter(value.replace(/[^0-9]/g, ""));
-  };
-
   const handleSubmit = () => {
-    if (!selectedProduct) { toast.error("Pilih nominal terlebih dahulu"); return; }
-    if (!playerId.trim()) { toast.error("Masukkan Player ID terlebih dahulu"); return; }
-    if (!/^\d+$/.test(playerId)) { toast.error("Player ID harus berupa angka"); return; }
-    if (brand.inputType === "USER_ID_AND_ZONE_ID") {
-      if (!zoneId.trim()) { toast.error("Masukkan Zone ID terlebih dahulu"); return; }
-      if (!/^\d+$/.test(zoneId)) { toast.error("Zone ID harus berupa angka"); return; }
+    if (!selectedProduct) {
+      toast.error("Pilih nominal terlebih dahulu");
+      return;
+    }
+
+    const orderedFields = [...brand.inputFields].sort(
+      (a, b) => a.order - b.order
+    );
+
+    for (const field of orderedFields) {
+      const value = targetValues[field.key]?.trim() ?? "";
+
+      if (field.required && !value) {
+        toast.error(`${field.label} wajib diisi`);
+        return;
+      }
+
+      if (
+        field.type === "select" &&
+        value &&
+        !field.options.some(
+          (option) =>
+            option.toLowerCase() === value.toLowerCase()
+        )
+      ) {
+        toast.error(`Pilihan ${field.label} tidak valid`);
+        return;
+      }
     }
 
     createOrder.mutate({
       productId: selectedProduct.id,
-      targetId: playerId,
-      zoneId: brand.inputType === "USER_ID_AND_ZONE_ID" ? zoneId : null,
-      voucherCode: voucherCode,
+      targetValues,
+      voucherCode,
     });
   };
 
@@ -251,40 +270,73 @@ export default function GameDetailPage() {
               1. Informasi Akun
             </h3>
             <div className="space-y-3">
-              <div>
-                <label style={{ color: "var(--color-brand-primary,#0F1419)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 6 }}>
-                  Player ID *
-                </label>
-                <input
-                  value={playerId}
-                  onChange={(e) => handleNumericInput(e.target.value, setPlayerId)}
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  placeholder="Contoh: 123456789"
-                  className="w-full px-4 py-3 rounded-xl outline-none transition-all"
-                  style={{ border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.9rem", backgroundColor: "var(--color-surface,#fff)", color: "var(--color-brand-primary,#0F1419)" }}
-                  onFocus={(e) => { e.target.style.borderColor = "var(--color-brand-tertiary,#2C5EF5)"; }}
-                  onBlur={(e) => { e.target.style.borderColor = "rgba(0,0,0,0.12)"; }}
-                />
-              </div>
-              {brand.inputType === "USER_ID_AND_ZONE_ID" && (
-                <div>
-                  <label style={{ color: "var(--color-brand-primary,#0F1419)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 6 }}>
-                    Zone ID *
-                  </label>
-                  <input
-                    value={zoneId}
-                    onChange={(e) => handleNumericInput(e.target.value, setZoneId)}
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    placeholder="Contoh: 2345"
-                    className="w-full px-4 py-3 rounded-xl outline-none transition-all"
-                    style={{ border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.9rem", backgroundColor: "var(--color-surface,#fff)", color: "var(--color-brand-primary,#0F1419)" }}
-                    onFocus={(e) => { e.target.style.borderColor = "var(--color-brand-tertiary,#2C5EF5)"; }}
-                    onBlur={(e) => { e.target.style.borderColor = "rgba(0,0,0,0.12)"; }}
-                  />
-                </div>
-              )}
+              {[...brand.inputFields]
+                .sort((a, b) => a.order - b.order)
+                .map((field) => (
+                  <div key={field.key}>
+                    <label
+                      style={{
+                        color: "var(--color-brand-primary, #0F1419)",
+                        fontSize: "0.85rem",
+                        fontWeight: 500,
+                        display: "block",
+                        marginBottom: 6,
+                      }}
+                    >
+                      {field.label}
+                      {field.required ? " *" : ""}
+                    </label>
+
+                    {field.type === "select" ? (
+                      <select
+                        value={targetValues[field.key] ?? ""}
+                        onChange={(event) =>
+                          setTargetValue(field.key, event.target.value)
+                        }
+                        className="w-full px-4 py-3 rounded-xl outline-none transition-all"
+                        style={{
+                          border: "1.5px solid var(--color-border-lighter)",
+                          fontSize: "0.9rem",
+                          backgroundColor: "var(--color-surface)",
+                          color: "var(--color-brand-primary)",
+                        }}
+                      >
+                        <option value="">
+                          {field.placeholder || `Pilih ${field.label}`}
+                        </option>
+
+                        {field.options.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        inputMode={field.type === "number" ? "numeric" : undefined}
+                        pattern={field.type === "number" ? "[0-9]*" : undefined}
+                        value={targetValues[field.key] ?? ""}
+                        onChange={(event) => {
+                          const value =
+                            field.type === "number"
+                              ? event.target.value.replace(/\D/g, "")
+                              : event.target.value;
+
+                          setTargetValue(field.key, value);
+                        }}
+                        placeholder={field.placeholder}
+                        className="w-full px-4 py-3 rounded-xl outline-none transition-all"
+                        style={{
+                          border: "1.5px solid var(--color-border-lighter)",
+                          fontSize: "0.9rem",
+                          backgroundColor: "var(--color-surface)",
+                          color: "var(--color-brand-primary)",
+                        }}
+                      />
+                    )}
+                  </div>
+                ))}
             </div>
           </div>
 
@@ -294,7 +346,7 @@ export default function GameDetailPage() {
               2. Pilih Nominal
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {brand.products.map((product: ProductItem) => {
+              {brand.products.map((product) => {
                 const active = selectedProduct?.id === product.id;
                 return (
                   <motion.button
@@ -331,9 +383,16 @@ export default function GameDetailPage() {
             <div className="space-y-3 mb-5">
               {[
                 { label: "Game", value: brand.brand },
-                { label: "Player ID", value: playerId || "-" },
-                ...(brand.inputType === "USER_ID_AND_ZONE_ID" ? [{ label: "Zone ID", value: zoneId || "-" }] : []),
-                { label: "Produk", value: selectedProduct?.name ?? "-" },
+                ...[...brand.inputFields]
+                  .sort((a, b) => a.order - b.order)
+                  .map((field) => ({
+                    label: field.label,
+                    value: targetValues[field.key]?.trim() || "-",
+                  })),
+                {
+                  label: "Produk",
+                  value: selectedProduct?.name ?? "-",
+                },
               ].map((item, i) => (
                 <div key={i} className="flex justify-between items-start">
                   <span style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.85rem" }}>{item.label}</span>

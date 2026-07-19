@@ -4,6 +4,12 @@ export function formatRp(n: number) {
   return "Rp " + n.toLocaleString("id-ID");
 }
 
+export function formatNumberInput(value: string) {
+  if (!value) return "";
+
+  return Number(value).toLocaleString("id-ID");
+}
+
 // Derive slug from brand name, or find it from the brands catalog
 export function getSlugForBrand(brandName: string, brands: BrandItem[]): string {
   const match = brands.find((b) => b.brand.toLowerCase() === brandName.toLowerCase());

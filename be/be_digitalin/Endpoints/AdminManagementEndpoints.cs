@@ -1,21 +1,12 @@
 using System.Security.Claims;
-using be_digitalin.Constants;
-using be_digitalin.Data;
-using be_digitalin.Models;
+using be_digitalin.DTOs;
+using be_digitalin.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace be_digitalin.Endpoints;
 
 public static class AdminManagementEndpoints
 {
-    // Valid role values accepted by the management API
-    private static readonly HashSet<string> ValidRoles =
-    [
-        AppConstants.Roles.Admin,
-        AppConstants.Roles.SuperAdmin,
-    ];
-
     public static void MapAdminManagementEndpoints(this IEndpointRouteBuilder app)
     {
         var adminGroup = app.MapGroup("/admin/admins")
@@ -23,53 +14,19 @@ public static class AdminManagementEndpoints
             .RequireAuthorization("SuperAdminOnly");
 
         // ── GET /admin/admins ─────────────────────────────────────────────────
-        adminGroup.MapGet("/", async ([FromServices] DigitalinDbContext db) =>
+        adminGroup.MapGet("/", async ([FromServices] IAdminManagementService service) =>
         {
-            var admins = await db.Admins
-                .OrderBy(a => a.Id)
-                .Select(a => new AdminListItem(
-                    a.Id,
-                    a.Username,
-                    a.Role,
-                    a.CreatedAt,
-                    a.LastLoginAt))
-                .ToListAsync();
-
+            var admins = await service.GetAdminsAsync();
             return Results.Ok(admins);
         });
 
         // ── POST /admin/admins ────────────────────────────────────────────────
         adminGroup.MapPost("/", async (
             [FromBody] CreateAdminRequest req,
-            [FromServices] DigitalinDbContext db) =>
+            [FromServices] IAdminManagementService service) =>
         {
-            // Validate role
-            if (string.IsNullOrWhiteSpace(req.Username))
-                return Results.BadRequest(new { message = "Username wajib diisi." });
-
-            if (string.IsNullOrWhiteSpace(req.Password))
-                return Results.BadRequest(new { message = "Password wajib diisi." });
-
-            if (!ValidRoles.Contains(req.Role))
-                return Results.BadRequest(new { message = "Role tidak valid. Gunakan ADMIN atau SUPER_ADMIN." });
-
-            // Check username uniqueness
-            var exists = await db.Admins.AnyAsync(a => a.Username == req.Username);
-            if (exists)
-                return Results.BadRequest(new { message = "Username sudah digunakan." });
-
-            var admin = new Admin
-            {
-                Username     = req.Username,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password, workFactor: 11),
-                Role         = req.Role,
-                CreatedAt    = DateTime.UtcNow,
-            };
-
-            db.Admins.Add(admin);
-            await db.SaveChangesAsync();
-
-            return Results.Ok(new { message = "Admin berhasil dibuat." });
+            var result = await service.CreateAdminAsync(req);
+            return MapAdminActionResult(result);
         });
 
         // ── PUT /admin/admins/{id}/role ───────────────────────────────────────
@@ -77,81 +34,41 @@ public static class AdminManagementEndpoints
             int id,
             [FromBody] UpdateAdminRoleRequest req,
             ClaimsPrincipal user,
-            [FromServices] DigitalinDbContext db) =>
+            [FromServices] IAdminManagementService service) =>
         {
-            if (!ValidRoles.Contains(req.Role))
-                return Results.BadRequest(new { message = "Role tidak valid. Gunakan ADMIN atau SUPER_ADMIN." });
-
-            // Prevent self role-change
             var callerUsername = user.FindFirst(ClaimTypes.Name)?.Value;
-            var target = await db.Admins.FindAsync(id);
-
-            if (target == null)
-                return Results.NotFound(new { message = "Admin tidak ditemukan." });
-
-            if (target.Username == callerUsername)
-                return Results.BadRequest(new { message = "Tidak dapat mengubah role diri sendiri." });
-
-            target.Role = req.Role;
-            await db.SaveChangesAsync();
-
-            return Results.Ok(new { message = "Role berhasil diperbarui." });
+            var result = await service.UpdateAdminRoleAsync(id, req.Role, callerUsername);
+            return MapAdminActionResult(result);
         });
 
         // ── PUT /admin/admins/{id}/password ───────────────────────────────────
         adminGroup.MapPut("/{id:int}/password", async (
             int id,
             [FromBody] ResetAdminPasswordRequest req,
-            [FromServices] DigitalinDbContext db) =>
+            [FromServices] IAdminManagementService service) =>
         {
-            if (string.IsNullOrWhiteSpace(req.NewPassword))
-                return Results.BadRequest(new { message = "Password baru wajib diisi." });
-
-            var target = await db.Admins.FindAsync(id);
-            if (target == null)
-                return Results.NotFound(new { message = "Admin tidak ditemukan." });
-
-            target.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword, workFactor: 11);
-            await db.SaveChangesAsync();
-
-            return Results.Ok(new { message = "Password berhasil diperbarui." });
+            var result = await service.ResetAdminPasswordAsync(id, req.NewPassword);
+            return MapAdminActionResult(result);
         });
 
         // ── DELETE /admin/admins/{id} ─────────────────────────────────────────
         adminGroup.MapDelete("/{id:int}", async (
             int id,
             ClaimsPrincipal user,
-            [FromServices] DigitalinDbContext db) =>
+            [FromServices] IAdminManagementService service) =>
         {
-            // Prevent self-delete
             var callerUsername = user.FindFirst(ClaimTypes.Name)?.Value;
-            var target = await db.Admins.FindAsync(id);
-
-            if (target == null)
-                return Results.NotFound(new { message = "Admin tidak ditemukan." });
-
-            if (target.Username == callerUsername)
-                return Results.BadRequest(new { message = "Tidak dapat menghapus akun diri sendiri." });
-
-            db.Admins.Remove(target);
-            await db.SaveChangesAsync();
-
-            return Results.Ok(new { message = "Admin berhasil dihapus." });
+            var result = await service.DeleteAdminAsync(id, callerUsername);
+            return MapAdminActionResult(result);
         });
     }
+
+    // ── Helpers ─────────────────────────────────────────────────
+    private static IResult MapAdminActionResult(AdminActionResult result) =>
+        result.Outcome switch
+        {
+            AdminActionOutcome.Success    => Results.Ok(new { message = result.Message }),
+            AdminActionOutcome.NotFound   => Results.NotFound(new { message = result.Message }),
+            _                             => Results.BadRequest(new { message = result.Message }),
+        };
 }
-
-// ── DTOs ──────────────────────────────────────────────────────────────────────
-
-public record AdminListItem(
-    int Id,
-    string Username,
-    string Role,
-    DateTime CreatedAt,
-    DateTime? LastLoginAt);
-
-public record CreateAdminRequest(string Username, string Password, string Role);
-
-public record UpdateAdminRoleRequest(string Role);
-
-public record ResetAdminPasswordRequest(string NewPassword);

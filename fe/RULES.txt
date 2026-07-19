@@ -5,13 +5,12 @@ SEBELUM MULAI
 - Cari reusable component yang sudah ada sebelum buat yang baru
 - Jangan langsung coding tanpa analisis
 
-MCP CONTEXT MODE
-- Gunakan MCP Context Mode sebagai metode utama saat membaca source code atau memahami project
-- Jangan baca seluruh project jika Context Mode bisa digunakan, tujuannya hemat token dan ambil konteks yang relevan saja
+CaveMan
+- Gunakan CaveMan sebagai metode utama saat ingin memahami project
 
 MCP CONTEXT7
 - Gunakan MCP Context7 untuk mengambil dokumentasi terbaru saat menggunakan library atau framework yang baru atau sering berubah
-- Wajib digunakan untuk: React, Next.js, TanStack Query, Axios, Tailwind, Radix UI, Zod, dan library sejenis
+- Wajib digunakan untuk: React, TanStack Query, Axios, Tailwind, Radix UI, Zod, dan library sejenis
 - Jika tidak yakin dengan API suatu library, cari referensi di Context7 dulu sebelum nulis implementasi
 - Tujuannya menghindari halusinasi dan penggunaan API yang sudah deprecated
 
@@ -37,6 +36,11 @@ ARSITEKTUR
 - Ikuti struktur dan pola yang sudah ada, jangan buat pola baru jika sudah ada yang konsisten
 - Pisahkan tanggung jawab: pages, components, hooks, services, utils
 - Jangan buat satu file yang campur UI, API, business logic, state, dan utility
+
+FRONTEND ARCHITECTURE:
+- NEVER hardcode CSS color values inside layout or component files.
+- All colors must use CSS Variables defined globally in the main CSS file.
+- Maintain strict separation of concerns.
 
 COMPONENT
 - Reuse component yang sudah ada: Button, Table, Modal, Badge, Pagination, Dialog, Search, Form, Input

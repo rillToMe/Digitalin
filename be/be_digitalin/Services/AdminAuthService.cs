@@ -1,12 +1,8 @@
-﻿using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
-using be_digitalin.Config;
+﻿using be_digitalin.Config;
 using be_digitalin.Constants;
 using be_digitalin.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
 
 namespace be_digitalin.Services;
 
@@ -15,18 +11,18 @@ public class AdminAuthService : IAdminAuthService
     private readonly DigitalinDbContext _db;
     private readonly IRecaptchaService _recaptchaService;
     private readonly RecaptchaSettings _recaptchaSettings;
-    private readonly JwtSettings _jwtSettings;
+    private readonly ITokenService _tokenService;
 
     public AdminAuthService(
         DigitalinDbContext db,
         IRecaptchaService recaptchaService,
         IOptions<RecaptchaSettings> recaptchaSettings,
-        IOptions<JwtSettings> jwtSettings)
+        ITokenService tokenService)
     {
         _db = db;
         _recaptchaService = recaptchaService;
         _recaptchaSettings = recaptchaSettings.Value;
-        _jwtSettings = jwtSettings.Value;
+        _tokenService = tokenService;
     }
 
     public async Task<string?> LoginAsync(
@@ -62,47 +58,9 @@ public class AdminAuthService : IAdminAuthService
 
         await _db.SaveChangesAsync(cancellationToken);
 
-        return CreateAdminToken(
+        return _tokenService.CreateAdminToken(
             admin.Id,
             admin.Username,
             admin.Role);
-    }
-
-    private string CreateAdminToken(
-        int adminId,
-        string username,
-        string role)
-    {
-        var securityKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(_jwtSettings.Key));
-
-        var credentials = new SigningCredentials(
-            securityKey,
-            SecurityAlgorithms.HmacSha256);
-
-        var claims = new[]
-        {
-            new Claim(
-                ClaimTypes.NameIdentifier,
-                adminId.ToString()),
-
-            new Claim(
-                ClaimTypes.Name,
-                username),
-
-            new Claim(
-                ClaimTypes.Role,
-                role)
-        };
-
-        var token = new JwtSecurityToken(
-            issuer: _jwtSettings.Issuer,
-            audience: _jwtSettings.Audience,
-            claims: claims,
-            expires: DateTime.UtcNow.AddHours(12),
-            signingCredentials: credentials);
-
-        return new JwtSecurityTokenHandler()
-            .WriteToken(token);
     }
 }

@@ -1,4 +1,3 @@
-import React from "react";
 import { AdminLayout } from "../../../../layouts/AdminLayout";
 import { PaymentSettingsCard } from "./components/PaymentSettingsCard";
 import { MaintenanceSettingsCard } from "./components/MaintenanceSettingsCard";

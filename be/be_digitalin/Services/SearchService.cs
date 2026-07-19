@@ -35,8 +35,7 @@ public class SearchService : ISearchService
                 m.Id,
                 m.Brand,
                 m.Brand.ToLower().Replace(" ", "-"),
-                m.ImageUrl,
-                m.InputType
+                m.ImageUrl
             ))
             .ToListAsync();
 

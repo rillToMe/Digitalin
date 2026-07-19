@@ -1,0 +1,281 @@
+﻿@host = http://localhost:5210
+@adminToken = PASTE_ADMIN_TOKEN_DI_SINI
+
+### ============================================================
+### 1. PUBLIC — GAME CATALOG
+### ============================================================
+
+### A. Ambil daftar game
+# Expected:
+# - HTTP 200
+# - Tidak ada inputType
+# - Tidak ada serverList
+GET {{host}}/games/brands
+Accept: application/json
+
+---
+
+### B. Detail Mobile Legends
+# Expected inputFields:
+# - userId (text)
+# - zoneId (text)
+GET {{host}}/games/mobile-legends
+Accept: application/json
+
+---
+
+### C. Detail Blood Strike
+# Expected inputFields:
+# - userId (text)
+# - server (select)
+# - options berisi Asia
+GET {{host}}/games/blood-strike
+Accept: application/json
+
+---
+
+### D. Detail Genshin Impact
+# Expected inputFields:
+# - userId (text)
+# - server (select)
+# - options berisi ASIA, AMERICA, EUROPA, SEA
+GET {{host}}/games/genshin-impact
+Accept: application/json
+
+---
+
+### E. Game tidak ditemukan
+# Expected:
+# - HTTP 404
+GET {{host}}/games/game-yang-tidak-ada
+Accept: application/json
+
+
+### ============================================================
+### 2. ADMIN — GAME METADATA
+### ============================================================
+
+### A. Login admin
+# Jalankan ini untuk mendapatkan token baru
+POST {{host}}/admin/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+
+### B. Ambil seluruh metadata game
+# Expected:
+# - HTTP 200
+# - Ada inputFields
+# - Ada targetTemplate
+# - Tidak ada inputSchemaJson mentah
+# - Tidak ada inputType
+# - Tidak ada serverList
+GET {{host}}/admin/system/metadata
+Authorization: Bearer {{adminToken}}
+Accept: application/json
+
+---
+
+### C. Ambil metadata berdasarkan ID
+# Ganti 1 dengan ID metadata yang valid
+GET {{host}}/admin/system/metadata/1
+Authorization: Bearer {{adminToken}}
+Accept: application/json
+
+
+### ============================================================
+### 3. ADMIN — UPDATE DYNAMIC INPUT
+### ============================================================
+
+### A. Update ke User ID Only
+# PERINGATAN:
+# Request ini mengubah data metadata ID 1.
+# Pastikan ID yang dipakai memang game test.
+PUT {{host}}/admin/system/metadata/1
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "inputFields": [
+    {
+      "key": "userId",
+      "label": "User ID",
+      "placeholder": "Masukkan User ID",
+      "type": "text",
+      "required": true,
+      "order": 1,
+      "options": []
+    }
+  ],
+  "targetTemplate": "{userId}"
+}
+
+
+### B. Update ke User ID + Zone ID
+# PERINGATAN:
+# Request ini mengubah data metadata ID 1.
+PUT {{host}}/admin/system/metadata/1
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "inputFields": [
+    {
+      "key": "userId",
+      "label": "User ID",
+      "placeholder": "Masukkan User ID",
+      "type": "text",
+      "required": true,
+      "order": 1,
+      "options": []
+    },
+    {
+      "key": "zoneId",
+      "label": "Zone ID",
+      "placeholder": "Masukkan Zone ID",
+      "type": "text",
+      "required": true,
+      "order": 2,
+      "options": []
+    }
+  ],
+  "targetTemplate": "{userId}{zoneId}"
+}
+
+### C. Update ke User ID + Server
+# PERINGATAN:
+# Request ini mengubah data metadata ID 1.
+PUT {{host}}/admin/system/metadata/1
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "inputFields": [
+    {
+      "key": "userId",
+      "label": "User ID",
+      "placeholder": "Masukkan User ID",
+      "type": "text",
+      "required": true,
+      "order": 1,
+      "options": []
+    },
+    {
+      "key": "server",
+      "label": "Server",
+      "placeholder": "Pilih Server",
+      "type": "select",
+      "required": true,
+      "order": 2,
+      "options": [
+        "Asia",
+        "America",
+        "Europe"
+      ]
+    }
+  ],
+  "targetTemplate": "{userId}{server}"
+}
+
+
+### ============================================================
+### 4. VALIDATION — EXPECTED 400
+### ============================================================
+
+### A. Input fields kosong
+# Expected:
+# - HTTP 400
+# - Game harus memiliki minimal satu field input
+PUT {{host}}/admin/system/metadata/1
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "inputFields": [],
+  "targetTemplate": "{userId}"
+}
+
+
+### B. Duplicate key
+# Expected:
+# - HTTP 400
+# - Key input userId tidak boleh duplikat
+PUT {{host}}/admin/system/metadata/1
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "inputFields": [
+    {
+      "key": "userId",
+      "label": "User ID",
+      "placeholder": "Masukkan User ID",
+      "type": "text",
+      "required": true,
+      "order": 1,
+      "options": []
+    },
+    {
+      "key": "userId",
+      "label": "User ID Kedua",
+      "placeholder": "Masukkan User ID",
+      "type": "text",
+      "required": true,
+      "order": 2,
+      "options": []
+    }
+  ],
+  "targetTemplate": "{userId}"
+}
+
+
+### C. Select tanpa options
+# Expected:
+# - HTTP 400
+# - Field select Server harus memiliki minimal satu pilihan
+PUT {{host}}/admin/system/metadata/1
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "inputFields": [
+    {
+      "key": "server",
+      "label": "Server",
+      "placeholder": "Pilih Server",
+      "type": "select",
+      "required": true,
+      "order": 1,
+      "options": []
+    }
+  ],
+  "targetTemplate": "{server}"
+}
+
+
+### D. Target template memakai key yang tidak tersedia
+# Expected:
+# - HTTP 400
+# - Target template menggunakan key yang tidak tersedia
+PUT {{host}}/admin/system/metadata/1
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "inputFields": [
+    {
+      "key": "userId",
+      "label": "User ID",
+      "placeholder": "Masukkan User ID",
+      "type": "text",
+      "required": true,
+      "order": 1,
+      "options": []
+    }
+  ],
+  "targetTemplate": "{uid}{server}"
+}

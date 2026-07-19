@@ -1,14 +1,7 @@
-using System.Security.Claims;
-using System.Text;
-using be_digitalin.Config;
-using be_digitalin.Constants;
 using be_digitalin.Data;
 using be_digitalin.Models;
 using be_digitalin.Providers;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.JsonWebTokens;
-using Microsoft.IdentityModel.Tokens;
 
 namespace be_digitalin.Services;
 
@@ -16,16 +9,16 @@ public class GoogleAuthService : IGoogleAuthService
 {
     private readonly GoogleProvider _googleProvider;
     private readonly DigitalinDbContext _db;
-    private readonly JwtSettings _jwtSettings;
+    private readonly ITokenService _tokenService;
 
     public GoogleAuthService(
         GoogleProvider googleProvider,
         DigitalinDbContext db,
-        IOptions<JwtSettings> jwtSettings)
+        ITokenService tokenService)
     {
         _googleProvider = googleProvider;
         _db = db;
-        _jwtSettings = jwtSettings.Value;
+        _tokenService = tokenService;
     }
 
     public async Task<AuthResponse?> AuthenticateWithGoogleAsync(string idToken)
@@ -71,32 +64,7 @@ public class GoogleAuthService : IGoogleAuthService
         // 3c. Customer already has GoogleId — just proceed to login (no DB write needed)
 
         // 4. Generate JWT using the same mechanism as local login
-        var token = GenerateJwt(customer);
+        var token = _tokenService.CreateCustomerToken(customer.Id);
         return new AuthResponse(token);
-    }
-
-    /// <summary>
-    /// Generates a JWT identical in structure to the one produced by
-    /// CustomerService.LoginAsync — same claims, same expiry, same signing key.
-    /// </summary>
-    private string GenerateJwt(Customer customer)
-    {
-        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Key));
-        var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
-
-        var tokenDescriptor = new SecurityTokenDescriptor
-        {
-            Issuer = _jwtSettings.Issuer,
-            Audience = _jwtSettings.Audience,
-            Subject = new ClaimsIdentity(new[]
-            {
-                new Claim(ClaimTypes.NameIdentifier, customer.Id.ToString()),
-                new Claim(ClaimTypes.Role, AppConstants.Roles.Customer)
-            }),
-            Expires = DateTime.UtcNow.AddHours(24),
-            SigningCredentials = credentials
-        };
-
-        return new JsonWebTokenHandler().CreateToken(tokenDescriptor);
     }
 }

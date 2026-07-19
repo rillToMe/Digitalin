@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router";
 import {
-  LayoutDashboard, Image, Settings, LogOut, Menu, Zap,
+  LayoutDashboard, Image, Settings, LogOut, Menu,
   ChevronRight, Ticket, ClipboardList, Cog, ShieldCheck,
 } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
@@ -56,10 +56,13 @@ export function AdminLayout({ children, title, breadcrumb }: AdminLayoutProps) {
         style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}
       >
         <div
-          style={{ backgroundColor: "var(--color-brand-tertiary, #2C5EF5)", borderRadius: 7 }}
           className="w-8 h-8 flex items-center justify-center"
         >
-          <Zap size={15} color="#fff" fill="#fff" />
+          <img
+            src="/favicon.svg"
+            alt="Digitalin"
+            className="h-10 w-auto"
+          />
         </div>
         <div>
           <div style={{ color: "#fff", fontWeight: 700, fontSize: "0.95rem" }}>Digitalin</div>
