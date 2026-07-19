@@ -3,9 +3,11 @@ using be_digitalin.DTOs;
 using be_digitalin.Models;
 using be_digitalin.Providers;
 using be_digitalin.Constants;
+using be_digitalin.Domain.Orders;
+using be_digitalin.Infrastructure.Serialization;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 using System.Transactions;
-using System.Text.Json;
 
 namespace be_digitalin.Services;
 
@@ -227,6 +229,25 @@ public class OrderService : IOrderService
 
         if (notification.fraud_status != AppConstants.MidtransFraud.Accept) return;
 
+        // ── Guard nominal: nominal yang dibayar wajib sama dengan yang ditagih ──
+        // Signature valid hanya membuktikan payload asli dari Midtrans, bukan bahwa
+        // nominalnya benar. Transaksi Midtrans dibuat dengan (int)finalPrice
+        // (lihat MidtransProvider.CreateSnapTransactionAsync), jadi nominal yang
+        // diketahui Midtrans adalah bilangan bulat dari TotalPaid.
+        var expectedAmount = (int)order.TotalPaid;
+        if (!decimal.TryParse(
+                notification.gross_amount,
+                NumberStyles.Number,
+                CultureInfo.InvariantCulture,
+                out var paidAmount)
+            || (int)paidAmount != expectedAmount)
+        {
+            _logger.LogWarning(
+                "[WEBHOOK] Nominal tidak cocok untuk Order {OrderNo}. Diharapkan {Expected}, diterima {Received}. Status tidak diubah.",
+                order.OrderNo, expectedAmount, notification.gross_amount);
+            return;
+        }
+
         using var dbTransaction = await _db.Database.BeginTransactionAsync();
         try
         {
@@ -437,19 +458,42 @@ public class OrderService : IOrderService
         if (order == null)
             return "Webhook Digiflazz diterima";
 
-        if (data.status == AppConstants.DigiflazzStatus.Sukses)
+        // Tentukan target status berdasarkan balasan Digiflazz.
+        string? targetStatus = data.status switch
         {
-            // Update hanya jika belum COMPLETED
-            if (order.Status == AppConstants.OrderStatus.Completed)
-            {
-                _logger.LogWarning("[WEBHOOK] Duplicate success webhook untuk {OrderNo}. Sudah COMPLETED - diabaikan.", order.OrderNo);
-                return "Webhook Digiflazz received (already processed)";
-            }
+            AppConstants.DigiflazzStatus.Sukses => AppConstants.OrderStatus.Completed,
+            AppConstants.DigiflazzStatus.Gagal  => AppConstants.OrderStatus.NeedsAction,
+            _ => null // status lain (mis. Pending) — tidak mengubah apa pun
+        };
+
+        if (targetStatus == null)
+            return "Webhook Digiflazz diterima";
+
+        // Idempotensi: webhook duplikat untuk status yang sudah tercapai.
+        if (order.Status == targetStatus)
+        {
+            _logger.LogWarning(
+                "[WEBHOOK] Duplicate {Status} webhook untuk {OrderNo}. Diabaikan.",
+                targetStatus, order.OrderNo);
+            return "Webhook Digiflazz received (already processed)";
+        }
+
+        // Guard state machine (SSOT): tolak transisi ilegal, mis. COMPLETED/REFUNDED → NEEDS_ACTION.
+        if (!OrderStateTransition.CanTransition(order.Status, targetStatus))
+        {
+            _logger.LogWarning(
+                "[WEBHOOK] Transisi status ditolak untuk {OrderNo}: {From} → {To}. Webhook diabaikan.",
+                order.OrderNo, order.Status, targetStatus);
+            return "Webhook Digiflazz diterima";
+        }
+
+        if (targetStatus == AppConstants.OrderStatus.Completed)
+        {
             order.Sn = data.sn;
             order.Status = AppConstants.OrderStatus.Completed;
             _logger.LogInformation("[WEBHOOK] SUCCESS! SN berhasil ditanam ke database");
         }
-        else if (data.status == AppConstants.DigiflazzStatus.Gagal)
+        else // NEEDS_ACTION
         {
             // INI YANG PALING PENTING! Uang udah di tangan kita, tapi Digiflazz gagal proses
             order.Status = AppConstants.OrderStatus.NeedsAction;
@@ -470,7 +514,146 @@ public class OrderService : IOrderService
         return "Webhook Digiflazz diterima";
     }
 
+    // ── Bot Patroli: rekonsiliasi pesanan yang nyangkut di PROCESSING ──
+    public async Task SweepStuckOrdersAsync(CancellationToken cancellationToken = default)
+    {
+        // Cari pesanan yang statusnya PROCESSING dan sudah lebih dari 3 menit
+        var timeThreshold = DateTime.UtcNow.AddMinutes(-3);
+        var stuckOrders = await _db.TopupOrders
+            .Where(o => o.Status == AppConstants.OrderStatus.Processing && o.OrderDate <= timeThreshold)
+            .ToListAsync(cancellationToken);
+
+        if (stuckOrders.Count == 0) return; // tidak ada yang nyangkut
+
+        _logger.LogInformation(
+            "[SWEEP] Menemukan {Count} pesanan nyangkut. Memulai interogasi ke Digiflazz...",
+            stuckOrders.Count);
+
+        foreach (var order in stuckOrders)
+        {
+            try
+            {
+                // Minta penjelasan status ke Digiflazz — gunakan snapshot BuyerSkuCode
+                var (status, sn, message) = await _digiflazzProvider.CheckStatusAsync(
+                    order.BuyerSkuCode, order.PlayerId, order.OrderNo);
+
+                if (status == AppConstants.DigiflazzStatus.Sukses)
+                {
+                    if (!TryTransition(order, AppConstants.OrderStatus.Completed)) continue;
+                    order.Sn = sn;
+                    _logger.LogInformation("[SWEEP] Order {OrderNo} ternyata SUKSES. Data SN diperbarui.", order.OrderNo);
+                }
+                else if (status == AppConstants.DigiflazzStatus.Gagal)
+                {
+                    if (!TryTransition(order, AppConstants.OrderStatus.NeedsAction)) continue;
+                    _logger.LogWarning("[SWEEP] Order {OrderNo} dipastikan GAGAL dari pusat. Mengunci pesanan...", order.OrderNo);
+                    await SendSweepFailedAlertAsync(order, message);
+                }
+                else
+                {
+                    // Status dari pusat masih "Pending" — cek apakah sudah terlalu lama (>15 menit)
+                    var maxToleransi = DateTime.UtcNow.AddMinutes(-15);
+
+                    if (order.OrderDate <= maxToleransi)
+                    {
+                        if (!TryTransition(order, AppConstants.OrderStatus.NeedsAction)) continue;
+                        _logger.LogWarning("[SWEEP] Order {OrderNo} kelamaan Pending di Digiflazz (>15 menit). Force Needs Action!", order.OrderNo);
+                        await SendSweepTimeoutAlertAsync(order);
+                    }
+                    else
+                    {
+                        _logger.LogInformation("[SWEEP] Order {OrderNo} masih Pending dari pusat. Sabar, tunggu putaran selanjutnya.", order.OrderNo);
+                        // tidak ada yang berubah, langsung skip
+                        continue;
+                    }
+                }
+
+                try
+                {
+                    await _db.SaveChangesAsync(cancellationToken);
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    _logger.LogWarning(
+                        "[SWEEP] Concurrency conflict on Order {OrderNo}. Another process already updated it — skipping.",
+                        order.OrderNo);
+                    await _db.Entry(order).ReloadAsync(cancellationToken);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("[SWEEP] Gagal mengecek order {OrderNo}: {Message}", order.OrderNo, ex.Message);
+            }
+        }
+    }
+
     // Private Helpers
+
+    /// <summary>
+    /// Terapkan transisi status lewat state machine SSOT. Mengembalikan false
+    /// (dan melewati order) bila transisi tidak sah — mis. order sudah pindah
+    /// dari PROCESSING oleh proses lain di antara query dan pemrosesan.
+    /// </summary>
+    private bool TryTransition(TopupOrder order, string targetStatus)
+    {
+        if (!OrderStateTransition.CanTransition(order.Status, targetStatus))
+        {
+            _logger.LogWarning(
+                "[SWEEP] Transisi status ditolak untuk {OrderNo}: {From} → {To}. Dilewati.",
+                order.OrderNo, order.Status, targetStatus);
+            return false;
+        }
+
+        order.Status = targetStatus;
+        return true;
+    }
+
+    private async Task SendSweepFailedAlertAsync(TopupOrder order, string message)
+    {
+        string alertMessage = $@"⚠️ <b>PESANAN TERTUNDA (Hasil Sapuan Sistem)</b> ⚠️
+
+Halo Admin, sistem menemukan pesanan lama yang gagal diproses oleh Digiflazz.
+
+<b>📝 Detail Pesanan:</b>
+• <b>Invoice:</b> {order.OrderNo}
+• <b>Produk:</b> {order.ProductName}
+• <b>ID Tujuan:</b> {order.PlayerId}
+• <b>Keterangan:</b> {message}
+
+Silakan buka Admin Panel untuk klik Retry atau hubungi pembeli untuk Refund.";
+
+        try
+        {
+            await _telegramProvider.SendNotificationAsync(alertMessage);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[Telegram] Gagal mengirim peringatan sweep-gagal untuk {OrderNo}", order.OrderNo);
+        }
+    }
+
+    private async Task SendSweepTimeoutAlertAsync(TopupOrder order)
+    {
+        string timeoutMessage = $@"⚠️ <b>PESANAN MENGGANTUNG / TIMEOUT</b> ⚠️
+
+Halo Admin, sistem menemukan pesanan yang sudah lebih dari 15 menit dibiarkan 'Pending' oleh Digiflazz tanpa kejelasan.
+
+<b>📝 Detail Pesanan:</b>
+• <b>Invoice:</b> {order.OrderNo}
+• <b>Produk:</b> {order.ProductName}
+• <b>ID Tujuan:</b> {order.PlayerId}
+
+Silakan cek manual di dashboard Digiflazz. Jika pesanan tidak masuk, segera proses <b>Refund</b> ke pembeli agar tidak dikomplain.";
+
+        try
+        {
+            await _telegramProvider.SendNotificationAsync(timeoutMessage);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[Telegram] Gagal mengirim peringatan sweep-timeout untuk {OrderNo}", order.OrderNo);
+        }
+    }
 
     private static string BuildTargetValue(
         GameMetadata metadata,
@@ -482,9 +665,9 @@ public class OrderService : IOrderService
                 "Data tujuan wajib diisi.");
         }
 
-        var inputFields = DeserializeInputFields(
+        var inputFields = GameInputSchemaSerializer.Deserialize(
             metadata.InputSchemaJson);
-        
+
         var allowedKeys = inputFields
             .Select(field => field.Key)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -506,28 +689,6 @@ public class OrderService : IOrderService
             metadata.TargetTemplate,
             inputFields,
             targetValues);
-    }
-    
-    private static IReadOnlyList<GameInputField> DeserializeInputFields(
-        string inputSchemaJson)
-    {
-        if (string.IsNullOrWhiteSpace(inputSchemaJson))
-            return [];
-
-        try
-        {
-            return JsonSerializer.Deserialize<List<GameInputField>>(
-                inputSchemaJson,
-                new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                }) ?? [];
-        }
-        catch (JsonException)
-        {
-            throw new InvalidOperationException(
-                "Konfigurasi input game tidak valid.");
-        }
     }
     
     private static void ValidateTargetValues(

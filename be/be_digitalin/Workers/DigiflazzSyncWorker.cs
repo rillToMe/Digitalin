@@ -1,13 +1,4 @@
-﻿using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
-using be_digitalin.Config;
-using be_digitalin.Data;
-using be_digitalin.Models;
-using be_digitalin.Services;
-using be_digitalin.Constants;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
+﻿using be_digitalin.Services;
 
 namespace be_digitalin.Workers;
 

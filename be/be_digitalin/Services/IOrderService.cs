@@ -35,4 +35,7 @@ public interface IOrderService
 
     /// <summary>Webhook: apply a Digiflazz status update to the matching order. Returns a status message for the response body.</summary>
     Task<string> HandleDigiflazzWebhookAsync(DigiflazzWebhookData data);
+
+    /// <summary>Background sweep: reconcile orders stuck in PROCESSING against Digiflazz.</summary>
+    Task SweepStuckOrdersAsync(CancellationToken cancellationToken = default);
 }

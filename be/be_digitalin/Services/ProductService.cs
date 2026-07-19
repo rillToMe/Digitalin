@@ -4,8 +4,8 @@ using be_digitalin.Models;
 using be_digitalin.Constants;
 using be_digitalin.Providers;
 using be_digitalin.Services.GameTemplates;
+using be_digitalin.Infrastructure.Serialization;
 using Microsoft.EntityFrameworkCore;
-using System.Text.Json;
 
 namespace be_digitalin.Services;
 
@@ -14,12 +14,7 @@ public class ProductService : IProductService
     private readonly DigitalinDbContext _db;
     private readonly CloudflareR2Provider _r2Provider;
     private readonly DigiflazzProvider _digiflazzProvider;
-    
-    private static readonly JsonSerializerOptions InputSchemaJsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
-    
+
     public ProductService(
         DigitalinDbContext db, 
         CloudflareR2Provider r2Provider, 
@@ -73,7 +68,7 @@ public class ProductService : IProductService
             request.TargetTemplate,
             normalizedFields);
 
-        metadata.InputSchemaJson = SerializeInputFields(normalizedFields);
+        metadata.InputSchemaJson = GameInputSchemaSerializer.Serialize(normalizedFields);
         metadata.TargetTemplate = normalizedTargetTemplate;
 
         await _db.SaveChangesAsync();
@@ -83,129 +78,145 @@ public class ProductService : IProductService
     
     // logic sync
     public async Task<(int Added, int Updated, int Deactivated)> SyncCatalogFromDigiflazzAsync()
-{
-    var dataArray = await _digiflazzProvider.GetPriceListAsync();
-
-    int added = 0;
-    int updated = 0;
-    int deactivated = 0;
-
-    var activeDigiflazzSkus = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-    foreach (var item in dataArray)
     {
-        var category = item
-            .GetProperty(AppConstants.DigiflazzResponseKeys.Category)
-            .GetString();
+        var dataArray = await _digiflazzProvider.GetPriceListAsync();
 
-        if (category != AppConstants.Categories.Games)
-            continue;
+        int added = 0;
+        int updated = 0;
+        int deactivated = 0;
 
-        var sku = item
-            .GetProperty(AppConstants.DigiflazzResponseKeys.BuyerSkuCode)
-            .GetString() ?? string.Empty;
+        var activeDigiflazzSkus = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        var name = item
-            .GetProperty(AppConstants.DigiflazzResponseKeys.ProductName)
-            .GetString() ?? string.Empty;
+        // ── Load katalog sekali ke memori (hindari N+1 di dalam loop) ──
+        // Brand di-lookup case-insensitive agar sepadan dengan kolasi default MySQL.
+        var existingBrands = await _db.GameMetadata
+            .Select(m => m.Brand)
+            .ToListAsync();
+        var knownBrands = new HashSet<string>(existingBrands, StringComparer.OrdinalIgnoreCase);
 
-        var modalPrice = item
-            .GetProperty(AppConstants.DigiflazzResponseKeys.Price)
-            .GetDecimal();
+        // SKU unik → lookup per item cukup dari dictionary (bukan query).
+        var products = await _db.GameProducts.ToListAsync();
+        var productsBySku = products
+            .Where(p => !string.IsNullOrEmpty(p.BuyerSkuCode))
+            .GroupBy(p => p.BuyerSkuCode, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
-        var brand = item
-            .GetProperty(AppConstants.DigiflazzResponseKeys.Brand)
-            .GetString() ?? string.Empty;
-
-        if (string.IsNullOrWhiteSpace(sku))
-            continue;
-
-        activeDigiflazzSkus.Add(sku);
-
-        var existingMeta = await _db.GameMetadata
-            .FirstOrDefaultAsync(m => m.Brand == brand);
-
-        if (existingMeta == null)
+        foreach (var item in dataArray)
         {
-            _db.GameMetadata.Add(new GameMetadata
+            var category = item
+                .GetProperty(AppConstants.DigiflazzResponseKeys.Category)
+                .GetString();
+
+            if (category != AppConstants.Categories.Games)
+                continue;
+
+            var sku = item
+                .GetProperty(AppConstants.DigiflazzResponseKeys.BuyerSkuCode)
+                .GetString() ?? string.Empty;
+
+            var name = item
+                .GetProperty(AppConstants.DigiflazzResponseKeys.ProductName)
+                .GetString() ?? string.Empty;
+
+            var modalPrice = item
+                .GetProperty(AppConstants.DigiflazzResponseKeys.Price)
+                .GetDecimal();
+
+            var brand = item
+                .GetProperty(AppConstants.DigiflazzResponseKeys.Brand)
+                .GetString() ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(sku))
+                continue;
+
+            activeDigiflazzSkus.Add(sku);
+
+            if (!knownBrands.Contains(brand))
             {
-                Brand = brand,
-                InputSchemaJson = SerializeInputFields(
-                    GameTemplateFactory.CreateDefaultInputFields()),
-                TargetTemplate = GameTemplateFactory.DefaultTargetTemplate
-            });
-        }
+                _db.GameMetadata.Add(new GameMetadata
+                {
+                    Brand = brand,
+                    InputSchemaJson = GameInputSchemaSerializer.Serialize(
+                        GameTemplateFactory.CreateDefaultInputFields()),
+                    TargetTemplate = GameTemplateFactory.DefaultTargetTemplate
+                });
 
-        var existingProduct = await _db.GameProducts
-            .FirstOrDefaultAsync(p => p.BuyerSkuCode == sku);
+                // Tandai agar SKU lain dengan brand sama tidak menambah metadata duplikat.
+                knownBrands.Add(brand);
+            }
 
-        if (existingProduct != null)
-        {
-            var margin = existingProduct.CustomMargin ?? 0m;
-            var sellingPrice = modalPrice + margin;
-
-            var hasChanges =
-                existingProduct.Price != sellingPrice ||
-                existingProduct.Name != name ||
-                existingProduct.Brand != brand ||
-                existingProduct.Category != category ||
-                !existingProduct.IsActive;
-
-            if (hasChanges)
+            if (productsBySku.TryGetValue(sku, out var existingProduct))
             {
-                existingProduct.Price = sellingPrice;
-                existingProduct.Name = name;
-                existingProduct.Brand = brand;
-                existingProduct.Category = category;
-                existingProduct.GameCode = brand;
-                existingProduct.IsActive = true;
+                var margin = existingProduct.CustomMargin ?? 0m;
+                var sellingPrice = modalPrice + margin;
 
-                updated++;
+                var hasChanges =
+                    existingProduct.Price != sellingPrice ||
+                    existingProduct.Name != name ||
+                    existingProduct.Brand != brand ||
+                    existingProduct.Category != category ||
+                    !existingProduct.IsActive;
+
+                if (hasChanges)
+                {
+                    existingProduct.Price = sellingPrice;
+                    existingProduct.Name = name;
+                    existingProduct.Brand = brand;
+                    existingProduct.Category = category;
+                    existingProduct.GameCode = brand;
+                    existingProduct.IsActive = true;
+
+                    updated++;
+                }
+            }
+            else
+            {
+                var newProduct = new GameProduct
+                {
+                    BuyerSkuCode = sku,
+                    Name = name,
+                    Price = modalPrice,
+                    Brand = brand,
+                    Category = category,
+                    GameCode = brand,
+                    IsActive = true
+                };
+
+                _db.GameProducts.Add(newProduct);
+
+                // Tandai agar SKU duplikat dalam price-list tidak menambah produk ganda.
+                productsBySku[sku] = newProduct;
+
+                added++;
             }
         }
-        else
+
+        if (activeDigiflazzSkus.Count == 0)
         {
-            _db.GameProducts.Add(new GameProduct
-            {
-                BuyerSkuCode = sku,
-                Name = name,
-                Price = modalPrice,
-                Brand = brand,
-                Category = category,
-                GameCode = brand,
-                IsActive = true
-            });
-
-            added++;
+            throw new InvalidOperationException(
+                "Sync dibatalkan: Digiflazz tidak mengembalikan produk kategori Games. " +
+                "Produk lama tidak dinonaktifkan untuk mencegah kehilangan katalog."
+            );
         }
+
+        var productsToDeactivate = await _db.GameProducts
+            .Where(p =>
+                p.Category == AppConstants.Categories.Games &&
+                p.IsActive &&
+                !string.IsNullOrEmpty(p.BuyerSkuCode) &&
+                !activeDigiflazzSkus.Contains(p.BuyerSkuCode))
+            .ToListAsync();
+
+        foreach (var product in productsToDeactivate)
+        {
+            product.IsActive = false;
+            deactivated++;
+        }
+
+        await _db.SaveChangesAsync();
+
+        return (added, updated, deactivated);
     }
-    
-    if (activeDigiflazzSkus.Count == 0)
-    {
-        throw new InvalidOperationException(
-            "Sync dibatalkan: Digiflazz tidak mengembalikan produk kategori Games. " +
-            "Produk lama tidak dinonaktifkan untuk mencegah kehilangan katalog."
-        );
-    }
-
-    var productsToDeactivate = await _db.GameProducts
-        .Where(p =>
-            p.Category == AppConstants.Categories.Games &&
-            p.IsActive &&
-            !string.IsNullOrEmpty(p.BuyerSkuCode) &&
-            !activeDigiflazzSkus.Contains(p.BuyerSkuCode))
-        .ToListAsync();
-
-    foreach (var product in productsToDeactivate)
-    {
-        product.IsActive = false;
-        deactivated++;
-    }
-
-    await _db.SaveChangesAsync();
-
-    return (added, updated, deactivated);
-}
 
     public async Task<IEnumerable<ProductResponse>> GetAllProductsAsync()
     {
@@ -269,7 +280,7 @@ public class ProductService : IProductService
             metadata.Brand,
             metadata.Brand.ToLower().Replace(" ", "-"),
             metadata.ImageUrl,
-            DeserializeInputFields(metadata.InputSchemaJson),
+            GameInputSchemaSerializer.Deserialize(metadata.InputSchemaJson),
             products
         );
     }
@@ -442,40 +453,11 @@ public class ProductService : IProductService
             metadata.Id,
             metadata.Brand,
             metadata.ImageUrl,
-            DeserializeInputFields(metadata.InputSchemaJson),
+            GameInputSchemaSerializer.Deserialize(metadata.InputSchemaJson),
             metadata.TargetTemplate
         );
     }
 
-    private static List<GameInputField> DeserializeInputFields(
-        string? inputSchemaJson)
-    {
-        if (string.IsNullOrWhiteSpace(inputSchemaJson))
-            return [];
-
-        try
-        {
-            return JsonSerializer.Deserialize<List<GameInputField>>(
-                       inputSchemaJson,
-                       InputSchemaJsonOptions)
-                   ?? [];
-        }
-        catch (JsonException ex)
-        {
-            throw new InvalidOperationException(
-                "Schema input game di database tidak valid.",
-                ex);
-        }
-    }
-
-    private static string SerializeInputFields(
-        IReadOnlyList<GameInputField> inputFields)
-    {
-        return JsonSerializer.Serialize(
-            inputFields,
-            InputSchemaJsonOptions);
-    }
-    
     private static List<GameInputField> NormalizeAndValidateInputFields(
         IReadOnlyList<GameInputField>? inputFields)
     {
