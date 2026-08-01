@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import { Check, AlertCircle, Loader2, ShieldCheck, CheckCircle2 } from "lucide-react";
-import { motion } from "motion/react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { brandService, orderService } from "../../../services/api";
@@ -349,12 +348,11 @@ export default function GameDetailPage() {
               {brand.products.map((product) => {
                 const active = selectedProduct?.id === product.id;
                 return (
-                  <motion.button
+                  <button
                     key={product.id}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    type="button"
                     onClick={() => setSelectedProduct(product)}
-                    className="relative p-3 rounded-xl text-left transition-all"
+                    className="relative p-3 rounded-xl text-left transition-all hover:scale-[1.02] active:scale-[0.98] motion-reduce:hover:scale-100 motion-reduce:active:scale-100"
                     style={{
                       border: active ? "2px solid var(--color-brand-tertiary,#2C5EF5)" : "1.5px solid rgba(0,0,0,0.1)",
                       backgroundColor: active ? "rgba(44,94,245,0.05)" : "var(--color-surface,#fff)",
@@ -367,7 +365,7 @@ export default function GameDetailPage() {
                     )}
                     <p style={{ color: "var(--color-brand-primary,#0F1419)", fontWeight: 600, fontSize: "0.85rem" }}>{product.name}</p>
                     <p style={{ color: "var(--color-brand-tertiary,#2C5EF5)", fontSize: "0.8rem", marginTop: 3, fontWeight: 600 }}>{formatRp(product.price)}</p>
-                  </motion.button>
+                  </button>
                 );
               })}
             </div>

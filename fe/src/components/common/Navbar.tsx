@@ -11,7 +11,6 @@ import {
   User,
   X,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
 
 import { useAuthStore } from "../../store/authStore";
 import { authService } from "../../services/api";
@@ -170,69 +169,61 @@ export default function Navbar() {
                   <ChevronDown size={14} />
                 </button>
 
-                <AnimatePresence>
-                  {dropdownOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -8, scale: 0.97 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -8, scale: 0.97 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute right-0 mt-2 w-48 rounded-xl shadow-lg overflow-hidden"
+                {dropdownOpen && (
+                  <div
+                    className="animate-pop-in absolute right-0 mt-2 w-48 rounded-xl shadow-lg overflow-hidden"
+                    style={{
+                      backgroundColor: "var(--color-surface)",
+                      border: "1px solid var(--color-border)",
+                    }}
+                  >
+                    <Link
+                      to="/profile"
+                      onClick={() => setDropdownOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 no-underline transition-colors hover:bg-gray-50"
+                      style={{ color: "var(--color-brand-primary)" }}
+                    >
+                      <User size={16} />
+                      <span style={{ fontSize: "0.9rem" }}>Profile</span>
+                    </Link>
+
+                    <Link
+                      to="/history"
+                      onClick={() => setDropdownOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 no-underline transition-colors hover:bg-gray-50"
+                      style={{ color: "var(--color-brand-primary)" }}
+                    >
+                      <History size={16} />
+                      <span style={{ fontSize: "0.9rem" }}>Riwayat Order</span>
+                    </Link>
+
+                    <hr
                       style={{
-                        backgroundColor: "var(--color-surface)",
-                        border: "1px solid var(--color-border)",
+                        borderColor: "var(--color-border)",
+                        margin: 0,
+                      }}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-3 px-4 py-3 transition-colors"
+                      style={{
+                        color: "var(--color-danger)",
+                        fontSize: "0.9rem",
                       }}
                     >
-                      <Link
-                        to="/profile"
-                        onClick={() => setDropdownOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 no-underline transition-colors hover:bg-gray-50"
-                        style={{ color: "var(--color-brand-primary)" }}
-                      >
-                        <User size={16} />
-                        <span style={{ fontSize: "0.9rem" }}>Profile</span>
-                      </Link>
-
-                      <Link
-                        to="/history"
-                        onClick={() => setDropdownOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 no-underline transition-colors hover:bg-gray-50"
-                        style={{ color: "var(--color-brand-primary)" }}
-                      >
-                        <History size={16} />
-                        <span style={{ fontSize: "0.9rem" }}>
-                          Riwayat Order
-                        </span>
-                      </Link>
-
-                      <hr
-                        style={{
-                          borderColor: "var(--color-border)",
-                          margin: 0,
-                        }}
-                      />
-
-                      <button
-                        type="button"
-                        onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-4 py-3 transition-colors"
-                        style={{
-                          color: "var(--color-danger)",
-                          fontSize: "0.9rem",
-                        }}
-                      >
-                        <LogOut size={16} />
-                        <span>Logout</span>
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                      <LogOut size={16} />
+                      <span>Logout</span>
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex items-center gap-3">
                 <Link
                   to="/login"
-                  className="px-4 py-2 rounded-lg no-underline transition-colors"
+                  className="pressable px-4 py-2 rounded-lg no-underline transition-colors"
                   style={{
                     color: "var(--color-brand-primary)",
                     fontSize: "0.9rem",
@@ -244,7 +235,7 @@ export default function Navbar() {
 
                 <Link
                   to="/register"
-                  className="px-4 py-2 rounded-lg no-underline"
+                  className="pressable px-4 py-2 rounded-lg no-underline"
                   style={{
                     backgroundColor: "var(--color-brand-tertiary)",
                     color: "var(--background)",
@@ -287,116 +278,104 @@ export default function Navbar() {
         </div>
       </div>
 
-      <AnimatePresence>
-        {mobileSearchOpen && (
-          <motion.div
-            ref={mobileSearchRef}
-            initial={{ opacity: 0, y: -12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            transition={{ duration: 0.15 }}
-            className="md:hidden"
-            style={{
-              position: "absolute",
-              top: "100%",
-              left: 0,
-              right: 0,
-              backgroundColor: "var(--color-surface)",
-              borderBottom: "1px solid var(--color-border)",
-              padding: "12px 16px",
-              zIndex: 60,
-              boxShadow: "var(--shadow-navbar)",
-            }}
-          >
-            <SearchBar
-              variant="overlay"
-              onClose={() => setMobileSearchOpen(false)}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {mobileSearchOpen && (
+        <div
+          ref={mobileSearchRef}
+          className="animate-slide-down-in md:hidden"
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            right: 0,
+            backgroundColor: "var(--color-surface)",
+            borderBottom: "1px solid var(--color-border)",
+            padding: "12px 16px",
+            zIndex: 60,
+            boxShadow: "var(--shadow-navbar)",
+          }}
+        >
+          <SearchBar
+            variant="overlay"
+            onClose={() => setMobileSearchOpen(false)}
+          />
+        </div>
+      )}
 
-      <AnimatePresence>
-        {mobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden overflow-hidden"
-            style={{
-              borderTop: "1px solid var(--color-border)",
-            }}
-          >
-            <div
-              className="px-4 py-3 space-y-1"
-              style={{
-                backgroundColor: "var(--color-surface)",
-              }}
-            >
-              {isAuthenticated ? (
-                <>
-                  <Link
-                    to="/profile"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2 rounded-lg no-underline"
-                    style={{ color: "var(--color-brand-primary)" }}
-                  >
-                    <User size={16} />
-                    <span>{displayName}</span>
-                  </Link>
+      <div
+        className="collapse-panel md:hidden"
+        data-open={mobileMenuOpen}
+        style={{
+          borderTop: "1px solid var(--color-border)",
+        }}
+      >
+        <div
+          className="px-4 py-3 space-y-1"
+          style={{
+            backgroundColor: "var(--color-surface)",
+          }}
+        >
+          {isAuthenticated ? (
+            <>
+              <Link
+                to="/profile"
+                onClick={() => setMobileMenuOpen(false)}
+                className="pressable flex items-center gap-3 px-3 py-2 rounded-lg no-underline"
+                style={{ color: "var(--color-brand-primary)" }}
+              >
+                <User size={16} />
+                <span>{displayName}</span>
+              </Link>
 
-                  <Link
-                    to="/history"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2 rounded-lg no-underline"
-                    style={{ color: "var(--color-brand-primary)" }}
-                  >
-                    <ShoppingBag size={16} />
-                    <span>Riwayat Order</span>
-                  </Link>
+              <Link
+                to="/history"
+                onClick={() => setMobileMenuOpen(false)}
+                className="pressable flex items-center gap-3 px-3 py-2 rounded-lg no-underline"
+                style={{ color: "var(--color-brand-primary)" }}
+              >
+                <ShoppingBag size={16} />
+                <span>Riwayat Order</span>
+              </Link>
 
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg"
-                    style={{ color: "var(--color-danger)" }}
-                  >
-                    <LogOut size={16} />
-                    <span>Logout</span>
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Link
-                    to="/login"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="block px-3 py-2 rounded-lg no-underline text-center"
-                    style={{
-                      color: "var(--color-brand-primary)",
-                      fontWeight: 500,
-                    }}
-                  >
-                    Masuk
-                  </Link>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg"
+                style={{ color: "var(--color-danger)" }}
+              >
+                <LogOut size={16} />
+                <span>Logout</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="pressable block px-3 py-2 rounded-lg no-underline text-center"
+                style={{
+                  color: "var(--color-brand-primary)",
+                  fontWeight: 500,
+                }}
+              >
+                Masuk
+              </Link>
 
-                  <Link
-                    to="/register"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="block px-3 py-2 rounded-lg no-underline text-center"
-                    style={{
-                      backgroundColor: "var(--color-brand-tertiary)",
-                      color: "var(--background)",
-                      fontWeight: 500,
-                    }}
-                  >
-                    Daftar
-                  </Link>
-                </>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              <Link
+                to="/register"
+                onClick={() => setMobileMenuOpen(false)}
+                className="pressable block px-3 py-2 rounded-lg no-underline text-center"
+                style={{
+                  backgroundColor: "var(--color-brand-tertiary)",
+                  color: "var(--background)",
+                  fontWeight: 500,
+                }}
+              >
+                Daftar
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
     </nav>
   );
 }

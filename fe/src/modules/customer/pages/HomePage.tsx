@@ -6,7 +6,6 @@ import { ChevronLeft, ChevronRight, HelpCircle, ArrowRight,
   CreditCard,
   Headphones,
  } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
 import { useQuery } from "@tanstack/react-query";
 import { bannerService, brandService } from "../../../services/api";
 import type { BannerItem } from "../../../api/index";
@@ -29,30 +28,30 @@ function HeroCarousel({ banners }: { banners: BannerItem[] }) {
 
   return (
     <div className="relative overflow-hidden rounded-2xl" style={{ aspectRatio: "22/9" }}>
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={current}
-          initial={{ opacity: 0, x: 60 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -60 }}
-          transition={{ duration: 0.4, ease: "easeInOut" }}
-          className="absolute inset-0"
+      {/* Semua slide di-mount lalu di-crossfade lewat opacity — tidak perlu
+          AnimatePresence, dan gambarnya tidak di-load ulang tiap ganti slide. */}
+      {banners.map((banner, i) => (
+        <div
+          key={banner.id}
+          className="absolute inset-0 transition-opacity duration-500 motion-reduce:transition-none"
+          style={{ opacity: i === current ? 1 : 0 }}
+          aria-hidden={i !== current}
         >
           <img
-            src={banners[current].imageUrl}
-            alt={banners[current].title}
+            src={banner.imageUrl}
+            alt={banner.title}
             className="w-full h-full object-cover"
-            loading="eager"
+            loading={i === 0 ? "eager" : "lazy"}
             decoding="async"
           />
           <div className="absolute inset-0" style={{ background: "linear-gradient(to right, rgba(15,20,25,0.7) 0%, transparent 60%)" }} />
           <div className="absolute bottom-6 left-6">
             <h2 style={{ color: "#fff", fontWeight: 700, fontSize: "1.2rem", textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
-              {banners[current].title}
+              {banner.title}
             </h2>
           </div>
-        </motion.div>
-      </AnimatePresence>
+        </div>
+      ))}
 
       {/* Controls */}
       <button onClick={prev} className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: "rgba(255,255,255,0.2)", color: "#fff", backdropFilter: "blur(4px)" }}>

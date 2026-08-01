@@ -66,10 +66,6 @@ export default defineConfig({
             return "query";
           }
 
-          if (id.includes("framer-motion")) {
-            return "motion";
-          }
-
           if (id.includes("lucide-react")) {
             return "icons";
           }

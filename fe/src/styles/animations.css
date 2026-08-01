@@ -16,8 +16,70 @@
   animation: category-fade-in-up 0.35s ease-out both;
 }
 
+/* Dropdown / popover masuk (pengganti AnimatePresence) */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-pop-in {
+  animation: pop-in 150ms ease-out both;
+}
+
+/* Panel yang turun dari atas (mobile search) */
+@keyframes slide-down-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-down-in {
+  animation: slide-down-in 150ms ease-out both;
+}
+
+/* Collapse buka/tutup. Trik grid 0fr→1fr adalah satu-satunya cara
+   menganimasikan "height: auto" tanpa JS. Elemen tetap mounted supaya
+   penutupannya ikut beranimasi; visibility menyembunyikannya dari
+   screen reader, tab order, dan ikut menyembunyikan border sendiri.
+   Di @layer components supaya utility seperti `md:hidden` tetap menang
+   atas `display: grid`. */
+@layer components {
+  .collapse-panel {
+    display: grid;
+    grid-template-rows: 0fr;
+    visibility: hidden;
+    transition: grid-template-rows 200ms ease, visibility 200ms;
+  }
+
+  .collapse-panel[data-open="true"] {
+    grid-template-rows: 1fr;
+    visibility: visible;
+  }
+
+  .collapse-panel > * {
+    overflow: hidden;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .animate-category-in {
+  .animate-category-in,
+  .animate-pop-in,
+  .animate-slide-down-in {
     animation: none;
+  }
+
+  .collapse-panel {
+    transition: none;
   }
 }

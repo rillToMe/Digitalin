@@ -109,7 +109,7 @@ export default function SearchBar({ variant = "expandable", onClose }: SearchBar
 
 //   const isOverlay = variant === "overlay";
 
-  // ─── Expandable (Desktop) ──────────────────────────────────────────────────
+  // Expandable (Desktop)
   if (variant === "expandable") {
     return (
       <div ref={containerRef} style={{ position: "relative", display: "flex", alignItems: "center" }}>
@@ -289,7 +289,7 @@ export default function SearchBar({ variant = "expandable", onClose }: SearchBar
     );
   }
 
-  // ─── Overlay (Mobile) ──────────────────────────────────────────────────────
+  // Overlay (Mobile)
   return (
     <div
       ref={containerRef}

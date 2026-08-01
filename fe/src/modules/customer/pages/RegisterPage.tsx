@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Eye, EyeOff, Zap, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -6,8 +6,27 @@ import { useMutation } from "@tanstack/react-query";
 import { authService } from "../../../services/api";
 import { useRecaptcha } from "../../../hooks/useRecaptcha";
 import { useAuthStore } from "../../../store/authStore";
-import type { RequestOtpPayload } from "../../../api/index";
+import type { RequestOtpPayload, RegisterPayload } from "../../../api/index";
+import OtpInput from "../../../components/auth/OtpInput";
 import GoogleLoginButton, { googleClientId } from "../../../components/common/GoogleLoginButton";
+
+/** BE membatasi request OTP 3x / 10 menit per IP, jadi kirim ulang dikunci dulu. */
+const RESEND_COOLDOWN_SECONDS = 60;
+
+const inputStyle = {
+  border: "1.5px solid var(--color-border-input)",
+  fontSize: "0.9rem",
+  color: "var(--color-brand-primary)",
+  backgroundColor: "var(--color-surface)",
+};
+
+const labelStyle = {
+  color: "var(--color-brand-primary)",
+  fontSize: "0.85rem",
+  fontWeight: 500,
+  display: "block" as const,
+  marginBottom: 6,
+};
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -15,58 +34,53 @@ export default function RegisterPage() {
   const { setToken } = useAuthStore();
   const [form, setForm] = useState({ email: "", password: "", fullName: "", otpCode: "" });
   const [showPass, setShowPass] = useState(false);
-  const [step, setStep] = useState<"form" | "otp">("form");
+  const [otpSent, setOtpSent] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
   const [googleLoading, setGoogleLoading] = useState(false);
+
+  useEffect(() => {
+    if (cooldown === 0) return;
+    const timer = setInterval(() => setCooldown((s) => s - 1), 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
 
   const otpMutation = useMutation({
     mutationFn: (payload: RequestOtpPayload) => authService.requestOtp(payload),
     onSuccess: () => {
-      toast.success("OTP terkirim ke email kamu");
-      setStep("otp");
+      toast.success("Kode OTP terkirim ke email kamu");
+      setOtpSent(true);
+      setCooldown(RESEND_COOLDOWN_SECONDS);
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {
-      const msg = err?.response?.data?.message ?? "Gagal mengirim OTP";
-      toast.error(msg);
+      toast.error(err?.response?.data?.message ?? "Gagal mengirim OTP");
     },
   });
 
   const registerMutation = useMutation({
-    mutationFn: (payload: {
-      email: string;
-      password: string;
-      fullName: string;
-      otpCode: string;
-    }) => authService.register(payload),
-
+    mutationFn: (payload: RegisterPayload) => authService.register(payload),
     onSuccess: (res) => {
       setToken(res.token);
       toast.success("Registrasi berhasil!");
       navigate("/");
     },
-
     onError: (err: { response?: { data?: { message?: string } } }) => {
-      const msg =
-        err?.response?.data?.message ?? "Registrasi gagal";
-
-      toast.error(msg);
+      toast.error(err?.response?.data?.message ?? "Registrasi gagal");
     },
   });
-
   const sendOtp = async () => {
-    if (!form.email) {
-      toast.error("Masukkan email terlebih dahulu");
+    if (!form.fullName || !form.email || !form.password) {
+      toast.error("Lengkapi nama, email, dan password dulu");
       return;
     }
+    if (form.password.length < 8) {
+      toast.error("Password minimal 8 karakter");
+      return;
+    }
+    if (cooldown > 0) return;
 
     try {
-      const captchaToken = await executeRecaptcha(
-        "register_request_otp",
-      );
-
-      otpMutation.mutate({
-        email: form.email,
-        captchaToken,
-      });
+      const captchaToken = await executeRecaptcha("register_request_otp");
+      otpMutation.mutate({ email: form.email, captchaToken });
     } catch {
       toast.error("Verifikasi keamanan gagal. Silakan coba lagi.");
     }
@@ -74,8 +88,12 @@ export default function RegisterPage() {
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.fullName || !form.email || !form.password || !form.otpCode) {
-      toast.error("Lengkapi semua field");
+    if (!otpSent) {
+      void sendOtp();
+      return;
+    }
+    if (form.otpCode.length !== 6) {
+      toast.error("Masukkan 6 digit kode OTP");
       return;
     }
     registerMutation.mutate({
@@ -88,122 +106,163 @@ export default function RegisterPage() {
 
   const loading = otpMutation.isPending || registerMutation.isPending;
   const anyLoading = loading || googleLoading;
-  // const otpSent = step === "otp";
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12" style={{ backgroundColor: "var(--color-neutral,#F1F3F5)" }}>
+    <div className="min-h-screen flex items-center justify-center px-4 py-12" style={{ backgroundColor: "var(--color-neutral)" }}>
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-2">
-            <div style={{ backgroundColor: "var(--color-brand-tertiary,#2C5EF5)", borderRadius: 10 }} className="w-10 h-10 flex items-center justify-center">
-              <Zap size={20} color="#fff" fill="#fff" />
+            <div style={{ backgroundColor: "var(--color-brand-tertiary)", borderRadius: 10 }} className="w-10 h-10 flex items-center justify-center">
+              <Zap size={20} color="var(--color-on-primary)" fill="var(--color-on-primary)" />
             </div>
-            <span style={{ color: "var(--color-primary,#0F1419)", fontWeight: 800, fontSize: "1.3rem" }}>Digitalin</span>
+            <span style={{ color: "var(--color-brand-primary)", fontWeight: 800, fontSize: "1.3rem" }}>Digitalin</span>
           </div>
-          <h2 style={{ color: "var(--color-primary,#0F1419)", fontWeight: 700, fontSize: "1.4rem", marginTop: 8 }}>Buat Akun Baru</h2>
-          <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.9rem", marginTop: 4 }}>
-            {step === "form" ? "Isi data diri kamu" : "Verifikasi email kamu"}
+          <h2 style={{ color: "var(--color-brand-primary)", fontWeight: 700, fontSize: "1.4rem", marginTop: 8 }}>Buat Akun Baru</h2>
+          <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.9rem", marginTop: 4 }}>
+            Isi data diri kamu, lalu verifikasi email
           </p>
         </div>
 
-        <div className="rounded-2xl p-8" style={{ backgroundColor: "var(--color-surface,#fff)", border: "1px solid rgba(0,0,0,0.07)" }}>
-          {step === "form" ? (
-            <div className="space-y-4">
-              <div>
-                <label style={{ color: "var(--color-primary,#0F1419)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 6 }}>Nama Lengkap</label>
-                <input
-                  value={form.fullName}
-                  onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-                  placeholder="John Doe"
-                  className="w-full px-4 py-3 rounded-xl outline-none"
-                  style={{ border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.9rem", color: "var(--color-primary,#0F1419)" }}
-                  onFocus={(e) => { e.target.style.borderColor = "var(--color-brand-tertiary,#2C5EF5)"; }}
-                  onBlur={(e) => { e.target.style.borderColor = "rgba(0,0,0,0.12)"; }}
-                />
-              </div>
-              <div>
-                <label style={{ color: "var(--color-primary,#0F1419)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 6 }}>Email</label>
-                <div className="flex gap-2">
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    placeholder="email@example.com"
-                    className="flex-1 px-4 py-3 rounded-xl outline-none"
-                    style={{ border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.9rem", color: "var(--color-primary,#0F1419)" }}
-                    onFocus={(e) => { e.target.style.borderColor = "var(--color-brand-tertiary,#2C5EF5)"; }}
-                    onBlur={(e) => { e.target.style.borderColor = "rgba(0,0,0,0.12)"; }}
-                  />
-                </div>
-              </div>
-              <div>
-                <label style={{ color: "var(--color-primary,#0F1419)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 6 }}>Password</label>
-                <div className="relative">
-                  <input
-                    type={showPass ? "text" : "password"}
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    placeholder="••••••••"
-                    className="w-full px-4 py-3 pr-12 rounded-xl outline-none"
-                    style={{ border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "0.9rem", color: "var(--color-primary,#0F1419)" }}
-                    onFocus={(e) => { e.target.style.borderColor = "var(--color-brand-tertiary,#2C5EF5)"; }}
-                    onBlur={(e) => { e.target.style.borderColor = "rgba(0,0,0,0.12)"; }}
-                  />
-                  <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-brand-secondary,#4A5568)" }}>
-                    {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              </div>
-              <button
-                onClick={sendOtp}
+        <div className="rounded-2xl p-8" style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border-light)" }}>
+          <form onSubmit={handleRegister} className="space-y-4">
+            <div>
+              <label htmlFor="fullName" style={labelStyle}>Nama Lengkap</label>
+              <input
+                id="fullName"
+                value={form.fullName}
+                onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+                placeholder="John Doe"
+                autoComplete="name"
                 disabled={anyLoading}
-                className="w-full py-3.5 rounded-xl flex items-center justify-center gap-2"
-                style={{ backgroundColor: "var(--color-brand-tertiary,#2C5EF5)", color: "#fff", fontWeight: 600, fontSize: "0.95rem", opacity: anyLoading ? 0.7 : 1 }}
-              >
-                {loading && <Loader2 size={16} className="animate-spin" />}
-                Kirim Kode OTP
-              </button>
-
-              {googleClientId && step === "form" && (
-                <GoogleLoginButton disabled={anyLoading} onLoadingChange={setGoogleLoading} />
-              )}
+                className="w-full px-4 py-3 rounded-xl outline-none"
+                style={inputStyle}
+                onFocus={(e) => { e.target.style.borderColor = "var(--color-brand-tertiary)"; }}
+                onBlur={(e) => { e.target.style.borderColor = "var(--color-border-input)"; }}
+              />
             </div>
-          ) : (
-            <form onSubmit={handleRegister} className="space-y-4">
-              <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.85rem", textAlign: "center" }}>
-                Kode OTP dikirim ke <strong style={{ color: "var(--color-primary,#0F1419)" }}>{form.email}</strong>
-              </p>
-              <div>
-                <label style={{ color: "var(--color-primary,#0F1419)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 6 }}>Kode OTP</label>
-                <input
-                  value={form.otpCode}
-                  onChange={(e) => setForm({ ...form, otpCode: e.target.value })}
-                  placeholder="123456"
-                  maxLength={6}
-                  className="w-full px-4 py-3 rounded-xl outline-none text-center"
-                  style={{ border: "1.5px solid rgba(0,0,0,0.12)", fontSize: "1.2rem", letterSpacing: "0.2em", color: "var(--color-primary,#0F1419)" }}
-                  onFocus={(e) => { e.target.style.borderColor = "var(--color-brand-tertiary,#2C5EF5)"; }}
-                  onBlur={(e) => { e.target.style.borderColor = "rgba(0,0,0,0.12)"; }}
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3.5 rounded-xl flex items-center justify-center gap-2"
-                style={{ backgroundColor: "var(--color-brand-tertiary,#2C5EF5)", color: "#fff", fontWeight: 600, fontSize: "0.95rem", opacity: loading ? 0.7 : 1 }}
-              >
-                {loading && <Loader2 size={16} className="animate-spin" />}
-                Daftar Sekarang
-              </button>
-              <button type="button" onClick={() => setStep("form")} style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.85rem", width: "100%", textAlign: "center" }}>
-                ← Kembali
-              </button>
-            </form>
-          )}
 
-          <p className="text-center mt-5" style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.875rem" }}>
+            <div>
+              <label htmlFor="email" style={labelStyle}>Email</label>
+              <input
+                id="email"
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="email@example.com"
+                autoComplete="email"
+                disabled={anyLoading}
+                className="w-full px-4 py-3 rounded-xl outline-none"
+                style={inputStyle}
+                onFocus={(e) => { e.target.style.borderColor = "var(--color-brand-tertiary)"; }}
+                onBlur={(e) => { e.target.style.borderColor = "var(--color-border-input)"; }}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="password" style={labelStyle}>Password</label>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPass ? "text" : "password"}
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  placeholder="Minimal 8 karakter"
+                  autoComplete="new-password"
+                  disabled={anyLoading}
+                  className="w-full px-4 py-3 pr-12 rounded-xl outline-none"
+                  style={inputStyle}
+                  onFocus={(e) => { e.target.style.borderColor = "var(--color-brand-tertiary)"; }}
+                  onBlur={(e) => { e.target.style.borderColor = "var(--color-border-input)"; }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPass(!showPass)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                  style={{ color: "var(--color-brand-secondary)" }}
+                  aria-label={showPass ? "Sembunyikan password" : "Tampilkan password"}
+                  tabIndex={-1}
+                >
+                  {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+            {/* Blok OTP muncul in-place setelah kode terkirim — tidak pindah
+                halaman, jadi nama/email/password tetap terlihat dan bisa
+                diperbaiki. Isinya baru di-mount saat terbuka supaya autofocus
+                OtpInput tidak mencuri fokus ketika form pertama dibuka.
+                marginTop 0 saat tertutup: panel tinggi 0 tapi space-y-4 tetap
+                menyumbang jarak, jadi akan ada celah ganda. */}
+            <div
+              className="collapse-panel"
+              data-open={otpSent}
+              style={otpSent ? undefined : { marginTop: 0 }}
+            >
+              <div>
+                <div className="pt-1 space-y-3">
+                  <div
+                    className="rounded-xl px-4 py-3"
+                    style={{ backgroundColor: "var(--color-info-bg)" }}
+                  >
+                    <p style={{ color: "var(--color-info)", fontSize: "0.8rem", textAlign: "center" }}>
+                      Kode OTP dikirim ke{" "}
+                      <strong>{form.email}</strong>
+                    </p>
+                  </div>
+
+                  <div>
+                    <span style={{ ...labelStyle, textAlign: "center" }}>Masukkan 6 Digit Kode OTP</span>
+                    {otpSent && (
+                      <OtpInput
+                        value={form.otpCode}
+                        onChange={(otpCode) => setForm((f) => ({ ...f, otpCode }))}
+                      />
+                    )}
+                  </div>
+
+                  <div className="flex justify-center" style={{ fontSize: "0.78rem" }}>
+                    {cooldown > 0 ? (
+                      <p style={{ color: "var(--color-brand-secondary)" }}>
+                        Kirim ulang kode dalam{" "}
+                        <span style={{ color: "var(--color-brand-tertiary)", fontWeight: 600 }}>{cooldown} detik</span>
+                      </p>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={sendOtp}
+                        disabled={anyLoading}
+                        style={{ color: "var(--color-brand-tertiary)", fontWeight: 600 }}
+                      >
+                        {otpMutation.isPending ? "Mengirim..." : "Kirim Ulang Kode"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={anyLoading || (otpSent && form.otpCode.length !== 6)}
+              className="w-full py-3.5 rounded-xl flex items-center justify-center gap-2 disabled:opacity-60"
+              style={{
+                backgroundColor: "var(--color-brand-tertiary)",
+                color: "var(--color-on-primary)",
+                fontWeight: 600,
+                fontSize: "0.95rem",
+              }}
+            >
+              {loading && <Loader2 size={16} className="animate-spin" />}
+              {otpSent ? "Daftar Sekarang" : "Kirim Kode OTP"}
+            </button>
+
+            {googleClientId && !otpSent && (
+              <GoogleLoginButton disabled={anyLoading} onLoadingChange={setGoogleLoading} />
+            )}
+          </form>
+
+          <p className="text-center mt-5" style={{ color: "var(--color-brand-secondary)", fontSize: "0.875rem" }}>
             Sudah punya akun?{" "}
-            <Link to="/login" style={{ color: "var(--color-brand-tertiary,#2C5EF5)", fontWeight: 600, textDecoration: "none" }}>
+            <Link to="/login" style={{ color: "var(--color-brand-tertiary)", fontWeight: 600, textDecoration: "none" }}>
               Masuk
             </Link>
           </p>

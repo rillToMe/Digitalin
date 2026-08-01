@@ -1,5 +1,4 @@
-import React from "react";
-import { Wrench, RefreshCw, Zap } from "lucide-react";
+import { Wrench, Zap } from "lucide-react";
 
 interface MaintenanceCardProps {
   title: string;
@@ -37,10 +36,7 @@ function formatEstimatedFinish(isoString: string | null) {
 export default function MaintenanceCard({
   title,
   message,
-  estimatedFinish,
-  onRefresh,
-  isChecking,
-  countdown,
+  estimatedFinish
 }: MaintenanceCardProps) {
   const est = formatEstimatedFinish(estimatedFinish);
   // If the estimated finish date has already passed, treat it as no estimate
@@ -117,29 +113,6 @@ export default function MaintenanceCard({
           </p>
         </div>
       )}
-
-      {/* {countdown > 0 && (
-        <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.78rem" }}>
-          Mencoba kembali dalam <span className="font-semibold" style={{ color: "var(--color-brand-tertiary)" }}>{countdown} detik</span>
-        </p>
-      )}
-
-      <button
-        onClick={onRefresh}
-        disabled={isChecking || countdown > 0}
-        className="w-full py-3 rounded-xl flex items-center justify-center gap-2 font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-        style={{
-          backgroundColor: "var(--color-brand-tertiary)",
-          cursor: isChecking || countdown > 0 ? "not-allowed" : "pointer",
-        }}
-      >
-        {isChecking ? (
-          <RefreshCw size={16} className="animate-spin" />
-        ) : (
-          <RefreshCw size={16} />
-        )}
-        Coba Lagi
-      </button> */}
     </div>
   );
 }

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
 import type { FaqItem } from "../../data/faqs";
 
 interface FaqAccordionProps {
@@ -49,30 +48,22 @@ export default function FaqAccordion({ items }: FaqAccordionProps) {
                 }}
               />
             </button>
-            <AnimatePresence initial={false}>
-              {isOpen && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  style={{ overflow: "hidden" }}
+            <div className="collapse-panel" data-open={isOpen}>
+              <div>
+                <p
+                  style={{
+                    color: "var(--color-brand-secondary, #4A5568)",
+                    fontSize: "0.875rem",
+                    paddingBottom: 16,
+                    paddingLeft: 1,
+                    paddingRight: 1,
+                    lineHeight: 1.6,
+                  }}
                 >
-                  <p
-                    style={{
-                      color: "var(--color-brand-secondary, #4A5568)",
-                      fontSize: "0.875rem",
-                      paddingBottom: 16,
-                      paddingLeft: 1,
-                      paddingRight: 1,
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {item.answer}
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                  {item.answer}
+                </p>
+              </div>
+            </div>
           </div>
         );
       })}
