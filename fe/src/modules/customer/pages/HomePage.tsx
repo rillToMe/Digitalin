@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useLocation, Link } from "react-router";
-import { ChevronLeft, ChevronRight, Gamepad2, Monitor, Smartphone, MoreHorizontal, HelpCircle, ArrowRight,
+import { useLocation, Link } from "react-router";
+import { ChevronLeft, ChevronRight, HelpCircle, ArrowRight,
   Zap,
   ShieldCheck,
   CreditCard,
@@ -9,16 +9,10 @@ import { ChevronLeft, ChevronRight, Gamepad2, Monitor, Smartphone, MoreHorizonta
 import { motion, AnimatePresence } from "motion/react";
 import { useQuery } from "@tanstack/react-query";
 import { bannerService, brandService } from "../../../services/api";
-import type { BannerItem, BrandItem } from "../../../api/index";
+import type { BannerItem } from "../../../api/index";
 import { getFeaturedFaqs } from "../../../data/faqs";
 import FaqAccordion from "../../../components/common/FaqAccordion";
-
-const CATEGORIES = [
-  { id: "all", label: "Semua", icon: <Gamepad2 size={15} /> },
-  { id: "mobile", label: "Mobile Game", icon: <Smartphone size={15} /> },
-  { id: "pc", label: "PC Game", icon: <Monitor size={15} /> },
-  { id: "other", label: "Lainnya", icon: <MoreHorizontal size={15} /> },
-];
+import CategorySection from "../../../components/categori/CategorySection";
 
 function HeroCarousel({ banners }: { banners: BannerItem[] }) {
   const [current, setCurrent] = useState(0);
@@ -87,79 +81,7 @@ function HeroCarousel({ banners }: { banners: BannerItem[] }) {
   );
 }
 
-function GameCard({ brand }: { brand: BrandItem }) {
-  const navigate = useNavigate();
-
-  const slug = brand.brand
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-");
-
-  return (
-    <motion.div
-      whileHover={{ y: -4, scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-      onClick={() => navigate(`/game/${slug}`)}
-    className="cursor-pointer overflow-hidden rounded-3xl p-3"
-    style={{
-      backgroundColor: "var(--color-surface)",
-      border: "1px solid var(--color-border)",
-      transition: "box-shadow 0.2s",
-    }}
-  >
-    <div className="relative aspect-square w-full overflow-hidden rounded-xl">
-      {brand.imageUrl ? (
-        <img
-          src={brand.imageUrl}
-          alt={brand.brand}
-          className="h-full w-full object-cover"
-          loading="lazy"
-          decoding="async"
-        />
-      ) : (
-        <div
-          className="flex h-full w-full items-center justify-center"
-          style={{ backgroundColor: "var(--color-neutral)" }}
-        >
-          <Gamepad2
-            size={32}
-            style={{ color: "var(--color-brand-secondary)" }}
-          />
-        </div>
-      )}
-    </div>
-
-    <div className="flex items-center px-3 py-3">
-      <p
-        className="line-clamp-2"
-        style={{
-          color: "var(--color-primary)",
-          fontWeight: 600,
-          fontSize: "0.9rem",
-        }}
-      >
-        {brand.brand}
-      </p>
-    </div>
-  </motion.div>
-);
-}
-
-// Skeleton Card
-function SkeletonCard() {
-  return (
-    <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: "var(--color-surface, #fff)", border: "1px solid rgba(0,0,0,0.07)" }}>
-      <div className="w-full h-32 animate-pulse" style={{ backgroundColor: "var(--color-neutral, #F1F3F5)" }} />
-      <div className="p-3">
-        <div className="h-4 w-3/4 rounded animate-pulse mb-2" style={{ backgroundColor: "var(--color-neutral, #F1F3F5)" }} />
-        <div className="h-3 w-1/2 rounded animate-pulse" style={{ backgroundColor: "var(--color-neutral, #F1F3F5)" }} />
-      </div>
-    </div>
-  );
-}
-
 export default function HomePage() {
-  const [category, setCategory] = useState("all");
   const location = useLocation();
 
   // Scroll to game list when navigated with #game-list hash
@@ -182,85 +104,19 @@ export default function HomePage() {
     queryFn: brandService.getAll,
   });
 
-  const loading = bannersLoading || brandsLoading;
-
-  const filteredBrands = brands.filter((b) => {
-    if (category === "all") return true;
-    if (category === "mobile") return ["Mobile Legends", "Free Fire", "PUBG Mobile", "Honkai Star Rail", "Genshin Impact"].includes(b.brand);
-    if (category === "pc") return ["Valorant", "Steam Wallet"].includes(b.brand);
-    return true;
-  });
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Hero */}
       <section className="mb-8">
-        {loading ? (
+        {bannersLoading ? (
           <div className="rounded-2xl animate-pulse" style={{ aspectRatio: "22/9", backgroundColor: "var(--color-surface, #fff)" }} />
         ) : (
           <HeroCarousel banners={banners} />
         )}
       </section>
 
-      {/* Categories */}
-      <section className="mb-8">
-        <div className="flex gap-2 overflow-x-auto pb-2" style={{ scrollbarWidth: "none" }}>
-          {CATEGORIES.map((cat) => {
-            const active = category === cat.id;
-            return (
-              <button
-                key={cat.id}
-                onClick={() => setCategory(cat.id)}
-                className="flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap transition-all"
-                style={{
-                  backgroundColor: active ? "var(--color-brand-tertiary, #2C5EF5)" : "var(--color-surface, #fff)",
-                  color: active ? "#fff" : "var(--color-primary, #0F1419)",
-                  border: active ? "none" : "1px solid rgba(0,0,0,0.1)",
-                  fontWeight: active ? 600 : 400,
-                  fontSize: "0.85rem",
-                }}
-              >
-                {cat.icon}
-                {cat.label}
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Game Grid */}
-      <section id="game-list">
-        <div className="flex items-center justify-between mb-4">
-          <h2 style={{ color: "var(--color-primary, #0F1419)", fontWeight: 700, fontSize: "1.1rem" }}>
-            {category === "all" ? "Semua Game" : CATEGORIES.find((c) => c.id === category)?.label}
-          </h2>
-          {!loading && (
-            <span style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.85rem" }}>
-              {filteredBrands.length} game
-            </span>
-          )}
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {loading
-            ? Array.from({ length: 8 }).map((_, i) => (
-                <SkeletonCard key={i} />
-              ))
-            : filteredBrands.map((brand) => (
-                <GameCard
-                  key={brand.brand}
-                  brand={brand}
-                />
-              ))}
-        </div>
-
-        {!loading && filteredBrands.length === 0 && (
-          <div className="text-center py-16">
-            <Gamepad2 size={40} style={{ color: "var(--color-brand-secondary, #4A5568)", margin: "0 auto 12px" }} />
-            <p style={{ color: "var(--color-brand-secondary, #4A5568)" }}>Tidak ada game ditemukan</p>
-          </div>
-        )}
-      </section>
+      {/* Game Categories */}
+      <CategorySection brands={brands} isLoading={brandsLoading} />
 
       {/* Trust badges */}
       <section className="mt-16">

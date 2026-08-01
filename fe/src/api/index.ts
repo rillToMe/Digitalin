@@ -90,13 +90,26 @@ export interface ProfileResponse {
 // Brands / Catalog
 
 export interface BrandItem {
-  id: number;
   brand: string;
   slug: string;
   imageUrl: string | null;
+  /** Kategori produk Digiflazz — saat ini BE selalu mengirim "Games" */
+  category: string;
+  /** Slug kategori storefront (mobile/pc/dst); null = belum dikategorikan → "Lainnya" */
+  categorySlug: string | null;
 }
 
 export type BrandsResponse = BrandItem[];
+
+// Game Categories (Storefront)
+
+export interface GameCategoryItem {
+  slug: string;
+  name: string;
+  brandCount: number;
+}
+
+export type GameCategoriesResponse = GameCategoryItem[];
 
 export interface ProductItem {
   id: number;
@@ -272,6 +285,8 @@ export interface GameMetadataItem {
   imageUrl: string | null;
   inputFields: GameInputField[];
   targetTemplate: string;
+  /** Slug kategori storefront (kebab-case); null = belum dikategorikan */
+  category: string | null;
 }
 
 export type MetadataListResponse = GameMetadataItem[];
@@ -279,6 +294,8 @@ export type MetadataListResponse = GameMetadataItem[];
 export interface UpdateMetadataPayload {
   inputFields: GameInputField[];
   targetTemplate: string;
+  /** Kategori storefront; dinormalisasi BE ke kebab-case, kosong → null */
+  category?: string | null;
 }
 
 // Built-in input schema presets (SSOT: backend GameTemplateFactory)
@@ -314,6 +331,7 @@ export interface GameSearchResult {
   brand: string;
   slug: string;
   imageUrl: string | null;
+  categorySlug: string | null;
 }
 
 export type SearchGamesResponse = GameSearchResult[];

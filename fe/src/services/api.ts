@@ -14,6 +14,7 @@ import type {
   ProfileResponse,
   BrandsResponse,
   BrandDetailResponse,
+  GameCategoriesResponse,
   CreateOrderPayload,
   CreateOrderResponse,
   CheckoutPreviewRequest,
@@ -156,6 +157,12 @@ export const brandService = {
     api.get<BrandsResponse>("/games/brands").then((r) => r.data),
   getBySlug: (slug: string) =>
     api.get<BrandDetailResponse>(`/games/${slug}`).then((r) => r.data),
+};
+
+// Game Categories
+export const categoryService = {
+  getAll: () =>
+    api.get<GameCategoriesResponse>("/games/categories").then((r) => r.data),
 };
 
 // Orders

@@ -19,6 +19,7 @@ export default function MetadataPage() {
   const [form, setForm] = useState<UpdateMetadataPayload>({
     inputFields: [],
     targetTemplate: "",
+    category: null,
   });
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
@@ -57,6 +58,12 @@ export default function MetadataPage() {
       queryClient.invalidateQueries({
         queryKey: ["admin-products", editTarget?.brand],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["admin-metadata"],
+      });
+      // Kategori berpengaruh ke storefront
+      queryClient.invalidateQueries({ queryKey: ["brands"] });
+      queryClient.invalidateQueries({ queryKey: ["gameCategories"] });
       toast.success("Metadata berhasil diperbarui");
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {
@@ -107,6 +114,7 @@ export default function MetadataPage() {
         options: [...field.options],
       })),
       targetTemplate: item.targetTemplate,
+      category: item.category,
     });
 
     setActiveTab("info");

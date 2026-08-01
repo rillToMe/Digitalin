@@ -10,7 +10,7 @@ export function formatNumberInput(value: string) {
   return Number(value).toLocaleString("id-ID");
 }
 
-// Derive slug from brand name, or find it from the brands catalog
+// Slug brand dari katalog, atau derive dari nama
 export function getSlugForBrand(brandName: string, brands: BrandItem[]): string {
   const match = brands.find((b) => b.brand.toLowerCase() === brandName.toLowerCase());
   if (match) return match.slug;

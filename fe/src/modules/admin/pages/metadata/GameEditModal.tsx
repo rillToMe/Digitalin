@@ -11,6 +11,7 @@ import type {
   GameEditModalProps,
   ModalTab,
 } from "../../../../api/index";
+import { CATEGORY_DEFINITIONS } from "../../../../data/gameCategories";
 import { ProductMarginList } from "./ProductMarginList";
 import { DynamicInputFieldsEditor } from "./DynamicInputFieldsEditor";
 import { PresetTemplatePicker } from "./PresetTemplatePicker";
@@ -119,6 +120,28 @@ export function GameEditModal({
                 form={form}
                 setForm={setForm}
               />
+
+              {/* Kategori Storefront */}
+              <div>
+                <label style={{ color: "var(--color-brand-primary,#0F1419)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 8 }}>Kategori Storefront</label>
+                <select
+                  value={form.category ?? ""}
+                  onChange={(e) => setForm({ ...form, category: e.target.value === "" ? null : e.target.value })}
+                  className="w-full px-3 py-2.5 rounded-xl"
+                  style={{ border: "1px solid rgba(0,0,0,0.1)", color: "var(--color-brand-primary,#0F1419)", fontSize: "0.85rem", backgroundColor: "var(--color-surface,#fff)" }}
+                >
+                  <option value="">Tanpa Kategori</option>
+                  {CATEGORY_DEFINITIONS.map((c) => (
+                    <option key={c.slug} value={c.slug}>{c.name}</option>
+                  ))}
+                  {form.category && !CATEGORY_DEFINITIONS.some((c) => c.slug === form.category) && (
+                    <option value={form.category}>{form.category}</option>
+                  )}
+                </select>
+                <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.75rem", marginTop: 6 }}>
+                  Tab kategori di halaman utama. Kosongkan agar game masuk "Lainnya".
+                </p>
+              </div>
 
               <DynamicInputFieldsEditor
                 form={form}
