@@ -51,7 +51,9 @@ export function GameEditModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
-      <div className="w-full max-w-2xl rounded-2xl overflow-hidden" style={{ backgroundColor: "var(--color-surface,#fff)", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
+      {/* Tinggi dikunci supaya kedua tab punya frame yang sama — tab produk tidak
+          menyusut saat produknya cuma satu. Isi yang lebih panjang di-scroll. */}
+      <div className="w-full max-w-2xl rounded-2xl overflow-hidden" style={{ backgroundColor: "var(--color-surface,#fff)", height: "min(90vh, 680px)", display: "flex", flexDirection: "column" }}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid rgba(0,0,0,0.07)" }}>
           <h3 style={{ color: "var(--color-brand-primary,#0F1419)", fontWeight: 700, fontSize: "1rem" }}>Kelola: {item.brand}</h3>
@@ -161,16 +163,16 @@ export function GameEditModal({
           )}
         </div>
 
-        {/* Footer */}
-        {activeTab === "info" && (
-          <div className="flex gap-3 px-6 py-4" style={{ borderTop: "1px solid rgba(0,0,0,0.07)" }}>
+        {/* Footer — selalu tampil supaya frame kedua tab identik */}
+        <div className="flex gap-3 px-6 py-4" style={{ borderTop: "1px solid rgba(0,0,0,0.07)" }}>
+          {activeTab === "info" && (
             <button onClick={handleSaveMetadata} disabled={updateMutation.isPending} className="flex-1 py-3 rounded-xl flex items-center justify-center gap-2" style={{ backgroundColor: "var(--color-brand-tertiary,#2C5EF5)", color: "#fff", fontWeight: 600 }}>
               {updateMutation.isPending ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
               {updateMutation.isPending ? "Menyimpan..." : "Simpan Metadata"}
             </button>
-            <button onClick={onClose} className="px-5 py-3 rounded-xl" style={{ border: "1px solid rgba(0,0,0,0.1)", color: "var(--color-brand-secondary,#4A5568)" }}>Tutup</button>
-          </div>
-        )}
+          )}
+          <button onClick={onClose} className={`${activeTab === "info" ? "px-5" : "flex-1"} py-3 rounded-xl`} style={{ border: "1px solid rgba(0,0,0,0.1)", color: "var(--color-brand-secondary,#4A5568)" }}>Tutup</button>
+        </div>
       </div>
     </div>
   );

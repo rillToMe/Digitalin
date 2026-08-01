@@ -5,6 +5,8 @@ SEBELUM MULAI
 - Cari reusable component yang sudah ada sebelum buat yang baru
 - Jangan langsung coding tanpa analisis
 
+PACKAGE
+tailwind 4
 CaveMan
 - Gunakan CaveMan sebagai metode utama saat ingin memahami project
 
@@ -41,6 +43,7 @@ FRONTEND ARCHITECTURE:
 - NEVER hardcode CSS color values inside layout or component files.
 - All colors must use CSS Variables defined globally in the main CSS file.
 - Maintain strict separation of concerns.
+- DONT USE MOTION PACKAGE, JUST USE CSS ANIMATION
 
 COMPONENT
 - Reuse component yang sudah ada: Button, Table, Modal, Badge, Pagination, Dialog, Search, Form, Input

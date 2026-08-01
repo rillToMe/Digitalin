@@ -17,16 +17,26 @@ const RANGE_OPTIONS: { value: ChartRange; label: string }[] = [
   { value: "30days", label: "30 Hari" },
 ];
 
-function StatCard({ icon, label, value, color, bg, className }: { icon: React.ReactNode; label: string; value: string; color: string; bg: string; className?: string }) {
+function StatCard({
+  icon,
+  label,
+  value,
+  tone,
+  hero,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  tone: "accent" | "success" | "warning" | "danger" | "info";
+  hero?: boolean;
+}) {
   return (
-    <div className={`rounded-2xl p-5 ${className ?? ""}`} style={{ backgroundColor: "var(--color-surface,#fff)", border: "1px solid rgba(0,0,0,0.07)" }}>
-      <div className="flex items-center justify-between mb-4">
-        <span style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.85rem" }}>{label}</span>
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: bg }}>
-          <span style={{ color }}>{icon}</span>
-        </div>
+    <div className={`admin-stat${hero ? " admin-stat--hero" : ""}`}>
+      <div className="admin-stat-top">
+        <span className="admin-stat-label">{label}</span>
+        <span className={`admin-stat-icon admin-stat-icon--${tone}`}>{icon}</span>
       </div>
-      <p style={{ color: "var(--color-brand-primary,#0F1419)", fontWeight: 700, fontSize: "1.4rem" }}>{value}</p>
+      <p className="admin-stat-value">{value}</p>
     </div>
   );
 }
@@ -52,94 +62,116 @@ export default function DashboardPage() {
   return (
     <AdminLayout title="Dashboard" breadcrumb={["Admin", "Dashboard"]}>
       {hasError ? (
-        <div className="rounded-2xl p-10 text-center" style={{ backgroundColor: "var(--color-surface,#fff)", border: "1px solid rgba(0,0,0,0.07)" }}>
-          <AlertTriangle size={40} style={{ color: "var(--color-danger)", margin: "0 auto 16px" }} />
-          <h3 style={{ color: "var(--color-brand-primary,#0F1419)", fontWeight: 700, fontSize: "1.1rem", marginBottom: 8 }}>Gagal memuat data dashboard</h3>
-          <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.9rem", marginBottom: 4 }}>
-            Server mengembalikan error internal (500). Pastikan backend sudah berjalan dengan benar.
-          </p>
-          {(statsErr as { message?: string })?.message && (
-            <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.8rem", fontFamily: "monospace", marginBottom: 4 }}>
-              stats: {(statsErr as { message?: string }).message}
+        <div className="admin-card">
+          <div className="admin-empty">
+            <AlertTriangle size={36} className="admin-empty-icon" aria-hidden="true" />
+            <h3 className="admin-empty-title">Gagal memuat data dashboard</h3>
+            <p className="admin-empty-text">
+              Server mengembalikan error internal (500). Pastikan backend sudah berjalan dengan benar.
             </p>
-          )}
-          {(chartErr as { message?: string })?.message && (
-            <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.8rem", fontFamily: "monospace", marginBottom: 16 }}>
-              chart: {(chartErr as { message?: string }).message}
-            </p>
-          )}
-          <button
-            onClick={() => { refetchStats(); refetchChart(); }}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl mt-4"
-            style={{ backgroundColor: "var(--color-brand-tertiary,#2C5EF5)", color: "#fff", fontWeight: 600, fontSize: "0.9rem" }}
-          >
-            <RefreshCw size={15} /> Coba Lagi
-          </button>
+            {(statsErr as { message?: string })?.message && (
+              <p className="admin-empty-meta">stats: {(statsErr as { message?: string }).message}</p>
+            )}
+            {(chartErr as { message?: string })?.message && (
+              <p className="admin-empty-meta">chart: {(chartErr as { message?: string }).message}</p>
+            )}
+            <button
+              onClick={() => {
+                refetchStats();
+                refetchChart();
+              }}
+              className="admin-btn admin-btn--primary mt-4"
+            >
+              <RefreshCw size={15} aria-hidden="true" /> Coba Lagi
+            </button>
+          </div>
         </div>
       ) : loading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-2xl h-28 animate-pulse" style={{ backgroundColor: "var(--color-surface,#fff)" }} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="admin-skeleton h-32" />
+            ))}
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="admin-skeleton h-28" />
+            ))}
+          </div>
+          <div className="admin-skeleton h-80" />
+        </>
       ) : stats ? (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4 mb-8">
-            <StatCard icon={<DollarSign size={18} />} label="Revenue Hari Ini" value={formatRp(stats.totalRevenueToday)} color="var(--color-brand-tertiary)" bg="var(--color-info-bg)" className="col-span-2" />
-            <StatCard icon={<TrendingUp size={18} />} label="Profit Hari Ini" value={formatRp(stats.totalProfitToday)} color="var(--color-success)" bg="var(--color-success-bg)" className="col-span-2" />
-            <StatCard icon={<ShoppingCart size={18} />} label="Total Order" value={stats.totalOrdersToday.toString()} color="var(--color-info)" bg="var(--color-info-bg)" />
-            <StatCard icon={<CheckCircle size={18} />} label="Order Sukses" value={stats.successOrdersToday.toString()} color="var(--color-success)" bg="var(--color-success-bg)" />
-            <StatCard icon={<Clock size={18} />} label="Order Pending" value={stats.pendingOrdersToday.toString()} color="var(--color-warning)" bg="var(--color-warning-bg)" />
-            <StatCard icon={<XCircle size={18} />} label="Order Gagal" value={stats.failedOrdersToday.toString()} color="var(--color-danger)" bg="var(--color-danger-bg)" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <StatCard hero icon={<DollarSign size={18} />} label="Revenue Hari Ini" value={formatRp(stats.totalRevenueToday)} tone="accent" />
+            <StatCard hero icon={<TrendingUp size={18} />} label="Profit Hari Ini" value={formatRp(stats.totalProfitToday)} tone="success" />
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <StatCard icon={<ShoppingCart size={18} />} label="Total Order" value={stats.totalOrdersToday.toString()} tone="info" />
+            <StatCard icon={<CheckCircle size={18} />} label="Order Sukses" value={stats.successOrdersToday.toString()} tone="success" />
+            <StatCard icon={<Clock size={18} />} label="Order Pending" value={stats.pendingOrdersToday.toString()} tone="warning" />
+            <StatCard icon={<XCircle size={18} />} label="Order Gagal" value={stats.failedOrdersToday.toString()} tone="danger" />
           </div>
 
           {/* Chart */}
-          <div className="rounded-2xl p-6" style={{ backgroundColor: "var(--color-surface,#fff)", border: "1px solid rgba(0,0,0,0.07)" }}>
-            <div className="flex items-center justify-between mb-5">
-              <h3 style={{ color: "var(--color-brand-primary,#0F1419)", fontWeight: 600, fontSize: "1rem" }}>Grafik Pendapatan & Profit</h3>
-              <div className="flex gap-2">
+          <div className="admin-card">
+            <div className="admin-card-head">
+              <h3 className="admin-card-title">Grafik Pendapatan &amp; Profit</h3>
+              <div className="admin-segmented" role="group" aria-label="Rentang grafik">
                 {RANGE_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
                     onClick={() => setChartRange(opt.value)}
-                    className="px-3 py-1.5 rounded-lg transition-all"
-                    style={{
-                      backgroundColor: chartRange === opt.value ? "var(--color-brand-tertiary,#2C5EF5)" : "transparent",
-                      color: chartRange === opt.value ? "#fff" : "var(--color-brand-secondary,#4A5568)",
-                      border: chartRange === opt.value ? "none" : "1px solid rgba(0,0,0,0.1)",
-                      fontSize: "0.8rem",
-                      fontWeight: chartRange === opt.value ? 600 : 400,
-                    }}
+                    className={`admin-segment${chartRange === opt.value ? " admin-segment--active" : ""}`}
+                    aria-pressed={chartRange === opt.value}
                   >
                     {opt.label}
                   </button>
                 ))}
               </div>
             </div>
-            <ResponsiveContainer width="100%" height={280}>
-              <AreaChart data={chart} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="pendapatan" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-brand-tertiary)" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="var(--color-brand-tertiary)" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="profit" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-success)" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="var(--color-success)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
-                <XAxis dataKey="name" tick={{ fontSize: 12, fill: "#4A5568" }} />
-                <YAxis tick={{ fontSize: 11, fill: "#4A5568" }} tickFormatter={(v) => "Rp " + (v / 1000).toLocaleString("id-ID") + "rb"} />
-                <Tooltip
-                  formatter={(value: number, name: string) => [formatRp(value), name === "pendapatan" ? "Pendapatan" : "Profit"]}
-                  contentStyle={{ borderRadius: 12, border: "1px solid rgba(0,0,0,0.1)", fontSize: 13 }}
-                />
-                <Legend />
-                <Area type="monotone" dataKey="pendapatan" stroke="var(--color-brand-tertiary)" fill="url(#pendapatan)" strokeWidth={2} name="Pendapatan" />
-                <Area type="monotone" dataKey="profit" stroke="var(--color-success)" fill="url(#profit)" strokeWidth={2} name="Profit" />
-              </AreaChart>
-            </ResponsiveContainer>
+            {chart.length === 0 ? (
+              <div className="admin-empty">
+                <p className="admin-empty-title">Belum ada transaksi</p>
+                <p className="admin-empty-text">Data grafik akan muncul setelah order pertama masuk.</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={280}>
+                <AreaChart data={chart} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="pendapatan" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--color-brand-tertiary)" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="var(--color-brand-tertiary)" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="profit" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--color-success)" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="var(--color-success)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-lighter)" />
+                  <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: "var(--color-brand-secondary)" }} />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fontSize: 11, fill: "var(--color-brand-secondary)" }}
+                    tickFormatter={(v) => "Rp " + (v / 1000).toLocaleString("id-ID") + "rb"}
+                  />
+                  <Tooltip
+                    formatter={(value: number, name: string) => [formatRp(value), name === "pendapatan" ? "Pendapatan" : "Profit"]}
+                    contentStyle={{
+                      borderRadius: "var(--admin-radius-md)",
+                      border: "1px solid var(--color-border-default)",
+                      boxShadow: "var(--shadow-raised)",
+                      fontSize: 13,
+                    }}
+                  />
+                  <Legend iconType="plainline" wrapperStyle={{ fontSize: 13, paddingTop: 8 }} />
+                  <Area type="monotone" dataKey="pendapatan" stroke="var(--color-brand-tertiary)" fill="url(#pendapatan)" strokeWidth={2} name="Pendapatan" />
+                  <Area type="monotone" dataKey="profit" stroke="var(--color-success)" fill="url(#profit)" strokeWidth={2} name="Profit" />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </>
       ) : null}
