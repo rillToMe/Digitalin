@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { orderService } from "../../../services/api";
 import type { OrderStatus } from "../../../api/index";
-import { ImageWithFallback } from "../../../app/components/figma/ImageWithFallback";
+import { ImageWithFallback } from "../../../utils/ImageWithFallback";
 
 const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: string }> = {
   PENDING:      { label: "Menunggu",   color: "var(--color-warning)",   bg: "var(--color-warning-bg)" },

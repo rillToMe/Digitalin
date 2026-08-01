@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "../../../layouts/AdminLayout";
 import { adminService } from "../../../services/api";
 import type { OrderResponse, OrderStatus } from "../../../api/index";
-import { ImageWithFallback } from "../../../app/components/figma/ImageWithFallback";
+import { ImageWithFallback } from "../../../utils/ImageWithFallback";
 
 function formatRp(n: number) {
   return "Rp " + n.toLocaleString("id-ID");

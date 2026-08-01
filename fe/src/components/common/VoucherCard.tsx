@@ -50,7 +50,7 @@ export default function VoucherCard({ appliedCode, onApply, onRemove, compact = 
   const outerClass = compact ? "rounded-xl px-3 py-3" : "rounded-2xl p-5";
   const iconSize = compact ? 15 : 17;
 
-  // ── Applied state ──────────────────────────────────────────────────────────
+  // ── Applied state 
   if (appliedCode) {
     return (
       <div

@@ -15,8 +15,8 @@ import {
   DialogDescription,
   DialogFooter,
   DialogClose,
-} from "../../../app/components/ui/dialog";
-import { Button } from "../../../app/components/ui/button";
+} from "../../../components/common/dialog";
+import { Button } from "../../../components/common/button";
 
 function formatRp(n: number) {
   return "Rp " + n.toLocaleString("id-ID");

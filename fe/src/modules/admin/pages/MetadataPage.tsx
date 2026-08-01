@@ -8,9 +8,9 @@ import type {
   GameMetadataItem,
   UpdateMetadataPayload
 } from "../../../api/index";
-import type { ModalTab } from "./metadata/utils";
-import { SyncButton } from "./metadata/SyncButton";
-import { GameEditModal } from "./metadata/GameEditModal";
+import type { ModalTab } from "../../../components/admin/metadata/utils";
+import { SyncButton } from "../../../components/admin/metadata/SyncButton";
+import { GameEditModal } from "../../../components/admin/metadata/GameEditModal";
 
 export default function MetadataPage() {
   const queryClient = useQueryClient();
