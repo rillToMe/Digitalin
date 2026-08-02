@@ -38,4 +38,12 @@ public interface IVoucherService
     /// Reserves voucher quota (increments UsedCount). Call only during order creation.
     /// </summary>
     Task ReserveVoucherAsync(Voucher voucher);
+
+    /// <summary>
+    /// Releases a previously reserved quota (decrements UsedCount, only when &gt; 0).
+    /// Call when an order reaches a terminal state without successful fulfillment
+    /// (Expired / Cancel / Deny / Refunded). Idempotency is guaranteed by the caller's
+    /// order status guards — this method must not be relied on as the sole guard.
+    /// </summary>
+    Task ReleaseVoucherAsync(string voucherCode);
 }

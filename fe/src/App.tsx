@@ -39,6 +39,7 @@ const DashboardPage = lazy(() => import("./modules/admin/pages/DashboardPage"));
 const OrdersPage = lazy(() => import("./modules/admin/pages/OrdersPage"));
 const BannersPage = lazy(() => import("./modules/admin/pages/BannersPage"));
 const MetadataPage = lazy(() => import("./modules/admin/pages/MetadataPage"));
+const CategoriesPage = lazy(() => import("./modules/admin/pages/CategoriesPage"));
 const AdminVouchersPage = lazy(() => import("./modules/admin/pages/VouchersPage"));
 const SettingsPage = lazy(() => import("./modules/admin/pages/SettingsPage"));
 const AdminManagementPage = lazy(() => import("./modules/admin/pages/AdminManagementPage"));
@@ -268,6 +269,15 @@ export default function App() {
             element={
               <ProtectedAdminRoute>
                 <MetadataPage />
+              </ProtectedAdminRoute>
+            }
+          />
+
+          <Route
+            path="/admin/categories"
+            element={
+              <ProtectedAdminRoute>
+                <CategoriesPage />
               </ProtectedAdminRoute>
             }
           />

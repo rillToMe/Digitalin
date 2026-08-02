@@ -172,9 +172,9 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins(
                 "http://localhost:5173",
-                "http://127.0.0.1:5173",  // loopback IP fallback for dev
+                "http://127.0.0.1:5173",  
                 "http://localhost:3000",
-                "http://10.54.222.14:5173")
+                "http://10.208.16.245:5173")
             .WithHeaders("Authorization", "Content-Type", "Accept")   
             .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE")               
             .AllowCredentials();

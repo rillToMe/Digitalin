@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Package, ChevronLeft, ChevronRight, Clock, ChevronDown, ChevronUp, CreditCard, Gamepad2 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { orderService } from "../../../services/api";
+import { paySnap, preloadSnap, SnapError } from "../../../services/midtransSnap";
 import type { OrderStatus } from "../../../api/index";
 import { ImageWithFallback } from "../../../utils/ImageWithFallback";
 
@@ -43,32 +44,42 @@ export default function HistoryPage() {
   const orders = data?.data ?? [];
   const totalPages = data?.totalPages ?? 1;
 
+  /* Riwayat bukan halaman transaksi: snap.js hanya ditarik kalau di halaman ini
+     memang ada order yang masih bisa dibayar, supaya kunjungan biasa tidak
+     mengunduh ~726 kB percuma. */
+  const hasPayableOrder = orders.some((order) => order.status === "PENDING" && order.snapToken);
+
+  useEffect(() => {
+    if (hasPayableOrder) preloadSnap();
+  }, [hasPayableOrder]);
+
   const toggleExpand = (id: number) => {
     setExpandedOrders((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const handlePayment = (e: React.MouseEvent, snapToken: string) => {
     e.stopPropagation();
-    if (window.snap) {
-      window.snap.pay(snapToken, {
-        onSuccess: () => {
-          toast.success("Pembayaran Berhasil!");
-          queryClient.invalidateQueries({ queryKey: ["orders"] });
-        },
-        onPending: () => {
-          toast.info("Pembayaran Sedang Diproses.");
-          queryClient.invalidateQueries({ queryKey: ["orders"] });
-        },
-        onError: () => {
-          toast.error("Pembayaran Gagal. Silakan coba lagi.");
-        },
-        onClose: () => {
-          toast.warning("Pembayaran belum diselesaikan.");
-        },
-      });
-    } else {
-      toast.error("Sistem pembayaran belum siap. Silakan hubungi admin.");
-    }
+
+    void paySnap(snapToken, {
+      onSuccess: () => {
+        toast.success("Pembayaran Berhasil!");
+        queryClient.invalidateQueries({ queryKey: ["orders"] });
+      },
+      onPending: () => {
+        toast.info("Pembayaran Sedang Diproses.");
+        queryClient.invalidateQueries({ queryKey: ["orders"] });
+      },
+      onError: () => {
+        toast.error("Pembayaran Gagal. Silakan coba lagi.");
+      },
+      onClose: () => {
+        toast.warning("Pembayaran belum diselesaikan.");
+      },
+    }).catch((err: unknown) => {
+      toast.error(
+        err instanceof SnapError ? err.message : "Sistem pembayaran belum siap. Silakan hubungi admin.",
+      );
+    });
   };
 
   return (

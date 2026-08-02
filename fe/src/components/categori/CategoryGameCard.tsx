@@ -67,13 +67,17 @@ export default function CategoryGameCard({ brand }: CategoryGameCardProps) {
         </div>
       </div>
 
-      <div className="flex items-center px-1 pt-3">
+      {/* Tinggi judul dikunci 2 baris (sesuai line-clamp-2) supaya kartu dengan
+          nama panjang tidak jadi lebih tinggi dari tetangganya di grid. */}
+      <div className="px-1 pt-3">
         <p
           className="line-clamp-2"
           style={{
             color: "var(--color-brand-primary)",
             fontWeight: 600,
             fontSize: "0.9rem",
+            lineHeight: 1.3,
+            minHeight: "2.6em",
           }}
         >
           {brand.brand}

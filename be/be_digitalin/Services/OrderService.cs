@@ -63,6 +63,15 @@ public class OrderService : IOrderService
             metadata,
             request.TargetValues);
 
+        // Jejak customer_no vs template & nilai mentah — agar drift schema/template
+        // (mis. field ter-abaikan saat render) langsung terlihat di log tanpa reproduksi ulang.
+        _logger.LogInformation(
+            "[ORDER] customer_no dirender untuk brand {Brand}: customer_no={CustomerNo}, template={Template}, values={@TargetValues}",
+            product.Brand,
+            fullPlayerId,
+            metadata.TargetTemplate,
+            request.TargetValues);
+
         // Voucher validasi & Diskon validasi (menggunakan shared logic dari VoucherService)
         decimal discountAmount = 0m;
         Voucher? voucher = null;
@@ -113,15 +122,23 @@ public class OrderService : IOrderService
             ProfitAmount = profitAmount
         };
 
-        _db.TopupOrders.Add(order);
-        await _db.SaveChangesAsync();
-
-        // Reserve voucher quota AFTER order is persisted
-        if (voucher != null)
+        // Order + reservasi kuota voucher harus atomik: bila reservasi gagal
+        // (mis. kuota habis), order ikut rollback sehingga tidak tersisa order
+        // PENDING yatim yang terlanjur mencatat diskon.
+        using (var voucherTx = await _db.Database.BeginTransactionAsync())
         {
-            await _voucherService.ReserveVoucherAsync(voucher);
+            _db.TopupOrders.Add(order);
+            await _db.SaveChangesAsync();
+
+            // Reserve voucher quota AFTER order is persisted
+            if (voucher != null)
+            {
+                await _voucherService.ReserveVoucherAsync(voucher);
+            }
+
+            await voucherTx.CommitAsync();
         }
-        
+
         var (token, redirectUrl) = await _midtransProvider.CreateSnapTransactionAsync(
             order.OrderNo, finalPrice, product.Id.ToString(), product.Name, fullPlayerId);
 
@@ -208,7 +225,8 @@ public class OrderService : IOrderService
         if (notification.transaction_status == AppConstants.MidtransStatus.Expire)
         {
             order.Status = AppConstants.OrderStatus.Expired;
-            await SafeSaveChangesAsync(order.OrderNo);
+            if (await SafeSaveChangesAsync(order.OrderNo))
+                await ReleaseVoucherIfPresentAsync(order);
             return;
         }
 
@@ -216,7 +234,8 @@ public class OrderService : IOrderService
             notification.transaction_status == AppConstants.MidtransStatus.Deny)
         {
             order.Status = AppConstants.OrderStatus.Failed;
-            await SafeSaveChangesAsync(order.OrderNo);
+            if (await SafeSaveChangesAsync(order.OrderNo))
+                await ReleaseVoucherIfPresentAsync(order);
             return;
         }
 
@@ -424,6 +443,9 @@ public class OrderService : IOrderService
             // Ubah statusnya
             order.Status = AppConstants.OrderStatus.Refunded;
             await _db.SaveChangesAsync();
+
+            // Lepas kembali kuota voucher — refund adalah terminal tanpa fulfillment.
+            await ReleaseVoucherIfPresentAsync(order);
 
             _logger.LogInformation("[REFUND SUCCESS] Order {OrderNo} berhasil diubah menjadi REFUNDED.", orderNo);
 
@@ -785,18 +807,32 @@ Silakan cek manual di dashboard Digiflazz. Jika pesanan tidak masuk, segera pros
         return result;
     }
 
-    private async Task SafeSaveChangesAsync(string orderNo)
+    private async Task<bool> SafeSaveChangesAsync(string orderNo)
     {
         try
         {
             await _db.SaveChangesAsync();
+            return true;
         }
         catch (DbUpdateConcurrencyException)
         {
             _logger.LogWarning(
                 "[SaveChanges] Konflik konkurensi pada Pesanan {OrderNo}. Perubahan dibatalkan.",
                 orderNo);
+            return false;
         }
+    }
+
+    // ── Release kuota voucher untuk order yang berakhir tanpa fulfillment ──
+    // Idempoten: hanya dipanggil setelah transisi status TERSIMPAN (guard status +
+    // RowVersion memastikan webhook/retry duplikat tidak sampai ke sini dua kali),
+    // dan ReleaseVoucherAsync sendiri hanya menurunkan UsedCount bila > 0.
+    private async Task ReleaseVoucherIfPresentAsync(TopupOrder order)
+    {
+        if (string.IsNullOrWhiteSpace(order.VoucherCode))
+            return;
+
+        await _voucherService.ReleaseVoucherAsync(order.VoucherCode);
     }
 
     private async Task SendStuckOrderAlertAsync(TopupOrder order, string reason)

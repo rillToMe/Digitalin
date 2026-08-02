@@ -9,6 +9,30 @@ Accept: application/json
 
 ---
 
+### A1. Homepage: Batch pertama section kategori (12 game)
+GET {{host}}/games/brands?category=mobile&offset=0&limit=12
+Accept: application/json
+
+---
+
+### A1b. Homepage: Batch "Tampilkan lebih banyak" (24 game berikutnya)
+GET {{host}}/games/brands?category=mobile&offset=12&limit=24
+Accept: application/json
+
+---
+
+### A1c. Homepage: Section "Lainnya" (brand yang belum dikategorikan admin)
+GET {{host}}/games/brands?category=lainnya&offset=0&limit=6
+Accept: application/json
+
+---
+
+### A2. Homepage: Ambil Daftar Kategori Storefront
+GET {{host}}/games/categories
+Accept: application/json
+
+---
+
 ### B. Halaman Detail: Ambil Daftar Diamond
 GET {{host}}/games/mobile-legends
 Accept: application/json
@@ -38,5 +62,12 @@ Content-Type: application/json
 
 ### B. Cek Riwayat Pesanan (Harus pakai Token)
 GET {{host}}/admin/orders
+Authorization: Bearer {{adminToken}}
+Accept: application/json
+
+---
+
+### C. Cek Saldo Digiflazz (live dari supplier)
+GET {{host}}/admin/dashboard/balance
 Authorization: Bearer {{adminToken}}
 Accept: application/json

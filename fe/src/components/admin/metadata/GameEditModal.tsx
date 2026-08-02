@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   X,
   Loader2,
@@ -11,6 +12,7 @@ import type {
   GameEditModalProps,
   ModalTab,
 } from "../../../api/index";
+import { adminService } from "../../../services/api";
 import { CATEGORY_DEFINITIONS } from "../../../data/gameCategories";
 import { ProductMarginList } from "./ProductMarginList";
 import { DynamicInputFieldsEditor } from "./DynamicInputFieldsEditor";
@@ -23,6 +25,15 @@ export function GameEditModal({
   updateMutation, coverMutation, marginMutation, onClose,
 }: GameEditModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Registry kategori dari admin (termasuk kategori custom & yang belum dipakai).
+  // Cache dibagi dengan CategoriesPage, fallback ke definisi statis selama loading.
+  const { data: registry } = useQuery({
+    queryKey: ["adminGameCategories"],
+    queryFn: adminService.getGameCategories,
+    staleTime: 60_000,
+  });
+  const categories = registry ?? CATEGORY_DEFINITIONS;
 
   const handleCoverUpload = () => {
     if (!coverFile) return;
@@ -46,6 +57,28 @@ export function GameEditModal({
     updateMutation.mutate({
       id: item.id,
       payload: form,
+    });
+  };
+
+  // Satu game boleh masuk beberapa kategori (game PC yang juga rilis mobile).
+  const selectedCategories = form.categories ?? [];
+
+  // Slug yang sudah tersimpan tapi tidak ada di registry (dihapus admin, atau
+  // registry belum termuat) tetap ditampilkan — kalau tidak, tercentangnya
+  // hilang dari UI lalu terhapus diam-diam saat simpan.
+  const categoryOptions = [
+    ...categories,
+    ...selectedCategories
+      .filter((slug) => !categories.some((c) => c.slug === slug))
+      .map((slug) => ({ slug, name: slug })),
+  ];
+
+  const toggleCategory = (slug: string) => {
+    setForm({
+      ...form,
+      categories: selectedCategories.includes(slug)
+        ? selectedCategories.filter((s) => s !== slug)
+        : [...selectedCategories, slug],
     });
   };
 
@@ -123,27 +156,39 @@ export function GameEditModal({
                 setForm={setForm}
               />
 
-              {/* Kategori Storefront */}
-              <div>
-                <label style={{ color: "var(--color-brand-primary,#0F1419)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 8 }}>Kategori Storefront</label>
-                <select
-                  value={form.category ?? ""}
-                  onChange={(e) => setForm({ ...form, category: e.target.value === "" ? null : e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-xl"
-                  style={{ border: "1px solid rgba(0,0,0,0.1)", color: "var(--color-brand-primary,#0F1419)", fontSize: "0.85rem", backgroundColor: "var(--color-surface,#fff)" }}
-                >
-                  <option value="">Tanpa Kategori</option>
-                  {CATEGORY_DEFINITIONS.map((c) => (
-                    <option key={c.slug} value={c.slug}>{c.name}</option>
-                  ))}
-                  {form.category && !CATEGORY_DEFINITIONS.some((c) => c.slug === form.category) && (
-                    <option value={form.category}>{form.category}</option>
-                  )}
-                </select>
-                <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.75rem", marginTop: 6 }}>
-                  Tab kategori di halaman utama. Kosongkan agar game masuk "Lainnya".
+              {/* Kategori Storefront — checkbox, bukan select: satu game bisa
+                  masuk beberapa kategori sekaligus. */}
+              <fieldset>
+                <legend style={{ color: "var(--color-brand-primary)", fontSize: "0.85rem", fontWeight: 500, marginBottom: 8 }}>Kategori Storefront</legend>
+                <div className="flex flex-wrap gap-2">
+                  {categoryOptions.map((c) => {
+                    const checked = selectedCategories.includes(c.slug);
+                    return (
+                      <label
+                        key={c.slug}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer"
+                        style={{
+                          border: `1px solid ${checked ? "var(--color-brand-tertiary)" : "var(--color-border-input)"}`,
+                          backgroundColor: checked ? "var(--color-accent-tint)" : "var(--color-surface)",
+                          color: "var(--color-brand-primary)",
+                          fontSize: "0.85rem",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleCategory(c.slug)}
+                          style={{ accentColor: "var(--color-brand-tertiary)" }}
+                        />
+                        {c.name}
+                      </label>
+                    );
+                  })}
+                </div>
+                <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.75rem", marginTop: 6 }}>
+                  Tab kategori di halaman utama. Boleh pilih lebih dari satu; kosongkan agar game masuk "Lainnya".
                 </p>
-              </div>
+              </fieldset>
 
               <DynamicInputFieldsEditor
                 form={form}

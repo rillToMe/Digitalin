@@ -12,7 +12,13 @@ public class DashboardStatsResponse
 }
 
 public record ChartDataResponse(
-    string Name, 
+    string Name,
     decimal Pendapatan,
     decimal Profit
 );
+
+// Saldo supplier — diambil live dari Digiflazz, tidak disimpan di database.
+public class DigiflazzBalanceResponse
+{
+    public decimal Deposit { get; set; }
+}

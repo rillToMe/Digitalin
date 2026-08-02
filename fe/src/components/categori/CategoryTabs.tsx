@@ -1,19 +1,23 @@
 import { useRef } from "react";
 import type { GameCategoryItem } from "../../api/index";
-import { CATEGORY_ICONS } from "../../data/gameCategories";
+import { categoryIcon } from "../../data/gameCategories";
 
 interface CategoryTabsProps {
   categories: GameCategoryItem[];
   activeCategory: string;
   onChange: (slug: string) => void;
+  isLoading?: boolean;
 }
+
+/** Lebar pill dibedakan supaya tidak terlihat seperti deret blok identik */
+const SKELETON_PILL_WIDTHS = [96, 128, 108, 120, 100];
 
 /**
  * Pill tabs kategori storefront.
  * Interaksi: transisi warna CSS antar tab, badge jumlah brand,
  * keyboard navigation (ArrowLeft/ArrowRight/Home/End) dengan roving tabindex.
  */
-export default function CategoryTabs({ categories, activeCategory, onChange }: CategoryTabsProps) {
+export default function CategoryTabs({ categories, activeCategory, onChange, isLoading }: CategoryTabsProps) {
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const handleKeyDown = (e: React.KeyboardEvent, index: number) => {
@@ -30,6 +34,29 @@ export default function CategoryTabs({ categories, activeCategory, onChange }: C
     tabRefs.current[nextIndex]?.focus();
   };
 
+  // Padding, font-size, dan border disamakan dengan pill asli supaya tinggi
+  // baris tab tidak berubah saat kategori selesai dimuat.
+  if (isLoading) {
+    return (
+      <div className="flex gap-2 overflow-x-auto pb-2" aria-hidden="true" style={{ scrollbarWidth: "none" }}>
+        {SKELETON_PILL_WIDTHS.map((width, i) => (
+          <div
+            key={i}
+            className="flex-shrink-0 animate-pulse rounded-full px-4 py-2"
+            style={{
+              width,
+              backgroundColor: "var(--color-skeleton)",
+              border: "1px solid transparent",
+              fontSize: "0.85rem",
+            }}
+          >
+            &nbsp;
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div
       role="tablist"
@@ -39,7 +66,7 @@ export default function CategoryTabs({ categories, activeCategory, onChange }: C
     >
       {categories.map((cat, index) => {
         const active = cat.slug === activeCategory;
-        const Icon = CATEGORY_ICONS[cat.slug];
+        const Icon = categoryIcon(cat.slug);
 
         return (
           <button
@@ -61,7 +88,7 @@ export default function CategoryTabs({ categories, activeCategory, onChange }: C
               fontSize: "0.85rem",
             }}
           >
-            {Icon && <Icon size={15} />}
+            <Icon size={15} aria-hidden="true" />
             {cat.name}
             <span
               className="rounded-full px-1.5 py-0.5 leading-none"

@@ -13,6 +13,7 @@ import type {
   UpdateProfilePayload,
   ProfileResponse,
   BrandsResponse,
+  BrandsQueryParams,
   BrandDetailResponse,
   GameCategoriesResponse,
   CreateOrderPayload,
@@ -23,12 +24,15 @@ import type {
   BannersResponse,
   CreateBannerResponse,
   DashboardStatsResponse,
+  DigiflazzBalanceResponse,
   ChartResponse,
   ChartQueryParams,
   MetadataListResponse,
   UpdateMetadataPayload,
   GameMetadataItem,
   GameTemplateListResponse,
+  UpdateGameCategoriesPayload,
+  UpdateGameCategoriesResponse,
   AdminProductsListResponse,
   AdminProductResponse,
   CreateProductPayload,
@@ -153,8 +157,12 @@ export const adminAuthService = {
 
 // Brands
 export const brandService = {
-  getAll: () =>
-    api.get<BrandsResponse>("/games/brands").then((r) => r.data),
+  /** Tanpa params = katalog penuh; dengan category/offset/limit = satu batch section. */
+  getAll: (params?: BrandsQueryParams) =>
+    api.get<BrandsResponse>("/games/brands", { params }).then((r) => r.data),
+  /** Section "Populer" homepage — peringkat penjualan, dihitung BE. */
+  getPopular: () =>
+    api.get<BrandsResponse>("/games/brands/popular").then((r) => r.data),
   getBySlug: (slug: string) =>
     api.get<BrandDetailResponse>(`/games/${slug}`).then((r) => r.data),
 };
@@ -195,6 +203,8 @@ export const adminService = {
     api.get<DashboardStatsResponse>("/admin/dashboard/stats").then((r) => r.data),
   getChart: (params: ChartQueryParams) =>
     api.get<ChartResponse>("/admin/dashboard/chart", { params }).then((r) => r.data),
+  getDigiflazzBalance: () =>
+    api.get<DigiflazzBalanceResponse>("/admin/dashboard/balance").then((r) => r.data),
 
   // Products
   getProducts: (params: AdminProductsQueryParams) =>
@@ -223,6 +233,10 @@ export const adminService = {
   // Metadata
   getGameTemplates: () =>
     api.get<GameTemplateListResponse>("/admin/system/game-templates").then((r) => r.data),
+  getGameCategories: () =>
+    api.get<GameCategoriesResponse>("/admin/system/game-categories").then((r) => r.data),
+  updateGameCategories: (payload: UpdateGameCategoriesPayload) =>
+    api.put<UpdateGameCategoriesResponse>("/admin/system/game-categories", payload).then((r) => r.data),
   getMetadata: () =>
     api.get<MetadataListResponse>("/admin/system/metadata").then((r) => r.data),
   updateMetadata: (id: number, payload: UpdateMetadataPayload) =>

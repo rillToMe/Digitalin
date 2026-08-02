@@ -1,5 +1,6 @@
 using be_digitalin.Data;
 using be_digitalin.DTOs;
+using be_digitalin.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace be_digitalin.Services;
@@ -31,14 +32,24 @@ public class SearchService : ISearchService
             .OrderBy(m => m.Brand.ToLower().StartsWith(lowerKeyword) ? 0 : 1)
             .ThenBy(m => m.Brand)
             .Take(limit)
+            .Select(m => new
+            {
+                m.Id,
+                m.Brand,
+                m.ImageUrl,
+                m.Categories
+            })
+            .ToListAsync();
+
+        // Kategori disimpan CSV di satu kolom → dipecah di memori (maks 50 baris).
+        return results
             .Select(m => new GameSearchResult(
                 m.Id,
                 m.Brand,
                 m.Brand.ToLower().Replace(" ", "-"),
-                m.ImageUrl
+                m.ImageUrl,
+                GameMetadata.ParseCategories(m.Categories)
             ))
-            .ToListAsync();
-
-        return results;
+            .ToList();
     }
 }

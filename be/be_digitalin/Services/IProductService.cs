@@ -12,7 +12,35 @@ public interface IProductService
         int page,
         int limit);
 
-    Task<IEnumerable<CategoryInfo>> GetUniqueGameBrandsAsync();
+    /// <summary>
+    /// Brand katalog homepage. Semua argumen opsional: tanpa argumen = seluruh
+    /// katalog; <paramref name="category"/> null/"all" = tanpa filter, "lainnya" =
+    /// brand yang belum dikategorikan.
+    /// </summary>
+    Task<IEnumerable<CategoryInfo>> GetUniqueGameBrandsAsync(
+        string? category = null,
+        int offset = 0,
+        int? limit = null);
+
+    /// <summary>
+    /// Brand terpopuler untuk section otomatis di homepage: order COMPLETED
+    /// 30 hari terakhir, peringkat turun, hanya brand yang masih punya produk
+    /// Games aktif. Kosong bila belum ada penjualan.
+    /// </summary>
+    Task<IEnumerable<CategoryInfo>> GetPopularGameBrandsAsync();
+
+    Task<IEnumerable<GameCategoryInfo>> GetGameCategoriesAsync();
+
+    /// <summary>Registry kategori storefront untuk admin — termasuk kategori tanpa game.</summary>
+    Task<IEnumerable<GameCategoryInfo>> GetGameCategoryRegistryAsync();
+
+    /// <summary>
+    /// Ganti seluruh registry kategori (urutan, nama, tambah, hapus).
+    /// Melempar <see cref="InvalidOperationException"/> bila payload tidak valid
+    /// atau ada kategori dihapus yang masih dipakai game.
+    /// </summary>
+    Task<IEnumerable<GameCategoryInfo>> UpdateGameCategoryRegistryAsync(
+        UpdateGameCategoriesRequest request);
 
     Task<IEnumerable<ProductResponse>> GetAllProductsAsync();
 

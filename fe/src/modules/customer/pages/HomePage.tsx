@@ -7,11 +7,20 @@ import { ChevronLeft, ChevronRight, HelpCircle, ArrowRight,
   Headphones,
  } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { bannerService, brandService } from "../../../services/api";
+import { bannerService } from "../../../services/api";
 import type { BannerItem } from "../../../api/index";
 import { getFeaturedFaqs } from "../../../data/faqs";
 import FaqAccordion from "../../../components/common/FaqAccordion";
 import CategorySection from "../../../components/categori/CategorySection";
+
+/**
+ * Frame hero: rasio mengecil di layar lebar + tinggi dikunci maksimal 300px,
+ * supaya tab kategori dan baris kartu pertama tetap kelihatan tanpa scroll.
+ * Saat max-h aktif, browser menyusutkan lebar demi menjaga rasio — tanpa
+ * mx-auto sisa ruangnya menumpuk di kanan dan banner terlihat mepet kiri.
+ * Dipakai carousel dan skeleton-nya sekaligus agar tidak ada layout shift.
+ */
+const HERO_FRAME = "mx-auto aspect-[16/9] sm:aspect-[24/9] max-h-[300px]";
 
 function HeroCarousel({ banners }: { banners: BannerItem[] }) {
   const [current, setCurrent] = useState(0);
@@ -27,7 +36,7 @@ function HeroCarousel({ banners }: { banners: BannerItem[] }) {
   if (!banners.length) return null;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl" style={{ aspectRatio: "22/9" }}>
+    <div className={`relative overflow-hidden rounded-2xl center ${HERO_FRAME}`}>
       {/* Semua slide di-mount lalu di-crossfade lewat opacity — tidak perlu
           AnimatePresence, dan gambarnya tidak di-load ulang tiap ganti slide. */}
       {banners.map((banner, i) => (
@@ -98,24 +107,19 @@ export default function HomePage() {
     queryFn: bannerService.getAll,
   });
 
-  const { data: brands = [], isLoading: brandsLoading } = useQuery({
-    queryKey: ["brands"],
-    queryFn: brandService.getAll,
-  });
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Hero */}
       <section className="mb-8">
         {bannersLoading ? (
-          <div className="rounded-2xl animate-pulse" style={{ aspectRatio: "22/9", backgroundColor: "var(--color-surface, #fff)" }} />
+          <div className={`rounded-2xl animate-pulse ${HERO_FRAME}`} style={{ backgroundColor: "var(--color-skeleton)" }} />
         ) : (
           <HeroCarousel banners={banners} />
         )}
       </section>
 
       {/* Game Categories */}
-      <CategorySection brands={brands} isLoading={brandsLoading} />
+      <CategorySection />
 
       {/* Trust badges */}
       <section className="mt-16">

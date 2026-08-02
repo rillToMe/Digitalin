@@ -579,6 +579,90 @@
   color: var(--color-danger);
 }
 
+/* --- Data table ---------------------------------------------------------- */
+
+/* Tabel 10 kolom tidak bisa dipakai di layar kecil: scroll horizontal di
+   dalam <div> susah dikenai jempol karena bersaing dengan scroll halaman,
+   dan menyembunyikan kolom saja tidak cukup — invoice + status + tombol aksi
+   sudah melebihi 360px. Jadi di mobile tiap <tr> jadi kartu label→nilai
+   (vertikal, arah scroll yang natural), dan kolom yang sudah ada di modal
+   Detail Order disembunyikan lewat .admin-col-wide.
+
+   Harga yang dibayar: mengubah `display` elemen tabel menghapus semantik
+   tabel dari a11y tree, jadi role table/rowgroup/row/columnheader/cell
+   dipasang eksplisit di JSX. */
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+@media (max-width: 767px) {
+  .admin-table,
+  .admin-table thead,
+  .admin-table tbody,
+  .admin-table tr,
+  .admin-table th,
+  .admin-table td {
+    display: block;
+  }
+
+  .admin-table .admin-col-wide {
+    display: none;
+  }
+
+  /* Label kolom pindah ke ::before tiap sel, jadi baris header tidak perlu
+     tampil — disembunyikan secara visual saja, tetap dibaca screen reader. */
+  .admin-table thead tr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .admin-table tbody tr {
+    padding: 10px 0;
+  }
+
+  .admin-table tbody td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 5px 16px;
+    text-align: right;
+  }
+
+  .admin-table tbody td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    font-family: var(--admin-font-mono);
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-brand-secondary);
+    text-align: left;
+  }
+
+  /* Sel tanpa label (skeleton, empty state) tidak perlu prefix. */
+  .admin-table tbody td:not([data-label])::before {
+    content: none;
+  }
+
+  .admin-table tbody td[colspan] {
+    text-align: center;
+  }
+
+  /* 32px terlalu kecil untuk target sentuh. Dibatasi ke dalam tabel supaya
+     tombol ikon di modal dan pagination tidak ikut membesar. */
+  .admin-table tbody button {
+    width: 40px;
+    height: 40px;
+  }
+}
+
 .admin-skeleton {
   border-radius: var(--admin-radius-lg);
   background-color: var(--color-skeleton);

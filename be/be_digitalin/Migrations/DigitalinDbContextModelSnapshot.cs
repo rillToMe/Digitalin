@@ -181,6 +181,10 @@ namespace be_digitalin.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
+                    b.Property<string>("Categories")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
                     b.Property<string>("ImageUrl")
                         .HasColumnType("longtext");
 

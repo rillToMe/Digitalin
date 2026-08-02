@@ -1,4 +1,5 @@
-﻿using be_digitalin.Services;
+﻿using be_digitalin.DTOs;
+using be_digitalin.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace be_digitalin.Endpoints;
@@ -31,6 +32,20 @@ public static class DashboardEndpoints
                 return Results.BadRequest(new { message = error });
 
             return Results.Ok(data);
+        });
+
+        // GET /admin/dashboard/balance
+        adminGroup.MapGet("/balance", async (
+            [FromServices] IDashboardService dashboardService,
+            CancellationToken cancellationToken) =>
+        {
+            var (deposit, error) = await dashboardService.GetSupplierBalanceAsync(cancellationToken);
+
+            // 502: yang gagal adalah supplier di hulu, bukan request admin-nya.
+            if (error != null)
+                return Results.Json(new { message = error }, statusCode: StatusCodes.Status502BadGateway);
+
+            return Results.Ok(new DigiflazzBalanceResponse { Deposit = deposit!.Value });
         });
     }
 }

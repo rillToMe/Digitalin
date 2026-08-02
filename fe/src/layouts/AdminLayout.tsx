@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { ChevronRight, Menu } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
-import { AdminSidebar } from "../modules/admin/components/AdminSidebar";
+import { AdminSidebar } from "../components/admin/sidenav/AdminSidebar";
 
 interface AdminLayoutProps {
   children: React.ReactNode;

@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { Suspense, lazy, useState } from "react";
 import { TrendingUp, ShoppingCart, CheckCircle, Clock, XCircle, DollarSign, AlertTriangle, RefreshCw } from "lucide-react";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { AdminLayout } from "../../../layouts/AdminLayout";
 import { adminService } from "../../../services/api";
 import type { ChartRange } from "../../../api/index";
+
+/* Chart.js hanya dibutuhkan saat ada data untuk digambar, jadi dipisah dari
+   chunk DashboardPage — stat card sudah tampil sebelum chart-nya sampai. */
+const RevenueChart = lazy(() => import("../../../components/admin/RevenueChart"));
 
 function formatRp(n: number) {
   return "Rp " + n.toLocaleString("id-ID");
@@ -37,6 +40,49 @@ function StatCard({
         <span className={`admin-stat-icon admin-stat-icon--${tone}`}>{icon}</span>
       </div>
       <p className="admin-stat-value">{value}</p>
+    </div>
+  );
+}
+
+/**
+ * Saldo supplier dipisah dari query stats: angkanya datang dari Digiflazz, jadi
+ * kalau supplier lambat/down (BE balas 502) hanya kartu ini yang gagal — bukan
+ * seluruh dashboard. staleTime 60s + tombol refresh menahan panggilan berulang
+ * ke supplier setiap kali tab dashboard difokuskan kembali.
+ */
+function SupplierBalanceCard() {
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
+    queryKey: ["digiflazz-balance"],
+    queryFn: adminService.getDigiflazzBalance,
+    staleTime: 60_000,
+    retry: 1,
+  });
+
+  const serverMessage = (error as { response?: { data?: { message?: string } } } | null)
+    ?.response?.data?.message;
+
+  return (
+    <div className="admin-stat admin-stat--hero">
+      <div className="admin-stat-top">
+        <span className="admin-stat-label">Saldo Digiflazz</span>
+        <button
+          type="button"
+          onClick={() => void refetch()}
+          disabled={isFetching}
+          className="admin-iconbtn"
+          aria-label="Perbarui saldo Digiflazz"
+        >
+          <RefreshCw size={16} className={isFetching ? "animate-spin" : undefined} aria-hidden="true" />
+        </button>
+      </div>
+      <p className="admin-stat-value">
+        {isLoading ? "…" : isError || !data ? "Gagal dimuat" : formatRp(data.deposit)}
+      </p>
+      {isError && (
+        <p className="admin-empty-meta" role="status">
+          {serverMessage ?? "Saldo tidak bisa diambil dari supplier."}
+        </p>
+      )}
     </div>
   );
 }
@@ -88,8 +134,8 @@ export default function DashboardPage() {
         </div>
       ) : loading ? (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-            {Array.from({ length: 2 }).map((_, i) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+            {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="admin-skeleton h-32" />
             ))}
           </div>
@@ -102,9 +148,10 @@ export default function DashboardPage() {
         </>
       ) : stats ? (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
             <StatCard hero icon={<DollarSign size={18} />} label="Revenue Hari Ini" value={formatRp(stats.totalRevenueToday)} tone="accent" />
             <StatCard hero icon={<TrendingUp size={18} />} label="Profit Hari Ini" value={formatRp(stats.totalProfitToday)} tone="success" />
+            <SupplierBalanceCard />
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -137,40 +184,9 @@ export default function DashboardPage() {
                 <p className="admin-empty-text">Data grafik akan muncul setelah order pertama masuk.</p>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <AreaChart data={chart} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="pendapatan" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--color-brand-tertiary)" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="var(--color-brand-tertiary)" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="profit" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--color-success)" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="var(--color-success)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-lighter)" />
-                  <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: "var(--color-brand-secondary)" }} />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fontSize: 11, fill: "var(--color-brand-secondary)" }}
-                    tickFormatter={(v) => "Rp " + (v / 1000).toLocaleString("id-ID") + "rb"}
-                  />
-                  <Tooltip
-                    formatter={(value: number, name: string) => [formatRp(value), name === "pendapatan" ? "Pendapatan" : "Profit"]}
-                    contentStyle={{
-                      borderRadius: "var(--admin-radius-md)",
-                      border: "1px solid var(--color-border-default)",
-                      boxShadow: "var(--shadow-raised)",
-                      fontSize: 13,
-                    }}
-                  />
-                  <Legend iconType="plainline" wrapperStyle={{ fontSize: 13, paddingTop: 8 }} />
-                  <Area type="monotone" dataKey="pendapatan" stroke="var(--color-brand-tertiary)" fill="url(#pendapatan)" strokeWidth={2} name="Pendapatan" />
-                  <Area type="monotone" dataKey="profit" stroke="var(--color-success)" fill="url(#profit)" strokeWidth={2} name="Profit" />
-                </AreaChart>
-              </ResponsiveContainer>
+              <Suspense fallback={<div className="admin-skeleton" style={{ height: 280 }} />}>
+                <RevenueChart data={chart} />
+              </Suspense>
             )}
           </div>
         </>

@@ -6,6 +6,7 @@ import { AdminLayout } from "../../../layouts/AdminLayout";
 import { adminService } from "../../../services/api";
 import type { OrderResponse, OrderStatus } from "../../../api/index";
 import { ImageWithFallback } from "../../../utils/ImageWithFallback";
+import { cellProps, type AdminColumn } from "../../../components/admin/adminTable";
 
 function formatRp(n: number) {
   return "Rp " + n.toLocaleString("id-ID");
@@ -33,6 +34,24 @@ const STATUS_STYLES: Record<OrderStatus, { bg: string; text: string; label: stri
 };
 
 const PAGE_SIZE = 10;
+
+/* Satu sumber untuk header kolom dan label kartu di mobile, supaya keduanya
+   tidak bisa lepas sinkron. wide = disembunyikan di layar kecil; semuanya
+   tetap ada di modal Detail Order, jadi tidak ada data yang hilang. */
+const COLUMNS: AdminColumn[] = [
+  { label: "Invoice" },
+  { label: "Tanggal", wide: true },
+  { label: "Player ID" },
+  { label: "Produk" },
+  { label: "Harga Asli", wide: true },
+  { label: "Diskon", wide: true },
+  { label: "Total Bayar" },
+  { label: "Status" },
+  { label: "SN / Token", wide: true },
+  { label: "Aksi" },
+];
+
+const cell = cellProps(COLUMNS);
 
 export default function OrdersPage() {
   const queryClient = useQueryClient();
@@ -166,20 +185,28 @@ export default function OrdersPage() {
       {/* Table */}
       <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border-light)" }}>
         <div className="overflow-x-auto">
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ borderBottom: "1px solid var(--color-border-light)", backgroundColor: "var(--color-neutral)" }}>
-                {["Invoice", "Tanggal", "Player ID", "Produk", "Harga Asli", "Diskon", "Total Bayar", "Status", "SN / Token", "Aksi"].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left" style={{ color: "var(--color-brand-secondary)", fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</th>
+          <table className="admin-table" role="table">
+            <thead role="rowgroup">
+              <tr role="row" style={{ borderBottom: "1px solid var(--color-border-light)", backgroundColor: "var(--color-neutral)" }}>
+                {COLUMNS.map((c) => (
+                  <th
+                    key={c.label}
+                    role="columnheader"
+                    scope="col"
+                    className={`px-4 py-3 text-left${c.wide ? " admin-col-wide" : ""}`}
+                    style={{ color: "var(--color-brand-secondary)", fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}
+                  >
+                    {c.label}
+                  </th>
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i}>
-                    {Array.from({ length: 10 }).map((__, j) => (
-                      <td key={j} className="px-4 py-3">
+                  <tr key={i} role="row">
+                    {COLUMNS.map((c) => (
+                      <td key={c.label} role="cell" className={`px-4 py-3${c.wide ? " admin-col-wide" : ""}`}>
                         <div className="h-4 rounded animate-pulse" style={{ backgroundColor: "var(--color-skeleton)" }} />
                       </td>
                     ))}
@@ -188,29 +215,29 @@ export default function OrdersPage() {
               ) : orders.map((o) => {
                 const styleCfg = STATUS_STYLES[o.status] ?? { bg: "var(--color-neutral)", text: "var(--color-brand-secondary)", label: o.status };
                 return (
-                  <tr key={o.id} style={{ borderBottom: "1px solid var(--color-border-lighter)" }}>
-                    <td className="px-4 py-3">
+                  <tr key={o.id} role="row" style={{ borderBottom: "1px solid var(--color-border-lighter)" }}>
+                    <td {...cell("Invoice")}>
                       <span style={{ fontFamily: "monospace", fontSize: "0.85rem", color: "var(--color-brand-primary)", fontWeight: 600 }}>{o.orderNo}</span>
                     </td>
-                    <td className="px-4 py-3" style={{ color: "var(--color-brand-secondary)", fontSize: "0.82rem" }}>
+                    <td {...cell("Tanggal")} style={{ color: "var(--color-brand-secondary)", fontSize: "0.82rem" }}>
                       {formatDate(o.orderDate)}
                     </td>
-                    <td className="px-4 py-3">
+                    <td {...cell("Player ID")}>
                       <span style={{ fontFamily: "monospace", fontSize: "0.85rem", color: "var(--color-brand-primary)" }}>{o.playerId}</span>
                     </td>
-                    <td className="px-4 py-3" style={{ color: "var(--color-brand-primary)", fontSize: "0.85rem", fontWeight: 500 }}>
+                    <td {...cell("Produk")} style={{ color: "var(--color-brand-primary)", fontSize: "0.85rem", fontWeight: 500 }}>
                       {o.productName}
                     </td>
-                    <td className="px-4 py-3" style={{ color: "var(--color-brand-secondary)", fontSize: "0.85rem" }}>
+                    <td {...cell("Harga Asli")} style={{ color: "var(--color-brand-secondary)", fontSize: "0.85rem" }}>
                       {formatRp(o.price)}
                     </td>
-                    <td className="px-4 py-3" style={{ color: o.discountAmount > 0 ? "var(--color-success)" : "var(--color-brand-secondary)", fontSize: "0.85rem", fontWeight: o.discountAmount > 0 ? 600 : 400 }}>
+                    <td {...cell("Diskon")} style={{ color: o.discountAmount > 0 ? "var(--color-success)" : "var(--color-brand-secondary)", fontSize: "0.85rem", fontWeight: o.discountAmount > 0 ? 600 : 400 }}>
                       {o.discountAmount > 0 ? `-${formatRp(o.discountAmount)}` : "-"}
                     </td>
-                    <td className="px-4 py-3" style={{ color: "var(--color-brand-tertiary)", fontSize: "0.9rem", fontWeight: 700 }}>
+                    <td {...cell("Total Bayar")} style={{ color: "var(--color-brand-tertiary)", fontSize: "0.9rem", fontWeight: 700 }}>
                       {formatRp(o.finalPrice)}
                     </td>
-                    <td className="px-4 py-3">
+                    <td {...cell("Status")}>
                       <span className="px-2.5 py-1 rounded-full whitespace-nowrap" style={{
                         backgroundColor: styleCfg.bg,
                         color: styleCfg.text,
@@ -220,14 +247,14 @@ export default function OrdersPage() {
                         {styleCfg.label}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td {...cell("SN / Token")}>
                       {o.sn ? (
                         <span style={{ fontFamily: "monospace", fontSize: "0.82rem", color: "var(--color-brand-secondary)" }} className="block max-w-[150px] truncate" title={o.sn}>{o.sn}</span>
                       ) : (
                         <span style={{ color: "var(--color-brand-secondary)", fontSize: "0.78rem" }}>-</span>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td {...cell("Aksi")}>
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => setDetailTarget(o)}
@@ -235,10 +262,10 @@ export default function OrdersPage() {
                           style={{ color: "var(--color-brand-secondary)" }}
                           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--color-hover-neutral)"; }}
                           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-                          aria-label="Detail Order"
+                          aria-label={`Detail order ${o.orderNo}`}
                           title="Detail Order"
                         >
-                          <Eye size={15} />
+                          <Eye size={15} aria-hidden="true" />
                         </button>
                         {o.status === "NEEDS_ACTION" && (
                           <>
@@ -248,10 +275,10 @@ export default function OrdersPage() {
                               style={{ color: "var(--color-brand-tertiary)" }}
                               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--color-hover-info)"; }}
                               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-                              aria-label="Retry Order"
+                              aria-label={`Retry order ${o.orderNo}`}
                               title="Retry Order"
                             >
-                              <RefreshCw size={15} />
+                              <RefreshCw size={15} aria-hidden="true" />
                             </button>
                             <button
                               onClick={() => setRefundTarget(o)}
@@ -259,10 +286,10 @@ export default function OrdersPage() {
                               style={{ color: "var(--color-danger)" }}
                               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--color-hover-danger)"; }}
                               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-                              aria-label="Refund Order"
+                              aria-label={`Refund order ${o.orderNo}`}
                               title="Refund Order"
                             >
-                              <Undo2 size={15} />
+                              <Undo2 size={15} aria-hidden="true" />
                             </button>
                           </>
                         )}
@@ -272,8 +299,8 @@ export default function OrdersPage() {
                 );
               })}
               {!loading && orders.length === 0 && (
-                <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center" style={{ color: "var(--color-brand-secondary)" }}>Tidak ada order ditemukan</td>
+                <tr role="row">
+                  <td role="cell" colSpan={COLUMNS.length} className="px-4 py-12 text-center" style={{ color: "var(--color-brand-secondary)" }}>Tidak ada order ditemukan</td>
                 </tr>
               )}
             </tbody>

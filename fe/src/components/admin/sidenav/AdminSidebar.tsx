@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   ClipboardList,
   Gamepad2,
+  LayoutGrid,
   Image as ImageIcon,
   Ticket,
   ShieldCheck,
@@ -38,6 +39,7 @@ const NAV_GROUPS: AdminNavGroup[] = [
     label: "Katalog",
     items: [
       { label: "Metadata Game", path: "/admin/metadata", icon: Gamepad2 },
+      { label: "Kategori", path: "/admin/categories", icon: LayoutGrid },
       { label: "Banners", path: "/admin/banners", icon: ImageIcon },
       { label: "Vouchers", path: "/admin/vouchers", icon: Ticket },
     ],

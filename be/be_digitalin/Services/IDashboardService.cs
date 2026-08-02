@@ -8,4 +8,7 @@ public interface IDashboardService
 
     Task<(IEnumerable<ChartDataResponse>? Data, string? Error)> GetChartAsync(
         string range, string? startDate, string? endDate);
+
+    Task<(decimal? Deposit, string? Error)> GetSupplierBalanceAsync(
+        CancellationToken cancellationToken = default);
 }

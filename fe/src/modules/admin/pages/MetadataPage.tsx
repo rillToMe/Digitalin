@@ -19,7 +19,7 @@ export default function MetadataPage() {
   const [form, setForm] = useState<UpdateMetadataPayload>({
     inputFields: [],
     targetTemplate: "",
-    category: null,
+    categories: [],
   });
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
@@ -114,7 +114,7 @@ export default function MetadataPage() {
         options: [...field.options],
       })),
       targetTemplate: item.targetTemplate,
-      category: item.category,
+      categories: [...item.categories],
     });
 
     setActiveTab("info");

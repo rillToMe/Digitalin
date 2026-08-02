@@ -8,18 +8,51 @@ namespace be_digitalin.Endpoints;
 
 public static class ProductEndpoints
 {
+    /// <summary>
+    /// Batas atas ?limit di GET /games/brands. Satu section homepage hanya perlu
+    /// satu batch kecil; angka di atas ini hanya menyeret ratusan kartu + ikonnya
+    /// sekaligus tanpa ada yang membacanya.
+    /// </summary>
+    private const int MaxBrandPageSize = 60;
+
     public static void MapProductEndpoints(this IEndpointRouteBuilder app)
     {
         // AREA PUBLIK
         var publicGroup = app.MapGroup("/games")
             .WithTags("Katalog Game (Public)");
-        
-        // GET /games/brands
+
+        // GET /games/brands?category=&offset=&limit=
+        // Tanpa query param = seluruh katalog (kompatibel dengan pemanggil lama).
         publicGroup.MapGet("/brands", async (
+            [FromQuery] string? category,
+            [FromQuery] int offset = 0,
+            [FromQuery] int? limit = null,
+            [FromServices] IProductService productService = null!) =>
+        {
+            if (offset < 0) offset = 0;
+            if (limit < 1) limit = 1;
+            if (limit > MaxBrandPageSize) limit = MaxBrandPageSize;
+
+            var brands = await productService.GetUniqueGameBrandsAsync(category, offset, limit);
+            return Results.Ok(brands);
+        });
+
+        // GET /games/brands/popular
+        // Didaftarkan di bawah /brands tapi tetap sebelum /{brandSlug}: path
+        // dua segmen, jadi tidak tertelan catch-all brand detail.
+        publicGroup.MapGet("/brands/popular", async (
             [FromServices] IProductService productService) =>
         {
-            var brands = await productService.GetUniqueGameBrandsAsync();
+            var brands = await productService.GetPopularGameBrandsAsync();
             return Results.Ok(brands);
+        });
+
+        // GET /games/categories
+        publicGroup.MapGet("/categories", async (
+            [FromServices] IProductService productService) =>
+        {
+            var categories = await productService.GetGameCategoriesAsync();
+            return Results.Ok(categories);
         });
 
         // GET /games/{brandSlug}
@@ -147,6 +180,35 @@ public static class ProductEndpoints
                 });
 
             return Results.Ok(templates);
+        });
+
+        // GET /admin/system/game-categories (REGISTRY KATEGORI STOREFRONT)
+        systemGroup.MapGet("/game-categories", async (
+            [FromServices] IProductService productService) =>
+        {
+            var categories = await productService.GetGameCategoryRegistryAsync();
+            return Results.Ok(categories);
+        });
+
+        // PUT /admin/system/game-categories (URUTAN / RENAME / TAMBAH / HAPUS KATEGORI)
+        systemGroup.MapPut("/game-categories", async (
+            [FromBody] UpdateGameCategoriesRequest req,
+            [FromServices] IProductService productService) =>
+        {
+            try
+            {
+                var categories = await productService.UpdateGameCategoryRegistryAsync(req);
+
+                return Results.Ok(new
+                {
+                    message = "Kategori storefront berhasil disimpan!",
+                    categories
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
         });
 
         // GET /admin/system/metadata

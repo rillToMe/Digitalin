@@ -632,7 +632,92 @@ interface DeleteAdminResponse {
 |----------|-------|
 | Method | `GET` |
 | Path | `/games/brands` |
-| Description | List all game brands for the storefront catalog |
+| Description | List game brands for the storefront catalog, optionally filtered by category and paginated |
+| Auth | None (Public) |
+
+#### REQUEST PAYLOAD
+
+```typescript
+// Query parameters (all optional — no parameters at all = full catalog)
+interface BrandsQueryParams {
+  category?: string; // storefront category slug; "all"/omitted = no filter, "lainnya" = uncategorized only
+  offset?: number;   // brands to skip; default 0
+  limit?: number;    // batch size; omitted = no limit (full catalog)
+}
+```
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK
+type BrandsResponse = BrandItem[];
+
+interface BrandItem {
+  brand: string;
+  slug: string; // auto-generated: brand.toLowerCase().replace(" ", "-")
+  imageUrl: string | null;
+  category: string; // Digiflazz product category, currently always "Games"
+  categorySlugs: string[]; // storefront category slugs (e.g. ["mobile"], ["pc", "mobile"]); empty = uncategorized
+}
+```
+
+#### BUSINESS RULES & EDGE CASES
+
+- Results ordered alphabetically by `brand`
+- `slug` is derived from brand name (lowercase, spaces → hyphens)
+- Only brands with at least one active `Games` product are returned
+- `categorySlugs` comes from the `GameMetadata.Categories` column (comma-separated slugs), editable via `PUT /admin/system/metadata/{id}`. A game may belong to several categories at once and then appears in each of their sections; an empty array means the brand is not categorized yet (frontend groups it under "Lainnya")
+- `category` is normalized like any other slug (trim → lowercase → spaces to hyphens), so `?category=Lainnya` and `?category=lainnya` are the same filter. Two virtual buckets are accepted here but can never be created by an admin (reserved slugs): `all` = no filter, `lainnya` = brands whose `categorySlugs` is empty
+- A `category` that no brand uses returns `[]`, not the whole catalog
+- `limit` is clamped to **1..60**; a larger value is silently capped. `offset` below 0 becomes 0, and an offset past the end returns `[]`. Omitting `limit` returns everything after `offset` — kept for callers that legitimately want the full catalog
+- Pagination is **offset-based on purpose**: the homepage first batch is deliberately smaller than the "show more" batch (12/6 then 24), which page numbers cannot express without skipping or repeating brands. The caller advances `offset` by the number of brands it already holds
+- The section total is not returned here — use `brandCount` from `GET /games/categories`, so a section knows when to stop without an extra request
+
+---
+
+### GET /games/brands/popular
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `GET` |
+| Path | `/games/brands/popular` |
+| Description | Best-selling game brands for the automatic "Populer" section on the homepage |
+| Auth | None (Public) |
+
+#### REQUEST PAYLOAD
+
+_No request body or query parameters._
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK — same shape as GET /games/brands, ordered by sales instead of alphabetically
+type BrandsResponse = BrandItem[];
+```
+
+#### BUSINESS RULES & EDGE CASES
+
+- Ranking is fully automatic: number of `TopupOrders` with `status = "COMPLETED"` in the last **30 days**, counted per `BrandName` snapshot. There is no manual curation and no admin setting
+- Orders in any other status (`PENDING`, `PAID`, `EXPIRED`, `FAILED`, …) are not sales and do not count
+- Ordered by sales count descending; ties broken alphabetically by brand so the order is stable between requests
+- Capped at **12** brands (one full homepage grid)
+- A brand is dropped if it has no `GameMetadata` row or no active `Games` product left — its card would link to an empty detail page
+- Returns `[]` when there are no completed sales in the window (new shop, or quiet month). The frontend hides the section entirely rather than rendering an empty heading
+- `"populer"` is a reserved storefront category slug (`PUT /admin/system/game-categories` rejects it) — this section is virtual and must not collide with a manually created category. A brand listed here still shows in its own categories' sections too
+
+---
+
+### GET /games/categories
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `GET` |
+| Path | `/games/categories` |
+| Description | List storefront categories with their active brand counts (including the virtual `all` and `lainnya` buckets) |
 | Auth | None (Public) |
 
 #### REQUEST PAYLOAD
@@ -643,22 +728,26 @@ _No request body or query parameters._
 
 ```typescript
 // 200 OK
-type BrandsResponse = BrandItem[];
+type GameCategoriesResponse = GameCategoryItem[];
 
-interface BrandItem {
-  id: number;
-  brand: string;
-  slug: string; // auto-generated: brand.toLowerCase().replace(" ", "-")
-  imageUrl: string | null;
-  inputType: "USER_ID_ONLY" | "USER_ID_AND_ZONE_ID";
+interface GameCategoryItem {
+  slug: string;      // kebab-case, unique (e.g. "all", "mobile", "pc", "lainnya")
+  name: string;      // display name (e.g. "Mobile Game"); falls back to the slug itself for unknown slugs
+  brandCount: number; // brands in this category that have ≥1 active Games product
 }
 ```
 
 #### BUSINESS RULES & EDGE CASES
 
-- Results ordered alphabetically by `brand`
-- `slug` is derived from brand name (lowercase, spaces → hyphens)
-- `inputType` determines what fields the order form must show
+- The first entry is always the virtual bucket `all` ("Semua"), whose `brandCount` is the number of **distinct** brands with an active `Games` product — a multi-category brand is counted once here
+- The last entry is the virtual bucket `lainnya` ("Lainnya") when at least one brand has no category; it is omitted when there are none. Both virtual slugs are reserved (`PUT /admin/system/game-categories` rejects them) so a manual category can never collide with them
+- Every `slug` returned here is a valid `?category=` value for `GET /games/brands`, and its `brandCount` is exactly how many brands that call can page through — the frontend uses it to decide when to stop fetching
+- Returns `[]` when no brand has an active `Games` product (empty catalog); the frontend renders no tabs at all rather than a "Semua 0" tab
+- Real categories with `brandCount = 0` are omitted (not returned at all)
+- Brands without a category (`GameMetadata.Categories = null`) contribute only to `all` and `lainnya`, never to a real category
+- A brand with several categories is counted in **each** of them, so the sum of the real categories' `brandCount` may exceed `all`
+- Result order is `all` → the admin-defined registry order (`AppSettings["GAME_CATEGORIES"]`, see `PUT /admin/system/game-categories`) → `lainnya`; the frontend renders sections/tabs in the order received
+- `name` comes from the registry (admin-editable). Slugs found on brands but missing from the registry are appended after the registry entries, sorted by slug, named from the built-in name map or the slug itself — so a brand can never silently vanish from the storefront
 
 ---
 
@@ -1489,6 +1578,46 @@ interface ChartDataPoint {
 
 ---
 
+### GET /admin/dashboard/balance
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `GET` |
+| Path | `/admin/dashboard/balance` |
+| Description | Get remaining Digiflazz (supplier) deposit balance |
+| Auth | Admin JWT Required |
+| Headers | `Authorization: Bearer <token>` |
+
+#### REQUEST PAYLOAD
+
+_No request body or query parameters._
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK
+interface DigiflazzBalanceResponse {
+  deposit: number; // Remaining supplier deposit in IDR (decimal)
+}
+
+// 502 Bad Gateway — Digiflazz unreachable / rejected the request
+interface ErrorResponse {
+  message: string; // "Gagal mengambil saldo dari Digiflazz: <reason>"
+}
+```
+
+#### BUSINESS RULES & EDGE CASES
+
+- Read **live** from Digiflazz `POST /v1/cek-saldo` on every call — nothing is stored in the database, so the number is never stale
+- Upstream payload: `{ cmd: "deposit", username, sign }` where `sign = md5(username + apiKey + "depo")` — the sign suffix (`"depo"`) differs from the `cmd` value (`"deposit"`)
+- Digiflazz returns success and failure in the same envelope: `{ "data": { "deposit": 500000 } }` on success, `{ "data": { "message": "...", "rc": "41" } }` on failure (e.g. IP not whitelisted). A response without `deposit` is treated as an error
+- **502, not 500** — the failure belongs to the upstream supplier, not to the admin's request. Frontend must degrade to a single failed card, never block the dashboard
+- No server-side cache: the frontend throttles with a 60s `staleTime` plus a manual refresh button. Add caching here if Digiflazz rate-limits become an issue
+
+---
+
 ## 6. System / Admin Operations
 
 ---
@@ -1660,6 +1789,100 @@ interface GameInputField {
 
 ---
 
+### GET /admin/system/game-categories
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `GET` |
+| Path | `/admin/system/game-categories` |
+| Description | Storefront category registry (display order, names, usage count) for the admin editor |
+| Auth | Admin JWT Required |
+| Headers | `Authorization: Bearer <token>` |
+
+#### REQUEST PAYLOAD
+
+_No request body._
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK — array order IS the storefront display order
+type AdminGameCategoriesResponse = GameCategoryInfo[];
+
+interface GameCategoryInfo {
+  slug: string;       // permanent identifier, matches GameMetadata.category
+  name: string;       // admin-editable display name
+  brandCount: number; // brands with >=1 active product; 0 = safe to delete
+}
+```
+
+#### BUSINESS RULES & EDGE CASES
+
+- Same shape as public `GET /games/categories`, but **includes categories with `brandCount = 0`** so a newly created custom category is assignable in the metadata editor before any game uses it
+- Registry is stored as JSON in `AppSettings["GAME_CATEGORIES"]`; corrupt/missing value degrades to the built-in defaults (`mobile`, `pc`, `voucher`, `e-money`, `pulsa-data`) instead of failing
+- Slugs present on games but absent from the registry are appended at the end (sorted by slug) so admin can see and adopt them
+
+---
+
+### PUT /admin/system/game-categories
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `PUT` |
+| Path | `/admin/system/game-categories` |
+| Description | Replace the whole registry — reorder, rename, add custom, delete |
+| Auth | Admin JWT Required |
+| Headers | `Authorization: Bearer <token>`, `Content-Type: application/json` |
+
+#### REQUEST PAYLOAD
+
+```typescript
+interface UpdateGameCategoriesRequest {
+  categories: GameCategoryEntryRequest[]; // array order = display order, 1..30 items
+}
+
+interface GameCategoryEntryRequest {
+  slug: string | null; // existing category: send its slug unchanged. null/"" = new category, slug derived from name
+  name: string;        // 1..40 chars after trim
+}
+```
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK
+interface UpdateGameCategoriesResponse {
+  message: string;               // "Kategori storefront berhasil disimpan!"
+  categories: GameCategoryInfo[]; // saved registry, same shape as the GET above
+}
+
+// 400 Bad Request
+interface ErrorResponse {
+  message: string;
+}
+```
+
+#### BUSINESS RULES & EDGE CASES
+
+- **Replace-all semantics**: the payload becomes the entire registry. Last write wins (no optimistic locking).
+- **Slug is permanent.** Send `slug` for existing categories so a rename never orphans `GameMetadata.Categories`. A new category derives its slug from `name` (lowercased kebab-case, e.g. `"Konsol Game"` → `"konsol-game"`).
+- Validation errors → `400`:
+  - empty list → `"Minimal satu kategori harus ada."`
+  - more than 30 items → `"Maksimal 30 kategori."`
+  - blank name → `"Nama kategori tidak boleh kosong."`
+  - name longer than 40 chars → `"Nama kategori \"...\" terlalu panjang (maksimal 40 karakter)."`
+  - name that yields no slug → `"Nama kategori \"...\" tidak bisa dijadikan slug."`
+  - reserved slug `all` / `lainnya` / `populer` (frontend virtual buckets) → `"Slug \"...\" dipakai sistem dan tidak bisa dijadikan kategori."`
+  - duplicate slug, case-insensitive → `"Slug kategori \"...\" duplikat."`
+- **Delete guard**: omitting a category that is still referenced by any `GameMetadata` → `400` `"Kategori \"<slug>\" masih dipakai N game. Pindahkan game-nya dulu sebelum menghapus kategori."` The guard sees the slug in any position of a game's category list, not just the first. Move the games first (via `PUT /admin/system/metadata/{id}`), then delete.
+- Deleting a category with `brandCount = 0` is allowed only if no game references it at all — `brandCount` counts brands with an active product, the guard counts all metadata rows, so it can still refuse.
+
+---
+
 ### GET /admin/system/metadata
 
 #### ENDPOINT SUMMARY
@@ -1688,6 +1911,7 @@ interface GameMetadataItem {
   inputType: "USER_ID_ONLY" | "USER_ID_AND_ZONE_ID";
   serverList: string | null;
   imageUrl: string | null;
+  categories: string[]; // storefront category slugs (kebab-case); empty = uncategorized
 }
 ```
 
@@ -1716,6 +1940,7 @@ interface GameMetadataItem {
 | `id` (path) | `integer` | Required | GameMetadata ID |
 | `inputType` | `string` | Required | `"USER_ID_ONLY"` or `"USER_ID_AND_ZONE_ID"` |
 | `serverList` | `string \| null` | Optional | Comma-separated server list or null |
+| `categories` | `string[]` | Optional | Storefront categories (e.g. `["mobile"]`, `["PC Game", "mobile"]`) — a game may belong to several. Each entry is normalized server-side to a kebab-case slug (lowercase, every non-alphanumeric run → hyphen, so `"E-Money"` → `"e-money"` and `"Konsol, Game"` → `"konsol-game"`); blanks and duplicates are dropped, admin order is kept. Omitted or empty array → uncategorized |
 
 #### RESPONSE PAYLOAD
 
@@ -1914,7 +2139,7 @@ interface GameSearchResult {
   brand: string;
   slug: string; // auto-generated: brand.toLowerCase().replace(" ", "-")
   imageUrl: string | null;
-  inputType: "USER_ID_ONLY" | "USER_ID_AND_ZONE_ID";
+  categorySlugs: string[]; // storefront category slugs; empty = uncategorized
 }
 ```
 
@@ -2733,7 +2958,7 @@ finalPrice = price - discountAmount
 | 9 | **Disabled = unusable** | Vouchers that are disabled by admin cannot be used, regardless of other conditions |
 | 10 | **Positive final price** | `finalPrice` must be > 0 after discount is applied |
 | 11 | **Quota decrement timing** | Quota (`usedCount`) is decremented at **order creation time**, not at payment time |
-| 12 | **Concurrency protection** | Quota decrement is protected by optimistic concurrency (row version) to prevent race conditions |
+| 12 | **Concurrency protection** | Quota reservation uses a single atomic conditional update (`usedCount` is incremented only where `usedCount < usageLimit`, evaluated in the database) to prevent lost updates and oversubscription under concurrent checkout |
 | 13 | **Delete protection** | Vouchers that have been used (`usedCount > 0`) cannot be deleted — disable instead |
 | 14 | **Case-insensitive matching** | Voucher codes are matched case-insensitively at checkout |
 

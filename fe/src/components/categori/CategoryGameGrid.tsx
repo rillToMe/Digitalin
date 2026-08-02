@@ -1,47 +1,65 @@
-import { useState } from "react";
 import { ChevronDown, Gamepad2 } from "lucide-react";
 import type { BrandItem } from "../../api/index";
 import CategoryGameCard from "./CategoryGameCard";
 
-const INITIAL_VISIBLE = 12;
-const SKELETON_COUNT = 12;
-/** Batas index stagger agar baris bawah tidak menunggu terlalu lama */
-const MAX_STAGGER_INDEX = 14;
+/** Kartu di luar jendela ini tidak menunda animasinya lagi — batch kedua
+ *  (offset 12+) harus muncul segera, bukan 12 × 40ms setelah diklik. */
+const STAGGER_WINDOW = 12;
 
 interface CategoryGameGridProps {
-  /** Brands yang sudah terfilter kategori */
   brands: BrandItem[];
   isLoading: boolean;
+  /** Jumlah skeleton = ukuran batch pertama section, supaya tidak ada layout shift */
+  skeletonCount?: number;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
+/**
+ * Struktur harus sama persis dengan CategoryGameCard (padding p-3, gambar
+ * rounded-xl, blok judul 2 baris) supaya tidak ada layout shift saat data
+ * datang. 2.34rem = judul 2 baris di kartu asli (0.9rem × line-height 1.3 × 2).
+ */
 function SkeletonCard() {
   return (
     <div
-      className="overflow-hidden rounded-2xl"
+      className="rounded-2xl p-3"
       style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border-light)" }}
     >
-      <div className="aspect-square w-full animate-pulse" style={{ backgroundColor: "var(--color-skeleton)" }} />
-      <div className="p-3">
-        <div className="mb-2 h-4 w-3/4 animate-pulse rounded" style={{ backgroundColor: "var(--color-skeleton)" }} />
+      <div
+        className="aspect-square w-full animate-pulse rounded-xl"
+        style={{ backgroundColor: "var(--color-skeleton)" }}
+      />
+      <div className="flex flex-col gap-1.5 px-1 pt-3" style={{ minHeight: "2.34rem" }}>
+        <div className="h-3 w-4/5 animate-pulse rounded" style={{ backgroundColor: "var(--color-skeleton)" }} />
         <div className="h-3 w-1/2 animate-pulse rounded" style={{ backgroundColor: "var(--color-skeleton)" }} />
       </div>
     </div>
   );
 }
 
-/**
- * Grid game per kategori.
- * Interaksi (murni CSS): staggered fade-in-up saat mount, expand/collapse
- * "Tampilkan lebih banyak". Parent memberi key={activeCategory} agar
- * state expand & animasi ter-reset setiap ganti kategori.
- */
-export default function CategoryGameGrid({ brands, isLoading }: CategoryGameGridProps) {
-  const [expanded, setExpanded] = useState(false);
+const GRID_CLASS =
+  "grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6";
 
+/**
+ * Grid game satu section. Murni presentational: batch berikutnya diambil parent
+ * (useInfiniteQuery) lewat onLoadMore — brand yang belum diklik tidak pernah
+ * diunduh, jadi tidak ada lagi collapse "Tampilkan lebih sedikit".
+ * Interaksi murni CSS: staggered fade-in-up saat kartu mount.
+ */
+export default function CategoryGameGrid({
+  brands,
+  isLoading,
+  skeletonCount = 12,
+  hasMore = false,
+  isLoadingMore = false,
+  onLoadMore,
+}: CategoryGameGridProps) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-        {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+      <div className={GRID_CLASS}>
+        {Array.from({ length: skeletonCount }).map((_, i) => (
           <SkeletonCard key={i} />
         ))}
       </div>
@@ -57,28 +75,30 @@ export default function CategoryGameGrid({ brands, isLoading }: CategoryGameGrid
     );
   }
 
-  const visibleBrands = expanded ? brands : brands.slice(0, INITIAL_VISIBLE);
-  const canExpand = brands.length > INITIAL_VISIBLE;
-
   return (
     <>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-        {visibleBrands.map((brand, index) => (
+      <div className={GRID_CLASS}>
+        {brands.map((brand, index) => (
           <div
             key={brand.slug}
             className="animate-category-in"
-            style={{ animationDelay: `${Math.min(index, MAX_STAGGER_INDEX) * 40}ms` }}
+            style={{ animationDelay: `${(index % STAGGER_WINDOW) * 40}ms` }}
           >
             <CategoryGameCard brand={brand} />
           </div>
         ))}
+
+        {/* Batch berikutnya menempati slot grid, bukan menggeser tombol. */}
+        {isLoadingMore &&
+          Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={`more-${i}`} />)}
       </div>
 
-      {canExpand && (
+      {hasMore && (
         <div className="mt-6 text-center">
           <button
-            onClick={() => setExpanded((v) => !v)}
-            className="inline-flex items-center gap-1.5 rounded-xl px-5 py-2.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-brand-tertiary)"
+            onClick={onLoadMore}
+            disabled={isLoadingMore}
+            className="inline-flex items-center gap-1.5 rounded-xl px-5 py-2.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-brand-tertiary) disabled:opacity-60"
             style={{
               color: "var(--color-brand-tertiary)",
               backgroundColor: "transparent",
@@ -93,11 +113,8 @@ export default function CategoryGameGrid({ brands, isLoading }: CategoryGameGrid
               e.currentTarget.style.backgroundColor = "transparent";
             }}
           >
-            {expanded ? "Tampilkan lebih sedikit" : "Tampilkan lebih banyak"}
-            <ChevronDown
-              size={15}
-              className={`transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
-            />
+            {isLoadingMore ? "Memuat…" : "Tampilkan lebih banyak"}
+            <ChevronDown size={15} aria-hidden="true" />
           </button>
         </div>
       )}

@@ -4,5 +4,7 @@ public record GameSearchResult(
     int Id,
     string Brand,
     string Slug,
-    string? ImageUrl
+    string? ImageUrl,
+    // Slug kategori storefront; kosong = belum dikategorikan.
+    IReadOnlyList<string> CategorySlugs
 );

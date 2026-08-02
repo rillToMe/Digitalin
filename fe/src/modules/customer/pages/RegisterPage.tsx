@@ -4,9 +4,9 @@ import { Eye, EyeOff, Zap, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation } from "@tanstack/react-query";
 import { authService } from "../../../services/api";
-import { useRecaptcha } from "../../../hooks/useRecaptcha";
+import { useRecaptcha, RecaptchaError } from "../../../hooks/useRecaptcha";
 import { useAuthStore } from "../../../store/authStore";
-import type { RequestOtpPayload, RegisterPayload } from "../../../api/index";
+import type { RegisterPayload } from "../../../api/index";
 import OtpInput from "../../../components/auth/OtpInput";
 import GoogleLoginButton, { googleClientId } from "../../../components/common/GoogleLoginButton";
 
@@ -45,14 +45,25 @@ export default function RegisterPage() {
   }, [cooldown]);
 
   const otpMutation = useMutation({
-    mutationFn: (payload: RequestOtpPayload) => authService.requestOtp(payload),
+    /* captcha dijalankan DI DALAM mutationFn supaya isPending sudah true sejak
+       tombol diklik. Kalau token-nya di-await dulu di sendOtp, tombolnya diam
+       sampai captcha selesai — terasa seperti klik yang tidak masuk. */
+    mutationFn: async (email: string) => {
+      const captchaToken = await executeRecaptcha("register_request_otp");
+
+      return authService.requestOtp({ email, captchaToken });
+    },
     onSuccess: () => {
       toast.success("Kode OTP terkirim ke email kamu");
       setOtpSent(true);
       setCooldown(RESEND_COOLDOWN_SECONDS);
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {
-      toast.error(err?.response?.data?.message ?? "Gagal mengirim OTP");
+      toast.error(
+        err instanceof RecaptchaError
+          ? err.message
+          : err?.response?.data?.message ?? "Gagal mengirim OTP",
+      );
     },
   });
 
@@ -67,7 +78,7 @@ export default function RegisterPage() {
       toast.error(err?.response?.data?.message ?? "Registrasi gagal");
     },
   });
-  const sendOtp = async () => {
+  const sendOtp = () => {
     if (!form.fullName || !form.email || !form.password) {
       toast.error("Lengkapi nama, email, dan password dulu");
       return;
@@ -78,18 +89,13 @@ export default function RegisterPage() {
     }
     if (cooldown > 0) return;
 
-    try {
-      const captchaToken = await executeRecaptcha("register_request_otp");
-      otpMutation.mutate({ email: form.email, captchaToken });
-    } catch {
-      toast.error("Verifikasi keamanan gagal. Silakan coba lagi.");
-    }
+    otpMutation.mutate(form.email);
   };
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
     if (!otpSent) {
-      void sendOtp();
+      sendOtp();
       return;
     }
     if (form.otpCode.length !== 6) {

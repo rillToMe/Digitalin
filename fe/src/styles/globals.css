@@ -42,6 +42,17 @@
   --color-navbar-border: rgba(0, 0, 0, 0.08);
   --shadow-navbar: 0 4px 16px rgba(0, 0, 0, 0.1);
 
+  /* Footer — satu-satunya permukaan gelap di sisi customer, jadi token teks
+     terangnya berdiri sendiri (token --color-brand-* semuanya untuk latar
+     terang dan tidak terbaca di atas --color-brand-primary). */
+  --color-footer-bg: var(--color-brand-primary);
+  --color-footer-heading: var(--color-on-primary);
+  --color-footer-text: rgba(255, 255, 255, 0.62);
+  --color-footer-link: rgba(255, 255, 255, 0.72);
+  --color-footer-link-hover: var(--color-on-primary);
+  --color-footer-border: rgba(255, 255, 255, 0.1);
+  --color-footer-focus-ring: rgba(255, 255, 255, 0.7);
+
   /* Interaction tints (derived from brand tertiary / primary) */
   --color-brand-tertiary-hover: #2450d9;
   --color-accent-tint: rgba(44, 94, 245, 0.08);
@@ -52,6 +63,13 @@
   /* Button state layers — overlay tint, valid over any button background */
   --color-state-hover: rgba(15, 20, 25, 0.06);
   --color-state-press: rgba(15, 20, 25, 0.13);
+
+  /* Chart area fill — <canvas> tidak bisa membaca gradient CSS, jadi tiap
+     stop harus jadi token sendiri untuk dibaca lewat getComputedStyle. */
+  --color-chart-revenue-from: rgba(44, 94, 245, 0.2);
+  --color-chart-revenue-to: rgba(44, 94, 245, 0);
+  --color-chart-profit-from: rgba(21, 128, 61, 0.2);
+  --color-chart-profit-to: rgba(21, 128, 61, 0);
 
   /* Elevation */
   --shadow-card: 0 1px 2px rgba(15, 20, 25, 0.05);
@@ -115,5 +133,83 @@
     a.pressable:active {
       transform: none;
     }
+  }
+}
+
+/* ==========================================================================
+   Site footer — komponennya (components/common/Footer.tsx) hanya memegang
+   struktur dan layout; semua warna, border, dan ukuran teks ada di sini.
+   Sengaja di luar @layer: warna link tidak boleh lewat style inline karena
+   inline selalu menang atas stylesheet, sementara hover dan focus-visible
+   memang tidak bisa ditulis inline.
+   ========================================================================== */
+.site-footer {
+  background-color: var(--color-footer-bg);
+  color: var(--color-footer-text);
+}
+
+.site-footer a {
+  color: var(--color-footer-link);
+  text-decoration: none;
+  transition: color 140ms ease;
+}
+
+/* (hover: hover) — di layar sentuh :hover nempel setelah tap */
+@media (hover: hover) {
+  .site-footer a:hover {
+    color: var(--color-footer-link-hover);
+  }
+}
+
+.site-footer :focus-visible {
+  outline: 2px solid var(--color-footer-focus-ring);
+  outline-offset: 3px;
+  border-radius: var(--admin-radius-sm);
+}
+
+.site-footer-brand,
+.site-footer-brand:hover {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-footer-heading);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.site-footer-tagline {
+  max-width: 32ch;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.site-footer-heading {
+  margin: 0 0 12px;
+  color: var(--color-footer-heading);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.site-footer-links {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.site-footer-bottom {
+  border-top: 1px solid var(--color-footer-border);
+  font-size: 0.8rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-footer a {
+    transition: none;
   }
 }

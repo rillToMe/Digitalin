@@ -307,21 +307,30 @@ public class VoucherService : IVoucherService
 
     public async Task ReserveVoucherAsync(Voucher voucher)
     {
-        voucher.UsedCount += 1;
-        voucher.UpdatedAt = DateTime.UtcNow;
-        try
-        {
-            await _db.SaveChangesAsync();
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            await _db.Entry(voucher).ReloadAsync();
-            if (voucher.UsedCount >= voucher.UsageLimit)
-                throw new InvalidOperationException("Kuota voucher ini sudah habis (persaingan bersamaan).");
+        // Increment atomik berkondisi: kuota hanya naik bila masih tersedia.
+        // Predikat UsedCount < UsageLimit dievaluasi di DB, sehingga dua request
+        // paralel tidak bisa saling menimpa (no lost update / oversubscription).
+        var affected = await _db.Vouchers
+            .Where(v => v.Id == voucher.Id && v.UsedCount < v.UsageLimit)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(v => v.UsedCount, v => v.UsedCount + 1)
+                .SetProperty(v => v.UpdatedAt, DateTime.UtcNow));
 
-            voucher.UsedCount += 1;
-            voucher.UpdatedAt = DateTime.UtcNow;
-            await _db.SaveChangesAsync();
-        }
+        if (affected == 0)
+            throw new InvalidOperationException("Kuota voucher ini sudah habis (persaingan bersamaan).");
+    }
+
+    public async Task ReleaseVoucherAsync(string voucherCode)
+    {
+        // Decrement atomik berkondisi: kuota hanya turun bila UsedCount > 0,
+        // sehingga aman dari underflow bila terpanggil lebih dari sekali.
+        // Matching case-insensitive by Code, konsisten dengan ValidateVoucherAsync.
+        string upperCode = voucherCode.ToUpper();
+
+        await _db.Vouchers
+            .Where(v => v.Code.ToUpper() == upperCode && v.UsedCount > 0)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(v => v.UsedCount, v => v.UsedCount - 1)
+                .SetProperty(v => v.UpdatedAt, DateTime.UtcNow));
     }
 }

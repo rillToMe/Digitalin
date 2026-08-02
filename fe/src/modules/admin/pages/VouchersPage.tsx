@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "../../../layouts/AdminLayout";
 import { adminService } from "../../../services/api";
 import type { AdminVoucherItem, CreateVoucherPayload, DiscountType, VoucherStatus } from "../../../api/index";
+import { cellProps, type AdminColumn } from "../../../components/admin/adminTable";
 
 function formatRp(n: number) {
   return "Rp " + n.toLocaleString("id-ID");
@@ -50,6 +51,23 @@ const EMPTY_FORM: CreateVoucherPayload = {
 
 const PAGE_SIZE = 10;
 const DEBOUNCE_MS = 300;
+
+/* Satu sumber untuk header kolom dan label kartu di mobile, supaya keduanya
+   tidak bisa lepas sinkron. wide = disembunyikan di bawah 768px:
+   Tipe sudah tersirat dari format sel Nilai ("67%" vs "Rp 5.000"), dan
+   Min. Transaksi tetap terbaca lengkap di modal Edit (tombol pensil). */
+const COLUMNS: AdminColumn[] = [
+  { label: "Kode" },
+  { label: "Tipe", wide: true },
+  { label: "Nilai" },
+  { label: "Min. Transaksi", wide: true },
+  { label: "Penggunaan" },
+  { label: "Berakhir" },
+  { label: "Status" },
+  { label: "Aksi" },
+];
+
+const cell = cellProps(COLUMNS);
 
 export default function VouchersPage() {
   const queryClient = useQueryClient();
@@ -192,14 +210,16 @@ export default function VouchersPage() {
         </button>
       </div>
 
-      {/* Filter tabs */}
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+      {/* Filter tabs — wrap, bukan scroll horizontal: dengan scrollbar
+          disembunyikan chip terakhir terpotong tanpa petunjuk apapun di mobile. */}
+      <div className="flex flex-wrap gap-2 mb-4" role="group" aria-label="Filter status voucher">
         {STATUS_FILTERS.map((f) => {
           const active = statusFilter === f.value;
           return (
             <button
               key={f.value}
               onClick={() => { setStatusFilter(f.value); setPage(1); }}
+              aria-pressed={active}
               className="px-4 py-2 rounded-full whitespace-nowrap transition-all"
               style={{
                 backgroundColor: active ? "var(--color-brand-tertiary)" : "var(--color-surface)",
@@ -218,46 +238,54 @@ export default function VouchersPage() {
       {/* Table */}
       <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border-light)" }}>
         <div className="overflow-x-auto">
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ borderBottom: "1px solid var(--color-border-light)", backgroundColor: "var(--color-neutral)" }}>
-                {["Kode", "Tipe", "Nilai", "Min. Transaksi", "Penggunaan", "Berakhir", "Status", "Aksi"].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left" style={{ color: "var(--color-brand-secondary)", fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</th>
+          <table className="admin-table" role="table">
+            <thead role="rowgroup">
+              <tr role="row" style={{ borderBottom: "1px solid var(--color-border-light)", backgroundColor: "var(--color-neutral)" }}>
+                {COLUMNS.map((c) => (
+                  <th
+                    key={c.label}
+                    role="columnheader"
+                    scope="col"
+                    className={`px-4 py-3 text-left${c.wide ? " admin-col-wide" : ""}`}
+                    style={{ color: "var(--color-brand-secondary)", fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}
+                  >
+                    {c.label}
+                  </th>
                 ))}
               </tr>
             </thead>
-            <tbody>
+            <tbody role="rowgroup">
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i}>
-                    {Array.from({ length: 8 }).map((__, j) => (
-                      <td key={j} className="px-4 py-3">
+                  <tr key={i} role="row">
+                    {COLUMNS.map((c) => (
+                      <td key={c.label} role="cell" className={`px-4 py-3${c.wide ? " admin-col-wide" : ""}`}>
                         <div className="h-4 rounded animate-pulse" style={{ backgroundColor: "var(--color-skeleton)" }} />
                       </td>
                     ))}
                   </tr>
                 ))
               ) : vouchers.map((v) => (
-                <tr key={v.id} style={{ borderBottom: "1px solid var(--color-border-lighter)" }}>
-                  <td className="px-4 py-3">
+                <tr key={v.id} role="row" style={{ borderBottom: "1px solid var(--color-border-lighter)" }}>
+                  <td {...cell("Kode")}>
                     <span style={{ fontFamily: "monospace", fontSize: "0.85rem", color: "var(--color-brand-primary)", fontWeight: 600 }}>{v.code}</span>
                   </td>
-                  <td className="px-4 py-3" style={{ color: "var(--color-brand-secondary)", fontSize: "0.85rem" }}>
+                  <td {...cell("Tipe")} style={{ color: "var(--color-brand-secondary)", fontSize: "0.85rem" }}>
                     {v.discountType === "Percentage" ? "Persentase" : "Nominal"}
                   </td>
-                  <td className="px-4 py-3" style={{ color: "var(--color-brand-tertiary)", fontSize: "0.9rem", fontWeight: 600 }}>
+                  <td {...cell("Nilai")} style={{ color: "var(--color-brand-tertiary)", fontSize: "0.9rem", fontWeight: 600 }}>
                     {v.discountType === "Percentage" ? `${v.discountValue}%` : formatRp(v.discountValue)}
                   </td>
-                  <td className="px-4 py-3" style={{ color: "var(--color-brand-secondary)", fontSize: "0.85rem" }}>
+                  <td {...cell("Min. Transaksi")} style={{ color: "var(--color-brand-secondary)", fontSize: "0.85rem" }}>
                     {formatRp(v.minimumTransaction)}
                   </td>
-                  <td className="px-4 py-3" style={{ color: "var(--color-brand-secondary)", fontSize: "0.85rem" }}>
+                  <td {...cell("Penggunaan")} style={{ color: "var(--color-brand-secondary)", fontSize: "0.85rem" }}>
                     {v.usedCount}/{v.usageLimit}
                   </td>
-                  <td className="px-4 py-3" style={{ color: "var(--color-brand-secondary)", fontSize: "0.85rem" }}>
+                  <td {...cell("Berakhir")} style={{ color: "var(--color-brand-secondary)", fontSize: "0.85rem" }}>
                     {formatDate(v.expiredAt)}
                   </td>
-                  <td className="px-4 py-3">
+                  <td {...cell("Status")}>
                     <span className="px-2 py-1 rounded-full" style={{
                       backgroundColor: STATUS_STYLES[v.status].bg,
                       color: STATUS_STYLES[v.status].text,
@@ -267,7 +295,7 @@ export default function VouchersPage() {
                       {STATUS_LABELS[v.status]}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td {...cell("Aksi")}>
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => toggleMutation.mutate({ id: v.id, isActive: !v.isActive })}
@@ -276,9 +304,10 @@ export default function VouchersPage() {
                         style={{ color: v.isActive ? "var(--color-danger)" : "var(--color-success)" }}
                         onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--color-hover-neutral)"; }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+                        aria-label={`${v.isActive ? "Nonaktifkan" : "Aktifkan"} voucher ${v.code}`}
                         title={v.isActive ? "Nonaktifkan" : "Aktifkan"}
                       >
-                        {v.isActive ? <ToggleLeft size={15} /> : <ToggleRight size={15} />}
+                        {v.isActive ? <ToggleLeft size={15} aria-hidden="true" /> : <ToggleRight size={15} aria-hidden="true" />}
                       </button>
                       <button
                         onClick={() => openEdit(v)}
@@ -286,8 +315,9 @@ export default function VouchersPage() {
                         style={{ color: "var(--color-brand-tertiary)" }}
                         onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--color-hover-info)"; }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+                        aria-label={`Edit voucher ${v.code}`}
                       >
-                        <Pencil size={14} />
+                        <Pencil size={14} aria-hidden="true" />
                       </button>
                       <button
                         onClick={() => setDeleteTarget(v)}
@@ -295,16 +325,17 @@ export default function VouchersPage() {
                         style={{ color: "var(--color-danger)" }}
                         onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "var(--color-hover-danger)"; }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+                        aria-label={`Hapus voucher ${v.code}`}
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={14} aria-hidden="true" />
                       </button>
                     </div>
                   </td>
                 </tr>
               ))}
               {!loading && vouchers.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center" style={{ color: "var(--color-brand-secondary)" }}>Tidak ada voucher ditemukan</td>
+                <tr role="row">
+                  <td role="cell" colSpan={COLUMNS.length} className="px-4 py-12 text-center" style={{ color: "var(--color-brand-secondary)" }}>Tidak ada voucher ditemukan</td>
                 </tr>
               )}
             </tbody>

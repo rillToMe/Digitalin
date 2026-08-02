@@ -1,8 +1,11 @@
-﻿namespace be_digitalin.DTOs;
+namespace be_digitalin.DTOs;
 
 public record CategoryInfo(
     string Brand,
-    string GameCode,
+    string Slug,
     string? ImageUrl,
-    string Category
+    string Category,
+    // Slug kategori storefront yang dimiliki brand; kosong = belum
+    // dikategorikan (FE mengelompokkannya ke "Lainnya").
+    IReadOnlyList<string> CategorySlugs
 );

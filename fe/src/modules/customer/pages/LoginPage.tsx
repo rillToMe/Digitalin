@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { useMutation } from "@tanstack/react-query";
 import { useAuthStore } from "../../../store/authStore";
 import { authService } from "../../../services/api";
-import { useRecaptcha } from "../../../hooks/useRecaptcha";
+import { useRecaptcha, RecaptchaError } from "../../../hooks/useRecaptcha";
 import type { LoginPayload } from "../../../api/index";
 import GoogleLoginButton, { googleClientId } from "../../../components/common/GoogleLoginButton";
 
@@ -18,19 +18,29 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const loginMutation = useMutation({
-    mutationFn: (payload: LoginPayload) => authService.login(payload),
+    /* captcha dijalankan DI DALAM mutationFn supaya isPending sudah true sejak
+       tombol diklik. Kalau token-nya di-await dulu di handleSubmit, tombolnya
+       diam sampai captcha selesai — terasa seperti klik yang tidak masuk. */
+    mutationFn: async (payload: Omit<LoginPayload, "captchaToken">) => {
+      const captchaToken = await executeRecaptcha("login");
+
+      return authService.login({ ...payload, captchaToken });
+    },
     onSuccess: (res) => {
       setToken(res.token);
       toast.success("Login berhasil!");
       navigate("/");
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {
-      const msg = err?.response?.data?.message ?? "Email atau password salah";
-      toast.error(msg);
+      toast.error(
+        err instanceof RecaptchaError
+          ? err.message
+          : err?.response?.data?.message ?? "Email atau password salah",
+      );
     },
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!form.email || !form.password) {
@@ -38,17 +48,7 @@ export default function LoginPage() {
       return;
     }
 
-    try {
-      const captchaToken = await executeRecaptcha("login");
-
-      loginMutation.mutate({
-        email: form.email,
-        password: form.password,
-        captchaToken,
-      });
-    } catch {
-      toast.error("Verifikasi keamanan gagal. Silakan coba lagi.");
-    }
+    loginMutation.mutate({ email: form.email, password: form.password });
   };
 
   const loading = loginMutation.isPending;

@@ -21,7 +21,10 @@ public static class AppConstants
     public static class SystemSettings
     {
         public const string MidtransExpiry = "MIDRANS_EXPIRY";
-        
+
+        /// <summary>Registry kategori storefront (JSON array [{slug,name}], urutan = urutan tampil).</summary>
+        public const string GameCategories = "GAME_CATEGORIES";
+
         /// <summary>Keys for Maintenance Mode stored in AppSettings table.</summary>
         public static class MaintenanceKeys
         {
@@ -108,6 +111,11 @@ public static class AppConstants
     {
         public const string Prepaid = "prepaid";
         public const string Pricelist = "pricelist";
+
+        // Cek saldo: nilai cmd-nya "deposit", tapi suffix sign-nya "depo".
+        // Kalau keduanya tertukar, Digiflazz menolak dengan "signature tidak sesuai".
+        public const string Deposit = "deposit";
+        public const string DepositSign = "depo";
     }
 
     // JTW JSON dari Respons Digiflazz
@@ -120,13 +128,60 @@ public static class AppConstants
         public const string Price = "price";
         public const string Brand = "brand";
         public const string Sn = "sn";
+        public const string Deposit = "deposit";
+        public const string Message = "message";
     }
     
     // Kategori Produk
     public static class Categories
     {
         public const string Games = "Games";
-        public const string Pulsa = "Pulsa"; 
+        public const string Pulsa = "Pulsa";
+    }
+
+    // Kategori Storefront (pengelompokan brand di homepage): slug kebab-case → nama tampilan
+    public static class StorefrontCategories
+    {
+        /// <summary>
+        /// Registry bawaan, dipakai selama AppSettings["GAME_CATEGORIES"] belum pernah
+        /// disimpan admin. Urutan list = urutan tampil di homepage; admin mengubahnya
+        /// lewat PUT /admin/system/game-categories.
+        /// </summary>
+        public static readonly IReadOnlyList<(string Slug, string Name)> Defaults =
+        [
+            ("mobile", "Mobile Game"),
+            ("pc", "PC Game"),
+            ("voucher", "Voucher"),
+            ("e-money", "E-Money"),
+            ("pulsa-data", "Pulsa & Data"),
+        ];
+
+        /// <summary>Nama tampilan bawaan per slug — fallback untuk slug di luar registry.</summary>
+        public static readonly IReadOnlyDictionary<string, string> Names =
+            Defaults.ToDictionary(
+                category => category.Slug,
+                category => category.Name,
+                StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Bucket virtual "semua kategori" — tab pertama storefront.</summary>
+        public const string AllSlug = "all";
+        public const string AllName = "Semua";
+
+        /// <summary>Bucket virtual brand yang belum dikategorikan admin.</summary>
+        public const string UncategorizedSlug = "lainnya";
+        public const string UncategorizedName = "Lainnya";
+
+        /// <summary>Section virtual peringkat penjualan (GET /games/brands/popular).</summary>
+        public const string PopularSlug = "populer";
+
+        /// <summary>
+        /// Slug bucket virtual di atas. Kategori dengan slug ini tidak boleh dibuat
+        /// admin — akan bertabrakan dan membuat katalog tampil dobel / brand tanpa
+        /// kategori tertimpa / section populer tergantikan kategori manual.
+        /// </summary>
+        public static readonly IReadOnlySet<string> ReservedSlugs =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { AllSlug, UncategorizedSlug, PopularSlug };
     }
 
     public static class GameInputFieldTypes

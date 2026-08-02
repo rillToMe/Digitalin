@@ -55,6 +55,11 @@ public class DigitalinDbContext : DbContext
             entity.Property(m => m.TargetTemplate)
                 .IsRequired()
                 .HasMaxLength(500);
+
+            // CSV slug kategori (multi-kategori per game) — lebih lega dari
+            // satu slug, tapi tetap satu kolom.
+            entity.Property(m => m.Categories)
+                .HasMaxLength(255);
         });
         
         // TOPUP ORDER

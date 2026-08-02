@@ -4,6 +4,7 @@ import { Check, AlertCircle, Loader2, ShieldCheck, CheckCircle2 } from "lucide-r
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { brandService, orderService } from "../../../services/api";
+import { paySnap, preloadSnap, SnapError } from "../../../services/midtransSnap";
 import { useCheckoutStore } from "../../../store/checkoutStore";
 import type { CreateOrderPayload, CheckoutPreviewResponse } from "../../../api/index";
 import VoucherCard from "../../../components/common/VoucherCard";
@@ -54,6 +55,12 @@ export default function GameDetailPage() {
   useEffect(() => {
     reset();
   }, [slug]);
+
+  /* Halaman ini tujuannya memang bayar, jadi snap.js ditarik sekarang — kalau
+     baru dimulai setelah order dibuat, popup-nya menunggu ~726 kB dulu. */
+  useEffect(() => {
+    preloadSnap();
+  }, []);
 
   // Reset voucher and preview when product or player data changes
   useEffect(() => {
@@ -107,10 +114,10 @@ export default function GameDetailPage() {
   const createOrder = useMutation({
     mutationFn: (payload: CreateOrderPayload) => orderService.create(payload),
     onSuccess: (res) => {
-      if (res.snapToken && window.snap) {
-        // Open Midtrans Snap popup
+      if (res.snapToken) {
+        // Popup Snap — script-nya sudah dipramuat saat halaman dibuka.
         setIsPaying(true);
-        window.snap.pay(res.snapToken, {
+        void paySnap(res.snapToken, {
           onSuccess: () => {
             setIsPaying(false);
             queryClient.invalidateQueries({ queryKey: ["orders"] });
@@ -145,11 +152,14 @@ export default function GameDetailPage() {
             setIsPaying(false);
             toast.warning("Pembayaran belum selesai. Anda dapat melanjutkan pembayaran melalui riwayat order.");
           },
+        }).catch((err: unknown) => {
+          setIsPaying(false);
+          toast.error(
+            err instanceof SnapError
+              ? err.message
+              : "Gagal memuat sistem pembayaran. Silakan refresh halaman dan coba lagi.",
+          );
         });
-      } else if (res.snapToken) {
-        // snapToken exists but Midtrans script failed to load
-        setIsPaying(false);
-        toast.error("Gagal memuat sistem pembayaran. Silakan refresh halaman dan coba lagi.");
       } else {
         // Fallback: no snapToken (should not happen if backend is configured correctly)
         setIsPaying(false);

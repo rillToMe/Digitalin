@@ -16,7 +16,8 @@ namespace be_digitalin.Domain.Orders;
 ///      │          │           └──► NEEDS_ACTION ──► COMPLETED / PROCESSING / REFUNDED
 ///      │          └──► NEEDS_ACTION
 ///      ├──► EXPIRED
-///      └──► FAILED
+///      ├──► FAILED
+///      └──► COMPLETED / NEEDS_ACTION  (webhook Digiflazz mendahului tulisan PROCESSING)
 ///
 /// COMPLETED, EXPIRED, FAILED, REFUNDED adalah status final (tidak punya transisi keluar).
 /// Contoh yang ditolak: COMPLETED ──► NEEDS_ACTION.
@@ -32,6 +33,13 @@ public static class OrderStateTransition
                 AppConstants.OrderStatus.Paid,
                 AppConstants.OrderStatus.Expired,
                 AppConstants.OrderStatus.Failed,
+
+                // Webhook Digiflazz bisa tiba sebelum order sempat ditulis ke
+                // PROCESSING (event asinkron, tanpa jaminan urutan). Keduanya
+                // adalah transisi maju menuju hasil fulfillment, bukan mundur —
+                // status final tetap tidak punya jalan keluar.
+                AppConstants.OrderStatus.Completed,
+                AppConstants.OrderStatus.NeedsAction,
             },
             [AppConstants.OrderStatus.Paid] = new(StringComparer.Ordinal)
             {

@@ -13,7 +13,8 @@ export default function MaintenancePage() {
 
   // Mutation to check if backend is still in maintenance mode
   const checkStatusMutation = useMutation({
-    mutationFn: () => brandService.getAll(),
+    // limit:1 — hanya perlu tahu API menjawab 200 atau 503, bukan isi katalognya.
+    mutationFn: () => brandService.getAll({ limit: 1 }),
     onSuccess: () => {
       // If success, it means maintenance mode is OFF!
       clearMaintenance();

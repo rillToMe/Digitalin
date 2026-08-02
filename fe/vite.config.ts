@@ -4,21 +4,21 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { visualizer } from "rollup-plugin-visualizer";
 
-// function figmaAssetResolver() {
-//   // return {
-//   //   name: "figma-asset-resolver",
-//   //   resolveId(id: string) {
-//   //     if (id.startsWith("figma:asset/")) {
-//   //       const filename = id.replace("figma:asset/", "");
-//   //       return path.resolve(__dirname, "src/assets", filename);
-//   //     }
-//   //   },
-//   // };
-// }
+function figmaAssetResolver() {
+  return {
+    name: "figma-asset-resolver",
+    resolveId(id: string) {
+      if (id.startsWith("figma:asset/")) {
+        const filename = id.replace("figma:asset/", "");
+        return path.resolve(__dirname, "src/assets", filename);
+      }
+    },
+  };
+}
 
 export default defineConfig({
   plugins: [
-    // figmaAssetResolver(),
+    figmaAssetResolver(),
 
     react(),
 
@@ -72,6 +72,13 @@ export default defineConfig({
 
           if (id.includes("axios")) {
             return "network";
+          }
+
+          // Wajib punya chunk sendiri: catch-all "vendor" di bawah masuk ke
+          // graph statis entry, jadi apapun yang jatuh ke sana ikut ter-
+          // download di first load meski cuma dipakai halaman admin.
+          if (id.includes("chart.js")) {
+            return "chart";
           }
 
           if (id.includes("zustand")) {

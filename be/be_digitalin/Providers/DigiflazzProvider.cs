@@ -14,6 +14,7 @@ public class DigiflazzProvider
     
     private const string EndpointTransaction = "/v1/transaction";
     private const string EndpointPriceList = "/v1/price-list";
+    private const string EndpointCheckBalance = "/v1/cek-saldo";
 
     public DigiflazzProvider(HttpClient httpClient, IOptions<DigiflazzSettings> settings)
     {
@@ -130,6 +131,45 @@ public class DigiflazzProvider
         }
 
         return dataElement.EnumerateArray();
+    }
+
+    /// <summary>
+    /// Saldo deposit yang tersisa di akun Digiflazz. Dipakai dashboard admin
+    /// supaya saldo tidak perlu dicek manual ke web supplier.
+    /// </summary>
+    public async Task<decimal> GetBalanceAsync(CancellationToken cancellationToken = default)
+    {
+        var payload = new
+        {
+            cmd = AppConstants.DigiflazzCommands.Deposit,
+            username = _settings.Username,
+            sign = GenerateSignature(AppConstants.DigiflazzCommands.DepositSign)
+        };
+
+        var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+        var response = await _httpClient.PostAsync(EndpointCheckBalance, content, cancellationToken);
+        var responseString = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        using var jsonDoc = JsonDocument.Parse(responseString);
+
+        if (!jsonDoc.RootElement.TryGetProperty(AppConstants.DigiflazzResponseKeys.Data, out var data))
+        {
+            throw new Exception($"[Digiflazz Error] Balasan cek saldo tidak dikenali: {responseString}");
+        }
+
+        // Sukses dan gagal memakai bentuk yang sama; kalau kredensial salah atau
+        // IP belum di-whitelist, "deposit" tidak ada dan hanya "message" yang datang.
+        if (!data.TryGetProperty(AppConstants.DigiflazzResponseKeys.Deposit, out var deposit))
+        {
+            var message = data.TryGetProperty(AppConstants.DigiflazzResponseKeys.Message, out var msgElement)
+                ? msgElement.GetString()
+                : null;
+
+            throw new Exception(message ?? $"[Digiflazz Error] Cek saldo gagal: {responseString}");
+        }
+
+        return deposit.GetDecimal();
     }
 
     // webhook validasi signature

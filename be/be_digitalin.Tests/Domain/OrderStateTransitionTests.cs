@@ -21,6 +21,9 @@ public class OrderStateTransitionTests
         yield return new object[] { AppConstants.OrderStatus.NeedsAction, AppConstants.OrderStatus.Processing };
         yield return new object[] { AppConstants.OrderStatus.NeedsAction, AppConstants.OrderStatus.Completed };
         yield return new object[] { AppConstants.OrderStatus.NeedsAction, AppConstants.OrderStatus.Refunded };
+        // Webhook Digiflazz async: bisa tiba sebelum tulisan PROCESSING lokal
+        yield return new object[] { AppConstants.OrderStatus.Pending, AppConstants.OrderStatus.Completed };
+        yield return new object[] { AppConstants.OrderStatus.Pending, AppConstants.OrderStatus.NeedsAction };
     }
 
     [Theory]
@@ -43,7 +46,6 @@ public class OrderStateTransitionTests
         // Lompatan mundur / tidak logis
         yield return new object[] { AppConstants.OrderStatus.Paid, AppConstants.OrderStatus.Pending };
         yield return new object[] { AppConstants.OrderStatus.Processing, AppConstants.OrderStatus.Paid };
-        yield return new object[] { AppConstants.OrderStatus.Pending, AppConstants.OrderStatus.Completed };
         yield return new object[] { AppConstants.OrderStatus.Pending, AppConstants.OrderStatus.Processing };
     }
 

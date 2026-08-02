@@ -95,11 +95,24 @@ export interface BrandItem {
   imageUrl: string | null;
   /** Kategori produk Digiflazz — saat ini BE selalu mengirim "Games" */
   category: string;
-  /** Slug kategori storefront (mobile/pc/dst); null = belum dikategorikan → "Lainnya" */
-  categorySlug: string | null;
+  /** Slug kategori storefront (mobile/pc/dst), boleh lebih dari satu; kosong → "Lainnya" */
+  categorySlugs: string[];
 }
 
 export type BrandsResponse = BrandItem[];
+
+/**
+ * Query param GET /games/brands. Dipaginasi per kategori supaya section homepage
+ * tidak mengunduh seluruh katalog + ikonnya sekaligus. Tanpa param = katalog penuh.
+ */
+export interface BrandsQueryParams {
+  /** Slug kategori; "all"/kosong = semua, "lainnya" = belum dikategorikan */
+  category?: string;
+  /** Jumlah brand yang sudah termuat di section itu */
+  offset?: number;
+  /** Ukuran batch; BE membatasi maksimal 60 */
+  limit?: number;
+}
 
 // Game Categories (Storefront)
 
@@ -110,6 +123,32 @@ export interface GameCategoryItem {
 }
 
 export type GameCategoriesResponse = GameCategoryItem[];
+
+/** Satu baris di editor kategori admin. slug null = kategori baru (BE turunkan dari name). */
+export interface GameCategoryEntryPayload {
+  slug: string | null;
+  name: string;
+}
+
+/** Urutan array = urutan tampil di storefront. */
+export interface UpdateGameCategoriesPayload {
+  categories: GameCategoryEntryPayload[];
+}
+
+export interface UpdateGameCategoriesResponse {
+  message: string;
+  categories: GameCategoryItem[];
+}
+
+/** State satu baris di editor kategori admin. localId lokal saja — dipakai
+ *  sebagai React key supaya reorder tidak memindahkan fokus tombol. */
+export interface AdminCategoryRow {
+  localId: number;
+  /** null = kategori baru, slug diturunkan BE dari name */
+  slug: string | null;
+  name: string;
+  brandCount: number;
+}
 
 export interface ProductItem {
   id: number;
@@ -263,6 +302,11 @@ export interface DashboardStatsResponse {
   failedOrdersToday: number;
 }
 
+// Saldo supplier — live dari Digiflazz, bukan dari database Digitalin.
+export interface DigiflazzBalanceResponse {
+  deposit: number;
+}
+
 export interface ChartDataPoint {
   name: string;
   pendapatan: number;
@@ -285,8 +329,8 @@ export interface GameMetadataItem {
   imageUrl: string | null;
   inputFields: GameInputField[];
   targetTemplate: string;
-  /** Slug kategori storefront (kebab-case); null = belum dikategorikan */
-  category: string | null;
+  /** Slug kategori storefront (kebab-case), boleh lebih dari satu; kosong = belum dikategorikan */
+  categories: string[];
 }
 
 export type MetadataListResponse = GameMetadataItem[];
@@ -294,8 +338,8 @@ export type MetadataListResponse = GameMetadataItem[];
 export interface UpdateMetadataPayload {
   inputFields: GameInputField[];
   targetTemplate: string;
-  /** Kategori storefront; dinormalisasi BE ke kebab-case, kosong → null */
-  category?: string | null;
+  /** Kategori storefront (boleh beberapa); dinormalisasi BE ke kebab-case, kosong → tanpa kategori */
+  categories?: string[];
 }
 
 // Built-in input schema presets (SSOT: backend GameTemplateFactory)
@@ -331,7 +375,7 @@ export interface GameSearchResult {
   brand: string;
   slug: string;
   imageUrl: string | null;
-  categorySlug: string | null;
+  categorySlugs: string[];
 }
 
 export type SearchGamesResponse = GameSearchResult[];

@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 
 declare global {
   interface Window {
@@ -14,6 +14,10 @@ declare global {
 
 const RECAPTCHA_SCRIPT_ID = "google-recaptcha-v3";
 
+/** Kegagalan dari sisi reCAPTCHA, bukan dari API — `message`-nya aman
+ *  ditampilkan ke user, jadi pemanggil bisa membedakannya dari error login. */
+export class RecaptchaError extends Error {}
+
 let scriptPromise: Promise<void> | null = null;
 
 function loadRecaptchaScript(siteKey: string): Promise<void> {
@@ -26,20 +30,6 @@ function loadRecaptchaScript(siteKey: string): Promise<void> {
   }
 
   scriptPromise = new Promise<void>((resolve, reject) => {
-    const existingScript = document.getElementById(
-      RECAPTCHA_SCRIPT_ID,
-    ) as HTMLScriptElement | null;
-
-    if (existingScript) {
-      existingScript.addEventListener("load", () => resolve());
-      existingScript.addEventListener("error", () => {
-        scriptPromise = null;
-        reject(new Error("Gagal memuat reCAPTCHA."));
-      });
-
-      return;
-    }
-
     const script = document.createElement("script");
 
     script.id = RECAPTCHA_SCRIPT_ID;
@@ -50,8 +40,12 @@ function loadRecaptchaScript(siteKey: string): Promise<void> {
     script.onload = () => resolve();
 
     script.onerror = () => {
+      // Elemen yang gagal wajib dibuang: kalau ditinggal di <head>, percobaan
+      // berikutnya menempel listener ke <script> mati yang tidak akan pernah
+      // memicu load/error lagi — promise-nya menggantung dan tombol muter terus.
+      script.remove();
       scriptPromise = null;
-      reject(new Error("Gagal memuat reCAPTCHA."));
+      reject(new RecaptchaError("Gagal memuat verifikasi keamanan. Cek koneksi lalu coba lagi."));
     };
 
     document.head.appendChild(script);
@@ -63,18 +57,30 @@ function loadRecaptchaScript(siteKey: string): Promise<void> {
 export function useRecaptcha() {
   const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
 
+  /* Script-nya ditarik saat halaman dibuka, bukan saat tombol diklik. Kalau
+     baru dimulai di klik, ratusan milidetik pertama murni unduhan — user sudah
+     selesai mengisi form jauh sebelum itu, jadi waktunya lebih baik dipakai
+     sekarang. Promise-nya di-memo di module scope, jadi klik memakai hasil
+     yang sama dan tidak mengunduh dua kali. */
+  useEffect(() => {
+    if (!siteKey) return;
+    void loadRecaptchaScript(siteKey).catch(() => {
+      // Diamkan: kegagalan pramuat dilaporkan ulang saat tombol benar-benar
+      // ditekan, di situ baru ada konteks untuk memberi tahu user.
+    });
+  }, [siteKey]);
+
   const executeRecaptcha = useCallback(
     async (action: string): Promise<string> => {
       if (!siteKey) {
-        throw new Error(
-          "VITE_RECAPTCHA_SITE_KEY belum dikonfigurasi.",
-        );
+        console.error("VITE_RECAPTCHA_SITE_KEY belum dikonfigurasi.");
+        throw new RecaptchaError("Verifikasi keamanan belum dikonfigurasi. Hubungi admin.");
       }
 
       await loadRecaptchaScript(siteKey);
 
       if (!window.grecaptcha) {
-        throw new Error("reCAPTCHA tidak tersedia.");
+        throw new RecaptchaError("Verifikasi keamanan tidak tersedia. Muat ulang halaman.");
       }
 
       return new Promise<string>((resolve, reject) => {
@@ -86,18 +92,14 @@ export function useRecaptcha() {
             );
 
             if (!token) {
-              reject(
-                new Error("Gagal mendapatkan token reCAPTCHA."),
-              );
+              reject(new RecaptchaError("Gagal mendapatkan token reCAPTCHA."));
 
               return;
             }
 
             resolve(token);
           } catch {
-            reject(
-              new Error("Verifikasi reCAPTCHA gagal."),
-            );
+            reject(new RecaptchaError("Verifikasi keamanan gagal. Silakan coba lagi."));
           }
         });
       });
