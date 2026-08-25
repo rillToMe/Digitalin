@@ -23,7 +23,7 @@ export default function FaqPage() {
       <div className="text-center mb-8">
         <div className="flex justify-center mb-4">
           <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center"
+            className="hud-panel flex h-14 w-14 items-center justify-center"
             style={{ backgroundColor: "rgba(44,94,245,0.1)" }}
           >
             <HelpCircle size={28} style={{ color: "var(--color-brand-tertiary, #2C5EF5)" }} />
@@ -40,7 +40,7 @@ export default function FaqPage() {
       {/* Search */}
       <div className="mb-6">
         <div
-          className="flex items-center gap-2 rounded-xl px-4"
+          className="hud-panel flex items-center gap-2 px-4"
           style={{
             backgroundColor: "var(--color-surface, #fff)",
             border: "1.5px solid rgba(0,0,0,0.1)",
@@ -69,11 +69,11 @@ export default function FaqPage() {
               <button
                 key={String(tab)}
                 onClick={() => setActiveTab(tab)}
-                className="whitespace-nowrap px-4 py-2 rounded-full transition-all"
+                className="whitespace-nowrap border-b-2 border-transparent px-1 py-2 transition-colors"
                 style={{
-                  backgroundColor: isActive ? "var(--color-brand-tertiary, #2C5EF5)" : "var(--color-surface, #fff)",
-                  color: isActive ? "#fff" : "var(--color-brand-primary, #0F1419)",
-                  border: isActive ? "none" : "1px solid rgba(0,0,0,0.1)",
+                  backgroundColor: "transparent",
+                  color: isActive ? "var(--color-brand-primary, #0F1419)" : "var(--color-brand-secondary, #4A5568)",
+                  borderBottomColor: isActive ? "var(--color-brand-tertiary, #2C5EF5)" : "transparent",
                   fontWeight: isActive ? 600 : 400,
                   fontSize: "0.83rem",
                   cursor: "pointer",
@@ -88,7 +88,7 @@ export default function FaqPage() {
 
       {/* FAQ List */}
       <div
-        className="rounded-2xl overflow-hidden"
+        className="hud-panel overflow-hidden"
         style={{ backgroundColor: "var(--color-surface, #fff)", border: "1px solid rgba(0,0,0,0.07)" }}
       >
         <div className="px-5">
@@ -119,7 +119,7 @@ export default function FaqPage() {
         </p>
         <Link
           to="/contact"
-          className="inline-flex items-center gap-2 px-6 py-3 rounded-xl no-underline transition-colors"
+          className="inline-flex items-center gap-2 border px-6 py-3 no-underline transition-colors"
           style={{ backgroundColor: "var(--color-brand-tertiary, #2C5EF5)", color: "#fff", fontWeight: 600, fontSize: "0.9rem" }}
         >
           <MessageCircle size={16} />

@@ -9,6 +9,7 @@ public enum GameTemplateType
 {
     UserId,
     UserIdServer,
+    UserIdServerPipe,
     UserIdZone,
     PlayerId,
     PlayerIdServer,

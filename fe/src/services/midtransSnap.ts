@@ -7,10 +7,10 @@
  * atau paySnap(), dan hasil unduhannya dibagi lewat memo di module scope.
  *
  * Rilis production: ganti URL ke https://app.midtrans.com/snap/snap.js dan
- * client key production.
+ * VITE_MIDTRANS_CLIENT_KEY ke client key production.
  */
 const SNAP_SCRIPT_URL = "https://app.sandbox.midtrans.com/snap/snap.js";
-const SNAP_CLIENT_KEY = "SB-Mid-server-placeholder";
+const SNAP_CLIENT_KEY = import.meta.env.VITE_MIDTRANS_CLIENT_KEY?.trim();
 const SNAP_SCRIPT_ID = "midtrans-snap";
 
 /** Kegagalan dari sisi Snap, bukan dari API — `message`-nya aman ditampilkan ke user. */
@@ -21,6 +21,12 @@ let scriptPromise: Promise<void> | null = null;
 function loadSnapScript(): Promise<void> {
   if (window.snap) {
     return Promise.resolve();
+  }
+
+  if (!SNAP_CLIENT_KEY) {
+    return Promise.reject(
+      new SnapError("Client Key Midtrans belum dikonfigurasi. Hubungi admin."),
+    );
   }
 
   if (scriptPromise) {

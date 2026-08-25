@@ -3,6 +3,7 @@ using be_digitalin.DTOs;
 using be_digitalin.Models;
 using be_digitalin.Providers;
 using be_digitalin.Constants;
+using be_digitalin.Domain;
 using be_digitalin.Domain.Orders;
 using be_digitalin.Infrastructure.Serialization;
 using Microsoft.EntityFrameworkCore;
@@ -19,14 +20,14 @@ public class OrderService : IOrderService
     private readonly TelegramProvider _telegramProvider;
     private readonly IVoucherService _voucherService;
     private readonly ILogger<OrderService> _logger;
-    
+
     public OrderService(
         DigitalinDbContext db,
         MidtransProvider midtransProvider,
         DigiflazzProvider digiflazzProvider,
         TelegramProvider telegramProvider,
         IVoucherService voucherService,
-        ILogger<OrderService> logger) 
+        ILogger<OrderService> logger)
     {
         _db = db;
         _midtransProvider = midtransProvider;
@@ -94,7 +95,7 @@ public class OrderService : IOrderService
             throw new InvalidOperationException("Harga akhir setelah diskon tidak boleh nol atau negatif.");
 
         // Hitung snapshot modal & profit
-        decimal profitAmount = product.CustomMargin ?? 0m;
+        decimal profitAmount = Pricing.MarginOf(product.CustomMargin);
         decimal costPrice = product.Price - profitAmount;
 
         string generatedOrderNo = $"INV-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..4].ToUpper()}";

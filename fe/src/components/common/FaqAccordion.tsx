@@ -23,7 +23,7 @@ export default function FaqAccordion({ items }: FaqAccordionProps) {
       {items.map((item) => {
         const isOpen = openId === item.id;
         return (
-          <div key={item.id} style={{ borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+          <div key={item.id} style={{ borderBottom: "1px solid var(--color-border-light)" }}>
             <button
               onClick={() => toggle(item.id)}
               className="w-full flex items-center justify-between text-left py-4 px-1 transition-colors"

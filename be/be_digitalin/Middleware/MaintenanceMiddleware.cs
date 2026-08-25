@@ -18,14 +18,15 @@ public class MaintenanceMiddleware
 
     /// <summary>
     /// Paths (prefix-matched, case-insensitive) that bypass the maintenance block.
+    /// Endpoint aplikasi ikut prefix versi API; infrastruktur tetap di root.
     /// </summary>
     private static readonly string[] WhitelistedPrefixes =
     [
-        "/admin",                          // Admin panel — must be accessible to disable maintenance
-        "/auth/local/login",               // Users can still log in (but can't transact)
-        "/auth/google",                    // Google OAuth flow
-        "/auth/local/request-password-reset", // Password recovery should remain open
-        "/auth/local/reset-password",
+        $"{AppConstants.Api.Prefix}/admin",                          // Admin panel — must be accessible to disable maintenance
+        $"{AppConstants.Api.Prefix}/auth/local/login",               // Users can still log in (but can't transact)
+        $"{AppConstants.Api.Prefix}/auth/google",                    // Google OAuth flow
+        $"{AppConstants.Api.Prefix}/auth/local/request-password-reset", // Password recovery should remain open
+        $"{AppConstants.Api.Prefix}/auth/local/reset-password",
         "/health",                         // Health / readiness probes
         "/swagger",                        // Swagger UI (dev)
         "/ping-db",                        // DB connectivity check (dev)

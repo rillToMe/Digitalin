@@ -1,11 +1,12 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   X,
   Loader2,
   Save,
   Upload,
-  Image
+  Image,
+  Info
 } from "lucide-react";
 import { toast } from "sonner";
 import type {
@@ -25,6 +26,14 @@ export function GameEditModal({
   updateMutation, coverMutation, marginMutation, onClose,
 }: GameEditModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
 
   // Registry kategori dari admin (termasuk kategori custom & yang belum dipakai).
   // Cache dibagi dengan CategoriesPage, fallback ke definisi statis selama loading.
@@ -54,10 +63,13 @@ export function GameEditModal({
   };
 
   const handleSaveMetadata = () => {
-    updateMutation.mutate({
-      id: item.id,
-      payload: form,
-    });
+    updateMutation.mutate(
+      {
+        id: item.id,
+        payload: form,
+      },
+      { onSuccess: onClose }
+    );
   };
 
   // Satu game boleh masuk beberapa kategori (game PC yang juga rilis mobile).
@@ -150,6 +162,21 @@ export function GameEditModal({
                   </div>
                 </div>
               </div>
+
+              {/* Catatan supplier Digiflazz (read-only). Petunjuk isi target,
+                  bukan sumber format — format tetap dari preset + input fields. */}
+              {item.supplierNote && (
+                <div className="flex gap-2 p-3 rounded-xl" style={{ backgroundColor: "var(--color-neutral,#F1F3F5)", border: "1px solid rgba(0,0,0,0.07)" }}>
+                  <Info size={15} className="flex-shrink-0" style={{ color: "var(--color-brand-tertiary,#2C5EF5)", marginTop: 2 }} />
+                  <div>
+                    <p style={{ color: "var(--color-brand-primary,#0F1419)", fontSize: "0.8rem", fontWeight: 600 }}>Catatan Supplier</p>
+                    <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.8rem", whiteSpace: "pre-wrap" }}>{item.supplierNote}</p>
+                    <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.72rem", marginTop: 4 }}>
+                      Hanya informasi dari Digiflazz. Format tujuan tetap ditentukan preset & input fields di bawah.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <PresetTemplatePicker
                 form={form}

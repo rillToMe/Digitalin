@@ -3,7 +3,6 @@ using be_digitalin.DTOs;
 using be_digitalin.Constants;
 using be_digitalin.Providers;
 using Microsoft.EntityFrameworkCore;
-
 namespace be_digitalin.Services;
 
 public class DashboardService : IDashboardService

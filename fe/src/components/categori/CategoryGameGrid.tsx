@@ -1,10 +1,7 @@
-import { ChevronDown, Gamepad2 } from "lucide-react";
+import { useRef } from "react";
+import { ChevronDown } from "lucide-react";
 import type { BrandItem } from "../../api/index";
 import CategoryGameCard from "./CategoryGameCard";
-
-/** Kartu di luar jendela ini tidak menunda animasinya lagi — batch kedua
- *  (offset 12+) harus muncul segera, bukan 12 × 40ms setelah diklik. */
-const STAGGER_WINDOW = 12;
 
 interface CategoryGameGridProps {
   brands: BrandItem[];
@@ -14,33 +11,41 @@ interface CategoryGameGridProps {
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onLoadMore?: () => void;
+  /** "rail" = satu baris horizontal yang bisa di-swipe/drag. */
+  variant?: "grid" | "rail";
+  /** Nomor urutan hanya untuk kurasi "Populer". */
+  ranked?: boolean;
 }
 
-/**
- * Struktur harus sama persis dengan CategoryGameCard (padding p-3, gambar
- * rounded-xl, blok judul 2 baris) supaya tidak ada layout shift saat data
- * datang. 2.34rem = judul 2 baris di kartu asli (0.9rem × line-height 1.3 × 2).
- */
+/** Bentuk skeleton mengikuti poster 3:4 dan judul di bawahnya. */
 function SkeletonCard() {
   return (
-    <div
-      className="rounded-2xl p-3"
-      style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border-light)" }}
-    >
+    <div>
       <div
-        className="aspect-square w-full animate-pulse rounded-xl"
-        style={{ backgroundColor: "var(--color-skeleton)" }}
+        className="hud-game-card aspect-[3/4] animate-pulse overflow-hidden"
+        style={{
+          backgroundColor: "var(--color-skeleton)",
+          border: "1px solid var(--color-border-light)",
+        }}
       />
-      <div className="flex flex-col gap-1.5 px-1 pt-3" style={{ minHeight: "2.34rem" }}>
-        <div className="h-3 w-4/5 animate-pulse rounded" style={{ backgroundColor: "var(--color-skeleton)" }} />
-        <div className="h-3 w-1/2 animate-pulse rounded" style={{ backgroundColor: "var(--color-skeleton)" }} />
+      <div className="mt-2 px-0.5">
+        <div
+          className="h-3 w-4/5 animate-pulse rounded"
+          style={{ backgroundColor: "var(--color-skeleton)" }}
+        />
       </div>
     </div>
   );
 }
 
-const GRID_CLASS =
-  "grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6";
+const GRID_CLASS = "grid grid-cols-3 gap-3 sm:flex sm:flex-wrap sm:gap-4";
+
+/* Rail: lebar kartu dikunci (rasio 3:4 tetap dijaga kartunya sendiri) dan
+   snap-start supaya swipe berhenti rapi di tepi poster, bukan di tengah. */
+const RAIL_CLASS =
+  "game-rail flex snap-x snap-mandatory flex-nowrap gap-4 overflow-x-auto px-1 pb-3";
+const RAIL_ITEM_CLASS = "w-[132px] shrink-0 snap-start sm:w-[150px]";
+const GRID_ITEM_CLASS = "min-w-0 sm:w-[150px] sm:shrink-0";
 
 /**
  * Grid game satu section. Murni presentational: batch berikutnya diambil parent
@@ -55,12 +60,62 @@ export default function CategoryGameGrid({
   hasMore = false,
   isLoadingMore = false,
   onLoadMore,
+  variant = "grid",
+  ranked = false,
 }: CategoryGameGridProps) {
+  const rail = variant === "rail";
+  const wrapClass = rail ? RAIL_CLASS : GRID_CLASS;
+  const itemClass = rail ? RAIL_ITEM_CLASS : GRID_ITEM_CLASS;
+  const railRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef({ active: false, moved: false, startX: 0, scrollLeft: 0 });
+
+  const railHandlers = rail
+    ? {
+        ref: railRef,
+        onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
+          if (event.pointerType !== "mouse" || event.button !== 0) return;
+          dragRef.current = {
+            active: true,
+            moved: false,
+            startX: event.clientX,
+            scrollLeft: event.currentTarget.scrollLeft,
+          };
+        },
+        onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
+          if (!dragRef.current.active) return;
+          const distance = event.clientX - dragRef.current.startX;
+          if (Math.abs(distance) > 4 && !dragRef.current.moved) {
+            dragRef.current.moved = true;
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }
+          event.currentTarget.scrollLeft = dragRef.current.scrollLeft - distance;
+        },
+        onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => {
+          if (!dragRef.current.active) return;
+          dragRef.current.active = false;
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          }
+        },
+        onPointerCancel: () => {
+          dragRef.current.active = false;
+        },
+        onClickCapture: (event: React.MouseEvent<HTMLDivElement>) => {
+          if (!dragRef.current.moved) return;
+          event.preventDefault();
+          event.stopPropagation();
+          dragRef.current.moved = false;
+        },
+      }
+    : {};
+
   if (isLoading) {
     return (
-      <div className={GRID_CLASS}>
+      <div className={wrapClass} {...railHandlers}>
         {Array.from({ length: skeletonCount }).map((_, i) => (
-          <SkeletonCard key={i} />
+          <div key={i} className={itemClass}>
+            <SkeletonCard />
+          </div>
         ))}
       </div>
     );
@@ -69,28 +124,27 @@ export default function CategoryGameGrid({
   if (brands.length === 0) {
     return (
       <div className="py-16 text-center">
-        <Gamepad2 size={40} style={{ color: "var(--color-brand-secondary)", margin: "0 auto 12px" }} />
-        <p style={{ color: "var(--color-brand-secondary)" }}>Tidak ada game ditemukan</p>
+        <p className="label-mono" style={{ color: "var(--color-brand-secondary)" }}>Tidak ada game ditemukan</p>
       </div>
     );
   }
 
   return (
     <>
-      <div className={GRID_CLASS}>
+      <div className={wrapClass} {...railHandlers}>
         {brands.map((brand, index) => (
-          <div
-            key={brand.slug}
-            className="animate-category-in"
-            style={{ animationDelay: `${(index % STAGGER_WINDOW) * 40}ms` }}
-          >
-            <CategoryGameCard brand={brand} />
+          <div key={brand.slug} className={itemClass}>
+            <CategoryGameCard brand={brand} rank={ranked ? index + 1 : undefined} />
           </div>
         ))}
 
         {/* Batch berikutnya menempati slot grid, bukan menggeser tombol. */}
         {isLoadingMore &&
-          Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={`more-${i}`} />)}
+          Array.from({ length: 6 }).map((_, i) => (
+            <div key={`more-${i}`} className={itemClass}>
+              <SkeletonCard />
+            </div>
+          ))}
       </div>
 
       {hasMore && (
@@ -98,7 +152,7 @@ export default function CategoryGameGrid({
           <button
             onClick={onLoadMore}
             disabled={isLoadingMore}
-            className="inline-flex items-center gap-1.5 rounded-xl px-5 py-2.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-brand-tertiary) disabled:opacity-60"
+            className="inline-flex items-center gap-1.5 border px-5 py-2.5 transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-brand-tertiary) disabled:opacity-60"
             style={{
               color: "var(--color-brand-tertiary)",
               backgroundColor: "transparent",

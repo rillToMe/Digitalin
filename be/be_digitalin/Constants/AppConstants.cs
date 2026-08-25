@@ -2,6 +2,15 @@ namespace be_digitalin.Constants;
 
 public static class AppConstants
 {
+    // Versi kontrak API — SSOT. Naik ke "v2" cukup diubah di sini,
+    // Program.cs yang memasang prefix ke seluruh endpoint aplikasi.
+    // Webhook & endpoint infrastruktur sengaja tidak versioned.
+    public static class Api
+    {
+        public const string Version = "v1";
+        public const string Prefix = $"/api/{Version}";
+    }
+
     // Role
     public static class Roles
     {
@@ -24,6 +33,9 @@ public static class AppConstants
 
         /// <summary>Registry kategori storefront (JSON array [{slug,name}], urutan = urutan tampil).</summary>
         public const string GameCategories = "GAME_CATEGORIES";
+
+        /// <summary>Slug brand pilihan admin untuk section Populer, disimpan sebagai JSON array.</summary>
+        public const string PopularGames = "POPULAR_GAMES";
 
         /// <summary>Keys for Maintenance Mode stored in AppSettings table.</summary>
         public static class MaintenanceKeys
@@ -127,6 +139,16 @@ public static class AppConstants
         public const string ProductName = "product_name";
         public const string Price = "price";
         public const string Brand = "brand";
+
+        /// <summary>Instruksi supplier per produk (mis. "Format no tujuan [UID]|[Server]").</summary>
+        public const string Desc = "desc";
+
+        /// <summary>Supplier menyalakan produk untuk pembeli. false = tidak boleh dijual.</summary>
+        public const string BuyerProductStatus = "buyer_product_status";
+
+        /// <summary>Seller menyalakan produknya. false = tidak boleh dijual.</summary>
+        public const string SellerProductStatus = "seller_product_status";
+
         public const string Sn = "sn";
         public const string Deposit = "deposit";
         public const string Message = "message";
@@ -171,7 +193,7 @@ public static class AppConstants
         public const string UncategorizedSlug = "lainnya";
         public const string UncategorizedName = "Lainnya";
 
-        /// <summary>Section virtual peringkat penjualan (GET /games/brands/popular).</summary>
+        /// <summary>Section virtual kurasi admin (GET /games/brands/popular).</summary>
         public const string PopularSlug = "populer";
 
         /// <summary>

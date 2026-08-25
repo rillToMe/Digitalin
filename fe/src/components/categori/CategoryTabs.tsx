@@ -42,7 +42,7 @@ export default function CategoryTabs({ categories, activeCategory, onChange, isL
         {SKELETON_PILL_WIDTHS.map((width, i) => (
           <div
             key={i}
-            className="flex-shrink-0 animate-pulse rounded-full px-4 py-2"
+            className="flex-shrink-0 animate-pulse px-4 py-2"
             style={{
               width,
               backgroundColor: "var(--color-skeleton)",
@@ -61,7 +61,7 @@ export default function CategoryTabs({ categories, activeCategory, onChange, isL
     <div
       role="tablist"
       aria-label="Kategori game"
-      className="flex gap-2 overflow-x-auto pb-2"
+      className="flex gap-5 overflow-x-auto border-b pb-0"
       style={{ scrollbarWidth: "none" }}
     >
       {categories.map((cat, index) => {
@@ -79,11 +79,11 @@ export default function CategoryTabs({ categories, activeCategory, onChange, isL
             tabIndex={active ? 0 : -1}
             onClick={() => onChange(cat.slug)}
             onKeyDown={(e) => handleKeyDown(e, index)}
-            className="flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap transition-all duration-200 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-brand-tertiary)"
+            className="relative flex items-center gap-2 whitespace-nowrap border-b-2 border-transparent px-1 py-2.5 transition-colors duration-150 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-brand-tertiary)"
             style={{
-              backgroundColor: active ? "var(--color-brand-tertiary)" : "var(--color-surface)",
-              color: active ? "var(--color-on-primary)" : "var(--color-brand-primary)",
-              border: active ? "1px solid var(--color-brand-tertiary)" : "1px solid var(--color-border-default)",
+              backgroundColor: "transparent",
+              color: active ? "var(--color-brand-primary)" : "var(--color-brand-secondary)",
+              borderBottomColor: active ? "var(--color-brand-tertiary)" : "transparent",
               fontWeight: active ? 600 : 400,
               fontSize: "0.85rem",
             }}
@@ -91,12 +91,10 @@ export default function CategoryTabs({ categories, activeCategory, onChange, isL
             <Icon size={15} aria-hidden="true" />
             {cat.name}
             <span
-              className="rounded-full px-1.5 py-0.5 leading-none"
+              className="label-mono border px-1.5 py-0.5 leading-none"
               style={{
-                backgroundColor: active ? "var(--color-on-primary)" : "var(--color-neutral)",
-                color: active ? "var(--color-brand-tertiary)" : "var(--color-brand-secondary)",
-                fontSize: "0.7rem",
-                fontWeight: 600,
+                backgroundColor: "transparent",
+                color: "var(--color-brand-secondary)",
               }}
             >
               {cat.brandCount}

@@ -61,7 +61,6 @@ public class AppSettingsService : IAppSettingsService
     }
 
     // ── Maintenance helpers ───────────────────────────────────────────────────
-
     /// <inheritdoc />
     public async Task<bool> IsMaintenanceEnabledAsync()
     {

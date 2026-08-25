@@ -2,11 +2,12 @@
 using be_digitalin.DTOs;
 using be_digitalin.Models;
 using be_digitalin.Constants;
+using be_digitalin.Domain;
 using be_digitalin.Providers;
 using be_digitalin.Services.GameTemplates;
 using be_digitalin.Infrastructure.Serialization;
 using Microsoft.EntityFrameworkCore;
-using System.Text.RegularExpressions;
+using System.Text.Json;
 
 namespace be_digitalin.Services;
 
@@ -16,22 +17,15 @@ public class ProductService : IProductService
     private readonly CloudflareR2Provider _r2Provider;
     private readonly DigiflazzProvider _digiflazzProvider;
 
-    /// <summary>Jendela penjualan untuk section "Populer" (hari).</summary>
-    private const int PopularWindowDays = 30;
-
     /// <summary>
     /// Jumlah game di section "Populer". Sama dengan batas grid homepage,
     /// jadi section-nya penuh tanpa tombol "Tampilkan lebih banyak".
     /// </summary>
     private const int PopularBrandLimit = 12;
 
-    /// <summary>Apa pun yang bukan huruf/angka jadi pemisah slug kategori.</summary>
-    private static readonly Regex NonSlugCharacters =
-        new("[^a-z0-9]+", RegexOptions.Compiled);
-
     public ProductService(
-        DigitalinDbContext db, 
-        CloudflareR2Provider r2Provider, 
+        DigitalinDbContext db,
+        CloudflareR2Provider r2Provider,
         DigiflazzProvider digiflazzProvider)
     {
         _db = db;
@@ -92,23 +86,14 @@ public class ProductService : IProductService
     }
 
     /// <summary>
-    /// Normalisasi kategori storefront dari input admin menjadi slug kebab-case:
-    /// lowercase, karakter non-alfanumerik → hyphen ("E-Money" → "e-money",
-    /// "Konsol, Game" → "konsol-game"). Input kosong/whitespace → null.
-    /// Hanya menyisakan [a-z0-9-] supaya slug aman dipakai di URL/anchor FE
-    /// dan sebagai elemen CSV di GameMetadata.Categories.
+    /// Normalisasi kategori storefront dari input admin menjadi slug kebab-case
+    /// lewat <see cref="Slug"/> ("E-Money" → "e-money", "Konsol, Game" →
+    /// "konsol-game"). Input kosong/whitespace → null. Hanya menyisakan
+    /// [a-z0-9-] supaya slug aman dipakai di URL/anchor FE dan sebagai elemen
+    /// CSV di GameMetadata.Categories.
     /// </summary>
-    internal static string? NormalizeCategory(string? category)
-    {
-        if (string.IsNullOrWhiteSpace(category))
-            return null;
-
-        var slug = NonSlugCharacters
-            .Replace(category.ToLowerInvariant(), "-")
-            .Trim('-');
-
-        return slug.Length == 0 ? null : slug;
-    }
+    internal static string? NormalizeCategory(string? category) =>
+        Slug.From(category);
 
     /// <summary>
     /// Beberapa kategori sekaligus → CSV siap simpan. Tiap entri dinormalisasi,
@@ -134,13 +119,6 @@ public class ProductService : IProductService
         return GameMetadata.JoinCategories(slugs);
     }
 
-    /// <summary>
-    /// Slug brand seperti yang dipakai URL detail game — sama dengan ekspresi
-    /// yang diterjemahkan ke SQL di GetGameDetailAsync, hanya versi in-memory.
-    /// </summary>
-    private static string BrandSlug(string brand) =>
-        brand.ToLower().Replace(" ", "-");
-    
     // logic sync
     public async Task<(int Added, int Updated, int Deactivated)> SyncCatalogFromDigiflazzAsync()
     {
@@ -153,11 +131,12 @@ public class ProductService : IProductService
         var activeDigiflazzSkus = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         // ── Load katalog sekali ke memori (hindari N+1 di dalam loop) ──
+        // Entity-nya dibawa (bukan cuma nama brand) karena SupplierNote ditulis
+        // ke metadata brand yang sudah ada, bukan hanya brand baru.
         // Brand di-lookup case-insensitive agar sepadan dengan kolasi default MySQL.
-        var existingBrands = await _db.GameMetadata
-            .Select(m => m.Brand)
-            .ToListAsync();
-        var knownBrands = new HashSet<string>(existingBrands, StringComparer.OrdinalIgnoreCase);
+        var metadataByBrand = (await _db.GameMetadata.ToListAsync())
+            .GroupBy(m => m.Brand, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
         // SKU unik → lookup per item cukup dari dictionary (bukan query).
         var products = await _db.GameProducts.ToListAsync();
@@ -194,33 +173,68 @@ public class ProductService : IProductService
             if (string.IsNullOrWhiteSpace(sku))
                 continue;
 
+            // Brand tanpa huruf/angka tidak punya slug, jadi tidak punya URL
+            // detail — produknya tidak akan pernah bisa dibuka dari storefront.
+            var brandSlug = Slug.From(brand);
+
+            if (brandSlug == null)
+                continue;
+
+            // Produk hanya boleh dijual kalau supplier DAN seller sama-sama
+            // menyalakannya. Salah satu false = katalog kita ikut mematikannya,
+            // supaya order tidak lolos checkout lalu ditolak Digiflazz setelah
+            // pembayaran masuk.
+            var isSellable =
+                item.GetProperty(AppConstants.DigiflazzResponseKeys.BuyerProductStatus).GetBoolean() &&
+                item.GetProperty(AppConstants.DigiflazzResponseKeys.SellerProductStatus).GetBoolean();
+
             activeDigiflazzSkus.Add(sku);
 
-            if (!knownBrands.Contains(brand))
+            if (!metadataByBrand.TryGetValue(brand, out var metadata))
             {
-                _db.GameMetadata.Add(new GameMetadata
+                metadata = new GameMetadata
                 {
                     Brand = brand,
+                    BrandSlug = brandSlug,
                     InputSchemaJson = GameInputSchemaSerializer.Serialize(
                         GameTemplateFactory.CreateDefaultInputFields()),
                     TargetTemplate = GameTemplateFactory.DefaultTargetTemplate
-                });
+                };
+
+                _db.GameMetadata.Add(metadata);
 
                 // Tandai agar SKU lain dengan brand sama tidak menambah metadata duplikat.
-                knownBrands.Add(brand);
+                metadataByBrand[brand] = metadata;
             }
+
+            // Slug ikut brand: kalau aturan slug diperketat atau brand berubah
+            // nama, baris lama disegarkan di sync berikutnya — bukan dihitung
+            // ulang tiap query.
+            if (metadata.BrandSlug != brandSlug)
+                metadata.BrandSlug = brandSlug;
+
+            // Instruksi supplier disimpan sekali di level brand. Seluruh SKU satu
+            // game memakai desc yang sama, jadi SKU terakhir yang menang — tidak
+            // ada salinan per GameProduct.
+            var supplierNote = item
+                .TryGetProperty(AppConstants.DigiflazzResponseKeys.Desc, out var descProperty)
+                    ? descProperty.GetString()
+                    : null;
+
+            if (!string.IsNullOrWhiteSpace(supplierNote) && metadata.SupplierNote != supplierNote)
+                metadata.SupplierNote = supplierNote;
 
             if (productsBySku.TryGetValue(sku, out var existingProduct))
             {
-                var margin = existingProduct.CustomMargin ?? 0m;
-                var sellingPrice = modalPrice + margin;
+                var sellingPrice = Pricing.CalculateSellingPrice(
+                    modalPrice, existingProduct.CustomMargin);
 
                 var hasChanges =
                     existingProduct.Price != sellingPrice ||
                     existingProduct.Name != name ||
                     existingProduct.Brand != brand ||
                     existingProduct.Category != category ||
-                    !existingProduct.IsActive;
+                    existingProduct.IsActive != isSellable;
 
                 if (hasChanges)
                 {
@@ -229,7 +243,7 @@ public class ProductService : IProductService
                     existingProduct.Brand = brand;
                     existingProduct.Category = category;
                     existingProduct.GameCode = brand;
-                    existingProduct.IsActive = true;
+                    existingProduct.IsActive = isSellable;
 
                     updated++;
                 }
@@ -240,11 +254,11 @@ public class ProductService : IProductService
                 {
                     BuyerSkuCode = sku,
                     Name = name,
-                    Price = modalPrice,
+                    Price = Pricing.CalculateSellingPrice(modalPrice, null),
                     Brand = brand,
                     Category = category,
                     GameCode = brand,
-                    IsActive = true
+                    IsActive = isSellable
                 };
 
                 _db.GameProducts.Add(newProduct);
@@ -278,7 +292,22 @@ public class ProductService : IProductService
             deactivated++;
         }
 
-        await _db.SaveChangesAsync();
+        // Unique index BuyerSkuCode adalah proteksi terakhir bila dua sync
+        // (worker + tombol admin) menulis bersamaan. SaveChanges satu transaksi,
+        // jadi bentrokan berarti rollback penuh — tidak ada baris setengah jadi.
+        // Dilempar sebagai InvalidOperationException agar endpoint memetakannya
+        // ke 400 dan worker cukup mencatat log lalu menunggu tick berikutnya.
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex)
+        {
+            throw new InvalidOperationException(
+                "Sync dibatalkan: katalog sedang ditulis proses sync lain " +
+                "(BuyerSkuCode duplikat ditolak database). Coba lagi setelah sync berjalan selesai.",
+                ex);
+        }
 
         return (added, updated, deactivated);
     }
@@ -312,6 +341,7 @@ public class ProductService : IProductService
             .Select(metadata => new
             {
                 metadata.Brand,
+                metadata.BrandSlug,
                 metadata.ImageUrl,
                 metadata.Categories
             })
@@ -320,7 +350,7 @@ public class ProductService : IProductService
         return PageBrands(
             games.Select(metadata => new CategoryInfo(
                 metadata.Brand,
-                BrandSlug(metadata.Brand),
+                metadata.BrandSlug,
                 metadata.ImageUrl,
                 AppConstants.Categories.Games,
                 GameMetadata.ParseCategories(metadata.Categories)
@@ -364,38 +394,18 @@ public class ProductService : IProductService
         return brands.ToList();
     }
 
-    // HOMEPAGE: Section "Populer" — peringkat otomatis dari penjualan, bukan kurasi manual.
-    // ponytail: dihitung ulang tiap request tanpa cache. Bungkus IMemoryCache
-    // (TTL beberapa menit) kalau TopupOrders sudah besar — hasilnya berubah lambat.
+    // HOMEPAGE: Section "Populer" — urutan pilihan admin dari AppSettings.
     public async Task<IEnumerable<CategoryInfo>> GetPopularGameBrandsAsync()
     {
-        var since = DateTime.UtcNow.AddDays(PopularWindowDays * -1);
+        var slugs = ParsePopularGameSlugs(
+            await GetSettingAsync(AppConstants.SystemSettings.PopularGames));
 
-        // Peringkat dari snapshot BrandName di order, bukan dari relasi produk:
-        // produk boleh dihapus/diganti tanpa menghilangkan riwayat penjualannya.
-        // Hanya COMPLETED yang dihitung — PENDING/EXPIRED bukan penjualan.
-        var ranking = await _db.TopupOrders
-            .AsNoTracking()
-            .Where(order =>
-                order.Status == AppConstants.OrderStatus.Completed &&
-                order.OrderDate >= since)
-            .GroupBy(order => order.BrandName)
-            .Select(group => new { Brand = group.Key, Sales = group.Count() })
-            .OrderByDescending(item => item.Sales)
-            .ThenBy(item => item.Brand)
-            .ToListAsync();
-
-        if (ranking.Count == 0)
+        if (slugs.Count == 0)
             return [];
 
-        var rankedBrands = ranking.Select(item => item.Brand).ToList();
-
-        // Brand yang metadata/produk aktifnya sudah tidak ada harus gugur:
-        // kartunya akan mengarah ke halaman detail kosong.
         var available = await _db.GameMetadata
             .AsNoTracking()
             .Where(metadata =>
-                rankedBrands.Contains(metadata.Brand) &&
                 _db.GameProducts.Any(product =>
                     product.Brand == metadata.Brand &&
                     product.Category == AppConstants.Categories.Games &&
@@ -403,28 +413,94 @@ public class ProductService : IProductService
             .Select(metadata => new
             {
                 metadata.Brand,
+                metadata.BrandSlug,
                 metadata.ImageUrl,
                 metadata.Categories
             })
             .ToListAsync();
 
-        // Casing snapshot bisa beda dari GameMetadata.Brand; indexer (bukan
-        // ToDictionary) supaya brand duplikat tidak melempar.
-        var byBrand = new Dictionary<string, CategoryInfo>(StringComparer.OrdinalIgnoreCase);
+        var bySlug = new Dictionary<string, CategoryInfo>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var metadata in available)
-            byBrand[metadata.Brand] = new CategoryInfo(
+            bySlug[metadata.BrandSlug] = new CategoryInfo(
                 metadata.Brand,
-                BrandSlug(metadata.Brand),
+                metadata.BrandSlug,
                 metadata.ImageUrl,
                 AppConstants.Categories.Games,
                 GameMetadata.ParseCategories(metadata.Categories));
 
-        return rankedBrands
-            .Where(byBrand.ContainsKey)
-            .Select(brand => byBrand[brand])
+        return slugs
+            .Where(bySlug.ContainsKey)
+            .Select(slug => bySlug[slug])
             .Take(PopularBrandLimit)
             .ToList();
+    }
+
+    internal static List<string> ParsePopularGameSlugs(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return [];
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<string>>(json)?
+                .Where(slug => !string.IsNullOrWhiteSpace(slug))
+                .Select(slug => slug.Trim().ToLowerInvariant())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(PopularBrandLimit)
+                .ToList() ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    public async Task<IEnumerable<GameMetadataResponse>> GetPopularGameOptionsAsync()
+    {
+        var activeBrands = await _db.GameProducts
+            .AsNoTracking()
+            .Where(product => product.Category == AppConstants.Categories.Games && product.IsActive)
+            .Select(product => product.Brand)
+            .Distinct()
+            .ToListAsync();
+
+        var metadata = await _db.GameMetadata
+            .AsNoTracking()
+            .Where(metadata => activeBrands.Contains(metadata.Brand))
+            .OrderBy(metadata => metadata.Brand)
+            .ToListAsync();
+
+        return metadata.Select(MapMetadataResponse).ToList();
+    }
+
+    public async Task<IEnumerable<CategoryInfo>> UpdatePopularGameBrandsAsync(
+        IReadOnlyList<string> slugs)
+    {
+        var normalized = slugs
+            .Where(slug => !string.IsNullOrWhiteSpace(slug))
+            .Select(slug => slug.Trim().ToLowerInvariant())
+            .ToList();
+
+        if (normalized.Count > PopularBrandLimit)
+            throw new InvalidOperationException($"Maksimal {PopularBrandLimit} game populer.");
+
+        if (normalized.Distinct(StringComparer.OrdinalIgnoreCase).Count() != normalized.Count)
+            throw new InvalidOperationException("Game populer tidak boleh duplikat.");
+
+        var options = await GetPopularGameOptionsAsync();
+        var validSlugs = options
+            .Select(option => option.BrandSlug)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (normalized.Any(slug => !validSlugs.Contains(slug)))
+            throw new InvalidOperationException("Ada game yang tidak ditemukan atau tidak aktif.");
+
+        await SetSettingAsync(
+            AppConstants.SystemSettings.PopularGames,
+            JsonSerializer.Serialize(normalized));
+
+        return await GetPopularGameBrandsAsync();
     }
 
     // HOMEPAGE: Kategori storefront beserta jumlah brand aktif di dalamnya.
@@ -585,10 +661,17 @@ public class ProductService : IProductService
     
     public async Task<GameDetailResponse?> GetGameDetailAsync(string brandSlug)
     {
+        // Route value dinormalisasi dengan aturan slug yang sama seperti saat
+        // disimpan, lalu dicocokkan langsung ke kolom — tidak ada sanitasi
+        // brand di SQL lagi.
+        var slug = Slug.From(brandSlug);
+
+        if (slug == null)
+            return null;
+
         var metadata = await _db.GameMetadata
             .AsNoTracking()
-            .FirstOrDefaultAsync(m =>
-                m.Brand.ToLower().Replace(" ", "-") == brandSlug.ToLower());
+            .FirstOrDefaultAsync(m => m.BrandSlug == slug);
 
         if (metadata == null)
             return null;
@@ -614,23 +697,13 @@ public class ProductService : IProductService
 
         return new GameDetailResponse(
             metadata.Brand,
-            metadata.Brand.ToLower().Replace(" ", "-"),
+            metadata.BrandSlug,
             metadata.ImageUrl,
             GameInputSchemaSerializer.Deserialize(metadata.InputSchemaJson),
             products
         );
     }
-    
-    
-    public async Task<IEnumerable<GameProduct>> GetProductsByBrandAsync(string brand)
-    {
-        var dbBrandName = brand.Replace("-", " ").ToLower();
-        return await _db.GameProducts
-            .Where(p => p.Brand.ToLower() == dbBrandName)
-            .OrderBy(p => p.Price) 
-            .ToListAsync();
-    }
-    
+
     public async Task<PagedResult<GameProduct>> GetPagedProductsAsync(
         string? search,
         string? brand,
@@ -678,8 +751,26 @@ public class ProductService : IProductService
 
     public async Task<GameProduct> CreateProductAsync(GameProduct product)
     {
+        // SKU wajib: produk tanpa BuyerSkuCode tidak bisa diorder (Digiflazz
+        // butuh SKU-nya), dan kolomnya kini unique — beberapa produk manual
+        // dengan SKU kosong akan ditolak database.
+        if (string.IsNullOrWhiteSpace(product.BuyerSkuCode))
+            throw new InvalidOperationException("BuyerSkuCode wajib diisi.");
+
+        product.BuyerSkuCode = product.BuyerSkuCode.Trim();
+
         _db.GameProducts.Add(product);
-        await _db.SaveChangesAsync();
+
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex)
+        {
+            throw new InvalidOperationException(
+                $"BuyerSkuCode '{product.BuyerSkuCode}' sudah dipakai produk lain.", ex);
+        }
+
         return product;
     }
 
@@ -722,12 +813,11 @@ public class ProductService : IProductService
         var product = await _db.GameProducts.FindAsync(productId);
         if (product == null) return false;
 
-        decimal oldMargin = product.CustomMargin ?? 0m;
-        decimal modalPrice = product.Price - oldMargin;
+        // Harga modal tidak disimpan — dibalik dari harga jual dengan margin lama.
+        decimal modalPrice =
+            product.Price - Pricing.MarginOf(product.CustomMargin);
 
-        decimal newMargin = margin ?? 0m;
-
-        product.Price = modalPrice + newMargin;
+        product.Price = Pricing.CalculateSellingPrice(modalPrice, margin);
         product.CustomMargin = margin;
         await _db.SaveChangesAsync();
 
@@ -801,9 +891,11 @@ public class ProductService : IProductService
         return new GameMetadataResponse(
             metadata.Id,
             metadata.Brand,
+            metadata.BrandSlug,
             metadata.ImageUrl,
             GameInputSchemaSerializer.Deserialize(metadata.InputSchemaJson),
             metadata.TargetTemplate,
+            metadata.SupplierNote,
             GameMetadata.ParseCategories(metadata.Categories)
         );
     }

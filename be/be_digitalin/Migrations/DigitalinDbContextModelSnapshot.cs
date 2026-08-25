@@ -181,6 +181,11 @@ namespace be_digitalin.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
+                    b.Property<string>("BrandSlug")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
                     b.Property<string>("Categories")
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
@@ -192,6 +197,9 @@ namespace be_digitalin.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<string>("SupplierNote")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("TargetTemplate")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -200,6 +208,9 @@ namespace be_digitalin.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Brand")
+                        .IsUnique();
+
+                    b.HasIndex("BrandSlug")
                         .IsUnique();
 
                     b.ToTable("GameMetadata");
@@ -219,7 +230,8 @@ namespace be_digitalin.Migrations
 
                     b.Property<string>("BuyerSkuCode")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
 
                     b.Property<string>("Category")
                         .IsRequired()
@@ -248,6 +260,9 @@ namespace be_digitalin.Migrations
                         .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BuyerSkuCode")
+                        .IsUnique();
 
                     b.ToTable("GameProducts");
                 });

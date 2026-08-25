@@ -7,6 +7,29 @@
     <title>Digitalin</title>
     <!-- Snap Midtrans TIDAK dipasang di sini: ~726 kB akan terunduh di semua
          halaman. Dimuat on-demand oleh src/services/midtransSnap.ts. -->
+    <!-- Tema harus menempel SEBELUM paint pertama, kalau tidak halaman berkedip
+         putih dulu sebelum React jalan. Bentuk datanya = zustand persist
+         (src/store/themeStore.ts); gelap adalah default. -->
+    <script>
+      try {
+        var stored = JSON.parse(localStorage.getItem("digitalin-theme") || "{}");
+        var darkStored = stored.state && stored.state.theme === "dark";
+        var isAdmin = location.pathname.indexOf("/admin") === 0;
+        if (isAdmin) {
+          // Admin default terang; gelap hanya kalau tersimpan.
+          if (darkStored) {
+            document.documentElement.classList.add("dark");
+          } else {
+            document.documentElement.classList.remove("dark");
+          }
+        } else {
+          // Area pelanggan selalu gelap.
+          document.documentElement.classList.add("dark");
+        }
+      } catch (e) {
+        document.documentElement.classList.add("dark");
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

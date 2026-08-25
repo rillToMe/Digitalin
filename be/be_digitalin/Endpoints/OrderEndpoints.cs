@@ -101,8 +101,14 @@ public static class OrderEndpoints
             var result = await orderService.RefundOrderAsync(orderNo);
             return MapOrderActionResult(result);
         });
-        
-        // AREA WEBHOOK
+    }
+
+    /// <summary>
+    /// Webhook Midtrans & Digiflazz — dipasang di root, di luar prefix versi:
+    /// URL-nya sudah terdaftar di dashboard provider, jadi kontraknya harus stabil.
+    /// </summary>
+    public static void MapWebhookEndpoints(this IEndpointRouteBuilder app)
+    {
         var webhookGroup = app.MapGroup("/webhooks")
                               .WithTags("Webhooks (Sistem Integrasi)")
                               .AllowAnonymous();

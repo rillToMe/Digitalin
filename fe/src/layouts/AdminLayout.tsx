@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { ChevronRight, Menu } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import { AdminSidebar } from "../components/admin/sidenav/AdminSidebar";
+import ThemeToggle from "../components/common/ThemeToggle";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -96,6 +97,8 @@ export function AdminLayout({ children, title, breadcrumb }: AdminLayoutProps) {
               </nav>
             )}
           </div>
+
+          <ThemeToggle />
         </header>
 
         <main className="admin-canvas">{children}</main>

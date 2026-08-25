@@ -6,6 +6,7 @@ import {
   CATEGORY_NAMES,
   MORE_FETCH_LIMIT,
   POPULAR_CATEGORY_SLUG,
+  UNCATEGORIZED_CATEGORY_SLUG,
   categoryIcon,
   initialFetchLimit,
   nextBrandOffset,
@@ -39,24 +40,37 @@ function SectionShell({
       aria-labelledby={titleId}
       className={`scroll-mt-24 ${isFirst ? "mt-3" : "mt-12"}`}
     >
-      <div className="mb-4 flex items-center justify-between gap-3">
+      <div className="hud-section-label mb-4">
         <h2
           id={titleId}
-          className="flex items-center gap-2"
+          className="flex items-center gap-2.5"
           style={{
             color: "var(--color-brand-primary)",
             fontWeight: 700,
-            fontSize: "1.1rem",
+            fontSize: "1.35rem",
           }}
         >
-          <Icon size={18} aria-hidden="true" />
+          {/* Ikon dalam chip netral, bukan kobalt: aksen disimpan untuk aksi
+              (design.md), sementara chip-nya yang memberi kesan panel HUD. */}
+          <span
+            className="flex h-7 w-7 shrink-0 items-center justify-center border"
+            style={{
+              backgroundColor: "var(--color-hover-surface)",
+              color: "var(--color-brand-secondary)",
+            }}
+          >
+            <Icon size={15} aria-hidden="true" />
+          </span>
           {slug === ALL_CATEGORY_SLUG ? "Semua Game" : name}
         </h2>
 
         {total !== undefined && (
           <span
-            className="whitespace-nowrap"
-            style={{ color: "var(--color-brand-secondary)", fontSize: "0.85rem" }}
+            className="label-mono whitespace-nowrap border px-2 py-1"
+            style={{
+              color: "var(--color-brand-secondary)",
+              border: "1px solid var(--color-border-light)",
+            }}
           >
             {total} game
           </span>
@@ -70,7 +84,7 @@ function SectionShell({
 
 /**
  * Satu section kategori dengan fetch-nya sendiri: batch pertama kecil
- * (12, atau 6 untuk "Lainnya"), batch berikutnya 24 saat tombol diklik.
+ * (12, atau 7 untuk "Lainnya"), batch berikutnya 24 saat tombol diklik.
  * Total datang dari brandCount /games/categories, jadi tombol "lebih banyak"
  * bisa disembunyikan tanpa request tambahan.
  */
@@ -112,6 +126,9 @@ function PagedCategorySection({
       <CategoryGameGrid
         brands={data?.pages.flat() ?? []}
         isLoading={isLoading}
+        variant={
+          category.slug === UNCATEGORIZED_CATEGORY_SLUG ? "grid" : "rail"
+        }
         skeletonCount={firstBatch}
         hasMore={hasNextPage}
         isLoadingMore={isFetchingNextPage}
@@ -130,8 +147,7 @@ export default function CategorySection() {
   const { categories, activeCategory, setActiveCategory, activeCategoryName, isLoading } =
     useGameCategories();
 
-  /* Peringkat penjualan dari BE (30 hari, order COMPLETED) — tidak ada kurasi
-     manual di admin. BE sudah membatasi hasilnya, jadi tidak perlu load-more. */
+  /* Kurasi admin dari BE. Urutan respons = urutan tampil, tanpa load-more. */
   const { data: popularBrands = [] } = useQuery({
     queryKey: ["popularBrands"],
     queryFn: brandService.getPopular,
@@ -164,7 +180,7 @@ export default function CategorySection() {
       {/* Daftar kategori belum ada → skeleton satu section, bukan halaman kosong. */}
       {isLoading ? (
         <SectionShell slug={activeCategory} name={activeCategoryName} isFirst>
-          <CategoryGameGrid brands={[]} isLoading />
+          <CategoryGameGrid brands={[]} isLoading variant="rail" />
         </SectionShell>
       ) : (
         <>
@@ -175,7 +191,12 @@ export default function CategorySection() {
               total={popularBrands.length}
               isFirst
             >
-              <CategoryGameGrid brands={popularBrands} isLoading={false} />
+              <CategoryGameGrid
+                brands={popularBrands}
+                isLoading={false}
+                variant="rail"
+                ranked
+              />
             </SectionShell>
           )}
 

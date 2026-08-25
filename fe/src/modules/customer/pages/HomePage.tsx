@@ -13,14 +13,8 @@ import { getFeaturedFaqs } from "../../../data/faqs";
 import FaqAccordion from "../../../components/common/FaqAccordion";
 import CategorySection from "../../../components/categori/CategorySection";
 
-/**
- * Frame hero: rasio mengecil di layar lebar + tinggi dikunci maksimal 300px,
- * supaya tab kategori dan baris kartu pertama tetap kelihatan tanpa scroll.
- * Saat max-h aktif, browser menyusutkan lebar demi menjaga rasio — tanpa
- * mx-auto sisa ruangnya menumpuk di kanan dan banner terlihat mepet kiri.
- * Dipakai carousel dan skeleton-nya sekaligus agar tidak ada layout shift.
- */
-const HERO_FRAME = "mx-auto aspect-[16/9] sm:aspect-[24/9] max-h-[300px]";
+/** Frame responsif dipakai carousel dan skeleton sekaligus agar tidak ada layout shift. */
+const HERO_FRAME = "aspect-[16/9] sm:aspect-[21/8] lg:aspect-[24/8]";
 
 function HeroCarousel({ banners }: { banners: BannerItem[] }) {
   const [current, setCurrent] = useState(0);
@@ -35,27 +29,36 @@ function HeroCarousel({ banners }: { banners: BannerItem[] }) {
 
   if (!banners.length) return null;
 
+  const previous = (current - 1 + banners.length) % banners.length;
+  const following = (current + 1) % banners.length;
+  const visibleSlides = banners.length === 1
+    ? [{ banner: banners[current], position: "active" }]
+    : [
+        { banner: banners[previous], position: "previous" },
+        { banner: banners[current], position: "active" },
+        { banner: banners[following], position: "next" },
+      ];
+
   return (
-    <div className={`relative overflow-hidden rounded-2xl center ${HERO_FRAME}`}>
-      {/* Semua slide di-mount lalu di-crossfade lewat opacity — tidak perlu
-          AnimatePresence, dan gambarnya tidak di-load ulang tiap ganti slide. */}
-      {banners.map((banner, i) => (
+    <div className={`relative overflow-hidden ${HERO_FRAME}`}>
+      {visibleSlides.map(({ banner, position }) => (
         <div
-          key={banner.id}
-          className="absolute inset-0 transition-opacity duration-500 motion-reduce:transition-none"
-          style={{ opacity: i === current ? 1 : 0 }}
-          aria-hidden={i !== current}
+          key={`${position}-${banner.id}`}
+          className={`hud-hero-slide hud-panel absolute inset-y-0 overflow-hidden ${position}`}
+          aria-hidden={position !== "active"}
         >
           <img
             src={banner.imageUrl}
             alt={banner.title}
             className="w-full h-full object-cover"
-            loading={i === 0 ? "eager" : "lazy"}
+            loading={position === "active" ? "eager" : "lazy"}
             decoding="async"
           />
-          <div className="absolute inset-0" style={{ background: "linear-gradient(to right, rgba(15,20,25,0.7) 0%, transparent 60%)" }} />
-          <div className="absolute bottom-6 left-6">
-            <h2 style={{ color: "#fff", fontWeight: 700, fontSize: "1.2rem", textShadow: "0 1px 4px rgba(0,0,0,0.4)" }}>
+          {/* Scrim solid hanya di belakang judul — bukan gradient menutupi
+              seluruh banner (design.md: sistem ini flat) dan bukan
+              text-shadow, yang tidak menolong di atas gambar terang. */}
+          <div className="absolute bottom-0 left-0 right-0 px-6 py-4 pr-28" style={{ backgroundColor: "var(--color-poster-scrim)" }}>
+            <h2 style={{ color: "var(--color-on-primary)", fontWeight: 700, fontSize: "1.2rem" }}>
               {banner.title}
             </h2>
           </div>
@@ -63,24 +66,26 @@ function HeroCarousel({ banners }: { banners: BannerItem[] }) {
       ))}
 
       {/* Controls */}
-      <button onClick={prev} className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: "rgba(255,255,255,0.2)", color: "#fff", backdropFilter: "blur(4px)" }}>
-        <ChevronLeft size={16} />
-      </button>
-      <button onClick={next} className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: "rgba(255,255,255,0.2)", color: "#fff", backdropFilter: "blur(4px)" }}>
-        <ChevronRight size={16} />
-      </button>
+      {banners.length > 1 && <button onClick={prev} aria-label="Banner sebelumnya" className="absolute left-[5.5vw] top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center border sm:left-[8vw]" style={{ backgroundColor: "var(--color-media-control)", color: "var(--color-on-primary)", backdropFilter: "blur(4px)" }}>
+        <ChevronLeft size={16} aria-hidden="true" />
+      </button>}
+      {banners.length > 1 && <button onClick={next} aria-label="Banner berikutnya" className="absolute right-[5.5vw] top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center border sm:right-[8vw]" style={{ backgroundColor: "var(--color-media-control)", color: "var(--color-on-primary)", backdropFilter: "blur(4px)" }}>
+        <ChevronRight size={16} aria-hidden="true" />
+      </button>}
 
       {/* Dots */}
-      <div className="absolute bottom-4 right-4 flex gap-2">
+      <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 gap-2">
         {banners.map((_, i) => (
           <button
             key={i}
             onClick={() => setCurrent(i)}
-            className="rounded-full transition-all duration-300"
+            aria-label={`Ke banner ${i + 1}`}
+            aria-current={i === current}
+            className="h-1 border-0 transition-all duration-150 motion-reduce:transition-none"
             style={{
               width: i === current ? 32 : 12,
               height: 12,
-              backgroundColor: i === current ? "var(--color-brand-tertiary, #2C5EF5)" : "rgba(255,255,255,0.5)",
+              backgroundColor: i === current ? "var(--color-brand-tertiary)" : "var(--color-on-media-muted)",
             }}
           />
         ))}
@@ -108,11 +113,11 @@ export default function HomePage() {
   });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
       {/* Hero */}
-      <section className="mb-8">
+      <section className="relative left-1/2 mb-8 w-[100dvw] max-w-[100dvw] -translate-x-1/2 overflow-hidden pt-2 sm:pt-3">
         {bannersLoading ? (
-          <div className={`rounded-2xl animate-pulse ${HERO_FRAME}`} style={{ backgroundColor: "var(--color-skeleton)" }} />
+          <div className={`mx-[4vw] animate-pulse border sm:mx-[7vw] ${HERO_FRAME}`} style={{ backgroundColor: "var(--color-skeleton)" }} />
         ) : (
           <HeroCarousel banners={banners} />
         )}
@@ -120,6 +125,52 @@ export default function HomePage() {
 
       {/* Game Categories */}
       <CategorySection />
+
+      {/* Cara top up — urutannya sama dengan langkah di halaman game
+          (01 Informasi Akun → 02 Pilih Nominal → bayar), jadi halaman ini
+          sudah mengajarkan alurnya sebelum orang masuk ke sana. Ditaruh
+          setelah katalog supaya baris kartu pertama tidak turun dari layar. */}
+      <section className="mt-16" aria-labelledby="cara-topup">
+        <h2 id="cara-topup" className="hud-section-label mb-4">
+          Cara top up
+        </h2>
+        <ol className="grid gap-4 sm:grid-cols-3">
+          {[
+            { n: "01", title: "Pilih game", desc: "Cari lewat katalog atau kolom pencarian." },
+            { n: "02", title: "Isi data & nominal", desc: "Masukkan ID akun, lalu pilih nominal." },
+            { n: "03", title: "Bayar", desc: "Selesaikan pembayaran, saldo diproses otomatis." },
+          ].map((step) => (
+            <li
+              key={step.n}
+              className="hud-panel p-5"
+              style={{
+                backgroundColor: "var(--color-surface)",
+                border: "1px solid var(--color-border-light)",
+              }}
+            >
+              <p
+                style={{
+                  fontFamily: "var(--font-label-mono)",
+                  fontSize: "1.5rem",
+                  fontWeight: 600,
+                  lineHeight: 1,
+                  /* Bukan kobalt: aksen disimpan untuk aksi (design.md), dan
+                     angka mono abu justru lebih terbaca sebagai penanda urutan. */
+                  color: "var(--color-brand-secondary)",
+                }}
+              >
+                {step.n}
+              </p>
+              <p style={{ color: "var(--color-brand-primary)", fontWeight: 600, fontSize: "0.9rem", marginTop: 10 }}>
+                {step.title}
+              </p>
+              <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.8rem", marginTop: 4 }}>
+                {step.desc}
+              </p>
+            </li>
+          ))}
+        </ol>
+      </section>
 
       {/* Trust badges */}
       <section className="mt-16">
@@ -151,10 +202,10 @@ export default function HomePage() {
       return (
         <div
           key={item.title}
-          className="flex flex-col items-center rounded-2xl p-5 text-center"
+          className="hud-panel flex flex-col items-center p-5 text-center"
           style={{
             backgroundColor: "var(--color-surface)",
-            border: "1px solid var(--color-border)",
+            border: "1px solid var(--color-border-light)",
           }}
         >
           <Icon
@@ -168,7 +219,7 @@ export default function HomePage() {
 
           <p
             style={{
-              color: "var(--color-primary)",
+              color: "var(--color-brand-primary)",
               fontWeight: 600,
               fontSize: "0.9rem",
             }}
@@ -193,18 +244,18 @@ export default function HomePage() {
 
       {/* FAQ Preview */}
       <section className="mt-16">
-        <div className="flex items-center gap-3 mb-2">
-          <HelpCircle size={20} style={{ color: "var(--color-brand-tertiary, #2C5EF5)" }} />
-          <h2 style={{ color: "var(--color-primary, #0F1419)", fontWeight: 700, fontSize: "1.1rem" }}>
+        <div className="hud-section-label mb-4">
+          <HelpCircle size={20} style={{ color: "var(--color-brand-tertiary)" }} />
+          <h2 style={{ color: "var(--color-brand-primary)", fontWeight: 700, fontSize: "1.1rem" }}>
             Pertanyaan yang Sering Ditanyakan
           </h2>
         </div>
-        <p style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.875rem", marginBottom: 16 }}>
+        <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.875rem", marginBottom: 16 }}>
           Berikut beberapa pertanyaan yang paling sering diajukan oleh pengguna Digitalin.
         </p>
         <div
-          className="rounded-2xl overflow-hidden"
-          style={{ backgroundColor: "var(--color-surface, #fff)", border: "1px solid rgba(0,0,0,0.07)" }}
+          className="hud-panel overflow-hidden"
+          style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border-light)" }}
         >
           <div className="px-5">
             <FaqAccordion items={getFeaturedFaqs().slice(0, 6)} />
@@ -213,16 +264,16 @@ export default function HomePage() {
         <div className="text-center mt-5">
           <Link
             to="/faq"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl no-underline transition-colors"
+            className="pressable inline-flex items-center gap-2 border px-5 py-2.5 no-underline transition-colors"
             style={{
-              backgroundColor: "var(--color-brand-tertiary, #2C5EF5)",
-              color: "#fff",
+              backgroundColor: "var(--color-brand-tertiary)",
+              color: "var(--color-on-primary)",
               fontWeight: 600,
               fontSize: "0.875rem",
             }}
           >
             Lihat Semua FAQ
-            <ArrowRight size={15} />
+            <ArrowRight size={15} aria-hidden="true" />
           </Link>
         </div>
       </section>

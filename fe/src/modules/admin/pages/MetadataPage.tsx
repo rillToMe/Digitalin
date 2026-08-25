@@ -11,6 +11,7 @@ import type {
 import type { ModalTab } from "../../../components/admin/metadata/utils";
 import { SyncButton } from "../../../components/admin/metadata/SyncButton";
 import { GameEditModal } from "../../../components/admin/metadata/GameEditModal";
+import AdminSearchBar from "../../../components/admin/AdminSearchBar";
 
 export default function MetadataPage() {
   const queryClient = useQueryClient();
@@ -23,6 +24,7 @@ export default function MetadataPage() {
   });
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   // --- Data Fetching ---
 
@@ -128,8 +130,9 @@ export default function MetadataPage() {
 
   return (
     <AdminLayout title="Metadata Game" breadcrumb={["Admin", "Metadata"]}>
-      {/* Sync button */}
-      <div className="flex justify-end mb-4">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <AdminSearchBar value={search} onChange={setSearch} placeholder="Cari game..." />
         <SyncButton />
       </div>
 
@@ -142,7 +145,9 @@ export default function MetadataPage() {
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {items.map((item) => (
+          {items
+            .filter((item) => item.brand.toLowerCase().includes(search.trim().toLowerCase()))
+            .map((item) => (
             <div key={item.id} className="rounded-2xl overflow-hidden cursor-pointer transition-shadow hover:shadow-md" style={{ backgroundColor: "var(--color-surface,#fff)", border: "1px solid rgba(0,0,0,0.07)" }} onClick={() => openEdit(item)}>
               <div style={{ height: 100, overflow: "hidden", position: "relative" }}>
                 {item.imageUrl ? (

@@ -4,6 +4,7 @@ import {
   ClipboardList,
   Gamepad2,
   LayoutGrid,
+  Flame,
   Image as ImageIcon,
   Ticket,
   ShieldCheck,
@@ -40,6 +41,7 @@ const NAV_GROUPS: AdminNavGroup[] = [
     items: [
       { label: "Metadata Game", path: "/admin/metadata", icon: Gamepad2 },
       { label: "Kategori", path: "/admin/categories", icon: LayoutGrid },
+      { label: "Game Populer", path: "/admin/popular", icon: Flame },
       { label: "Banners", path: "/admin/banners", icon: ImageIcon },
       { label: "Vouchers", path: "/admin/vouchers", icon: Ticket },
     ],

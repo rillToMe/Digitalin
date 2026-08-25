@@ -1,5 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router";
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect, useRef } from "react";
 import { Toaster } from "sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GoogleOAuthProvider } from "@react-oauth/google";
@@ -7,6 +7,7 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 import ScrollToTop from "./components/common/ScrollToTop";
 import { CustomerLayout } from "./layouts/CustomerLayout";
 import { useAuthStore } from "./store/authStore";
+import { useThemeStore } from "./store/themeStore";
 import PageLoader from "./components/common/PageLoader";
 
 const queryClient = new QueryClient({
@@ -40,6 +41,7 @@ const OrdersPage = lazy(() => import("./modules/admin/pages/OrdersPage"));
 const BannersPage = lazy(() => import("./modules/admin/pages/BannersPage"));
 const MetadataPage = lazy(() => import("./modules/admin/pages/MetadataPage"));
 const CategoriesPage = lazy(() => import("./modules/admin/pages/CategoriesPage"));
+const PopularPage = lazy(() => import("./modules/admin/pages/PopularPage"));
 const AdminVouchersPage = lazy(() => import("./modules/admin/pages/VouchersPage"));
 const SettingsPage = lazy(() => import("./modules/admin/pages/SettingsPage"));
 const AdminManagementPage = lazy(() => import("./modules/admin/pages/AdminManagementPage"));
@@ -146,10 +148,31 @@ function AppProviders({ children }: { children: React.ReactNode }) {
   return content;
 }
 
+/**
+ * Tema mengikuti area saat navigasi SPA antar /admin dan halaman pelanggan:
+ * area pelanggan dipaksa gelap, admin memakai tema tersimpan (default terang).
+ * Re-hydrate ulang dari storage setiap kali menyeberang batas area — area
+ * pelanggan tidak pernah menulis pilihannya ke storage (lihat themeStore).
+ */
+function ThemeRouteSync() {
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith("/admin");
+  const prev = useRef(isAdminRoute);
+
+  useEffect(() => {
+    if (prev.current === isAdminRoute) return;
+    prev.current = isAdminRoute;
+    void useThemeStore.persist.rehydrate();
+  }, [isAdminRoute]);
+
+  return null;
+}
+
 export default function App() {
   return (
     <AppProviders>
       <ScrollToTop />
+      <ThemeRouteSync />
 
       <Toaster
         position="top-right"
@@ -278,6 +301,15 @@ export default function App() {
             element={
               <ProtectedAdminRoute>
                 <CategoriesPage />
+              </ProtectedAdminRoute>
+            }
+          />
+
+          <Route
+            path="/admin/popular"
+            element={
+              <ProtectedAdminRoute>
+                <PopularPage />
               </ProtectedAdminRoute>
             }
           />

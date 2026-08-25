@@ -4,6 +4,10 @@ import type { ReactNode, FormEvent } from "react";
 // Never use `any`. Always reference these types.
 
 // Enums / Literals
+
+/** Tema tampilan. Nilainya juga dipakai sebagai class di <html> ("dark"). */
+export type Theme = "light" | "dark";
+
 export type GameInputFieldType =
   | "text"
   | "number"
@@ -100,6 +104,16 @@ export interface BrandItem {
 }
 
 export type BrandsResponse = BrandItem[];
+
+export interface PopularGamesAdminResponse {
+  selected: BrandItem[];
+  options: GameMetadataItem[];
+}
+
+export interface UpdatePopularGamesResponse {
+  message: string;
+  selected: BrandItem[];
+}
 
 /**
  * Query param GET /games/brands. Dipaginasi per kategori supaya section homepage
@@ -326,9 +340,13 @@ export interface ChartQueryParams {
 export interface GameMetadataItem {
   id: number;
   brand: string;
+  /** Slug brand dari BE — identitas game di URL & pilihan populer. Jangan hitung ulang di FE. */
+  brandSlug: string;
   imageUrl: string | null;
   inputFields: GameInputField[];
   targetTemplate: string;
+  /** Instruksi supplier Digiflazz (read-only). Informatif — bukan pengganti targetTemplate/inputFields. */
+  supplierNote: string | null;
   /** Slug kategori storefront (kebab-case), boleh lebih dari satu; kosong = belum dikategorikan */
   categories: string[];
 }
@@ -567,10 +585,13 @@ export interface GameEditModalProps {
   totalProducts: number;
 
   updateMutation: {
-    mutate: (vars: {
-      id: number;
-      payload: UpdateMetadataPayload;
-    }) => void;
+    mutate: (
+      vars: {
+        id: number;
+        payload: UpdateMetadataPayload;
+      },
+      options?: { onSuccess?: () => void }
+    ) => void;
     isPending: boolean;
   };
 

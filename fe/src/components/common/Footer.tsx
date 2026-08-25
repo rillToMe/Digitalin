@@ -1,3 +1,4 @@
+import { ArrowUpRight, Headphones } from "lucide-react";
 import { Link } from "react-router";
 
 /* Semua tujuan di sini harus benar-benar terdaftar di App.tsx — link footer
@@ -33,17 +34,19 @@ const NAV_GROUPS: { title: string; links: { label: string; to: string }[] }[] = 
 export default function Footer() {
   return (
     <footer className="site-footer mt-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-2 gap-8 md:grid-cols-[2fr_1fr_1fr_1fr] md:gap-8">
+      <div className="site-footer-content max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-14">
+        <div className="site-footer-main grid grid-cols-2 gap-x-8 gap-y-10 md:grid-cols-[minmax(240px,1.75fr)_1fr_1fr_1fr] lg:gap-12">
           <div className="col-span-2 md:col-span-1">
             <Link to="/" className="site-footer-brand">
-              <img src="/favicon.svg" alt="" aria-hidden="true" className="h-7 w-auto" />
+                <img src="/favicon.svg" alt="" aria-hidden="true" className="h-8 w-auto" />
               Digitalin
             </Link>
 
-            <p className="site-footer-tagline mt-3">
+            <p className="site-footer-tagline mt-4">
               Platform top up game terpercaya dengan proses cepat dan aman.
             </p>
+
+            <p className="site-footer-kicker mt-5">Top up game, always on.</p>
           </div>
 
           {NAV_GROUPS.map((group) => (
@@ -68,12 +71,19 @@ export default function Footer() {
         </div>
 
         {/* Tahunnya dihitung, bukan ditulis: "© 2024" sudah basi sejak Januari. */}
-        <div className="site-footer-bottom mt-10 pt-6 flex flex-col items-center gap-2 text-center sm:flex-row sm:justify-between sm:text-left">
+        <div className="site-footer-bottom mt-10 pt-6 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} Digitalin. All rights reserved.</p>
 
-          <p>
-            Ada kendala transaksi? <Link to="/contact">Hubungi kami</Link>
-          </p>
+          <Link to="/contact" className="site-footer-support pressable">
+            <span className="site-footer-support-icon" aria-hidden="true">
+              <Headphones size={17} strokeWidth={2} />
+            </span>
+            <span>
+              <small>Butuh bantuan transaksi?</small>
+              Hubungi kami
+            </span>
+            <ArrowUpRight size={17} strokeWidth={2} aria-hidden="true" />
+          </Link>
         </div>
       </div>
     </footer>

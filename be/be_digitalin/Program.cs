@@ -228,17 +228,23 @@ app.UseAuthorization();
 // Maintenance Mode — runs AFTER Auth so that JWT is parsed & we can check Admin role
 app.UseMaintenanceMode();
 
-app.MapAuthEndpoints();
-app.MapProductEndpoints();
-app.MapOrderEndpoints();
-app.MapBannerEndpoints();
-app.MapSearchEndpoints();
-app.MapVoucherEndpoints();
+// Seluruh API aplikasi hidup di bawah satu prefix versi (AppConstants.Api).
+var api = app.MapGroup(AppConstants.Api.Prefix);
+
+api.MapAuthEndpoints();
+api.MapProductEndpoints();
+api.MapOrderEndpoints();
+api.MapBannerEndpoints();
+api.MapSearchEndpoints();
+api.MapVoucherEndpoints();
 
 //admin
-app.MapDashboardEndpoints();
-app.MapSettingsEndpoints();
-app.MapAdminManagementEndpoints();
+api.MapDashboardEndpoints();
+api.MapSettingsEndpoints();
+api.MapAdminManagementEndpoints();
+
+// Webhook provider — path eksternal, tidak diberi prefix versi.
+app.MapWebhookEndpoints();
 
 // Endpoint ping-db untuk testing
 app.MapGet("/ping-db", async (DigitalinDbContext db) => {

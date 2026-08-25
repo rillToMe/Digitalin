@@ -54,34 +54,39 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+/* Nilai gelap disetel ke palet Glassline (lihat html.dark di globals.css),
+   bukan grey oklch bawaan shadcn — kalau tidak, <body> dan primitive Radix
+   memakai abu netral sementara kartu dan navbar memakai biru-abu dingin. */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
+  --background: #0e1216;
+  --foreground: #e6e9ee;
 
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
+  --card: #171c23;
+  --card-foreground: #e6e9ee;
 
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
+  --popover: #171c23;
+  --popover-foreground: #e6e9ee;
 
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
+  --primary: #e6e9ee;
+  --primary-foreground: #0e1216;
 
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
+  --secondary: #1e242c;
+  --secondary-foreground: #e6e9ee;
 
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
+  --muted: #1e242c;
+  --muted-foreground: #98a2b3;
 
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --accent: #1e242c;
+  --accent-foreground: #e6e9ee;
 
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
+  --destructive: #e5646b;
+  --destructive-foreground: #0e1216;
 
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.14);
+  --input-background: #1e242c;
+  --switch-background: #39414d;
+  --ring: rgba(76, 125, 255, 0.6);
 
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);

@@ -36,6 +36,7 @@ public class SearchService : ISearchService
             {
                 m.Id,
                 m.Brand,
+                m.BrandSlug,
                 m.ImageUrl,
                 m.Categories
             })
@@ -46,7 +47,7 @@ public class SearchService : ISearchService
             .Select(m => new GameSearchResult(
                 m.Id,
                 m.Brand,
-                m.Brand.ToLower().Replace(" ", "-"),
+                m.BrandSlug,
                 m.ImageUrl,
                 GameMetadata.ParseCategories(m.Categories)
             ))

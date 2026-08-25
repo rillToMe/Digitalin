@@ -6,6 +6,13 @@ public class GameMetadata
 
     public string Brand { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Slug brand untuk URL detail game, dipersist saat sync/simpan lewat
+    /// Domain.Slug.From — bukan dihitung ulang di query. Satu-satunya sumber
+    /// slug brand: FE memakainya apa adanya, endpoint detail mencari kolom ini.
+    /// </summary>
+    public string BrandSlug { get; set; } = string.Empty;
+
     public string? ImageUrl { get; set; }
 
     public string InputSchemaJson { get; set; } = "[]";
@@ -13,11 +20,19 @@ public class GameMetadata
     public string TargetTemplate { get; set; } = "{userId}";
 
     /// <summary>
+    /// Instruksi supplier (field "desc" Digiflazz), disimpan sekali per brand —
+    /// bukan per produk, karena isinya sama untuk seluruh SKU satu game.
+    /// Hanya informatif untuk admin; TargetTemplate + InputSchemaJson tetap
+    /// satu-satunya sumber pembentuk customer_no.
+    /// </summary>
+    public string? SupplierNote { get; set; }
+
+    /// <summary>
     /// Slug kategori storefront yang dimiliki game, disimpan CSV ("mobile,pc").
     /// Satu game boleh masuk beberapa kategori. Null/kosong = belum dikategorikan.
     ///
     /// Aman sebagai CSV karena slug dinormalisasi ke [a-z0-9-] oleh
-    /// ProductService.NormalizeCategory — koma tidak mungkin lolos ke dalam slug.
+    /// Domain.Slug — koma tidak mungkin lolos ke dalam slug.
     ///
     /// ponytail: CSV di satu kolom, bukan tabel join. Tidak ada query "game per
     /// kategori" di SQL — pengelompokan dilakukan di memori (katalog ratusan baris).

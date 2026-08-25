@@ -60,6 +60,19 @@ public static class GameTemplateFactory
             },
             new()
             {
+                Type = GameTemplateType.UserIdServerPipe,
+                DisplayName = "User ID | Server",
+                TargetTemplate = $"{{{AppConstants.GameFieldKeys.UserId}}}|{{{AppConstants.GameFieldKeys.Server}}}",
+                InputFields =
+                [
+                    Field(AppConstants.GameFieldKeys.UserId, "User ID", "Masukkan User ID", AppConstants.GameInputFieldTypes.Number, order: 1),
+                    // Server Digiflazz berupa nama region (os_asia, os_usa, os_euro),
+                    // jadi text — bukan Number seperti preset UserIdServer.
+                    Field(AppConstants.GameFieldKeys.Server, "Server", "Masukkan Server (mis. os_asia)", AppConstants.GameInputFieldTypes.Text, order: 2)
+                ]
+            },
+            new()
+            {
                 Type = GameTemplateType.UserIdZone,
                 DisplayName = "User ID + Zone ID",
                 TargetTemplate = $"{{{AppConstants.GameFieldKeys.UserId}}}{{{AppConstants.GameFieldKeys.Zone}}}",

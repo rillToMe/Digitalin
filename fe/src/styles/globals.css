@@ -1,4 +1,7 @@
 :root {
+  /* Native form control / scrollbar rendering ikut tema */
+  color-scheme: light;
+
   /* Brand colors */
   --color-brand-primary: #0f1419;
   --color-brand-secondary: #4a5568;
@@ -8,6 +11,24 @@
   --color-neutral: #f1f3f5;
   --color-surface: #ffffff;
   --color-on-primary: #ffffff;
+
+  /* Permukaan satu tingkat di atas --color-surface. Di tema terang keduanya
+     sama (kedalaman datang dari shadow); di tema gelap shadow hampir tidak
+     terlihat, jadi kedalaman harus datang dari permukaan yang lebih terang. */
+  --color-surface-raised: #ffffff;
+
+  /* Scrim di atas artwork — blok solid, bukan gradient (design.md: flat). */
+  --color-poster-scrim: rgba(15, 20, 25, 0.72);
+
+  /* Kontrol dan teks yang duduk DI ATAS gambar (banner, poster). Nilainya
+     sama di kedua tema: yang jadi latarnya adalah gambar, bukan permukaan
+     aplikasi, jadi tidak ikut berubah saat tema diganti. */
+  --color-media-control: rgba(255, 255, 255, 0.22);
+  --color-on-media: rgba(255, 255, 255, 0.82);
+  --color-on-media-muted: rgba(255, 255, 255, 0.5);
+
+  /* Label mono (design.md: label = Geist Mono). Alias, bukan definisi kedua. */
+  --font-label-mono: var(--admin-font-mono);
 
   /* Borders */
   --color-border-default: rgba(0, 0, 0, 0.1);
@@ -84,6 +105,282 @@
   --admin-radius-lg: 16px;
 }
 
+html,
+body {
+  overflow-x: clip;
+}
+
+/* ==========================================================================
+   Tema gelap — dipasang sebagai class "dark" di <html> oleh store/themeStore
+   (dan oleh script inline di index.html sebelum paint pertama, supaya tidak
+   ada kedip putih). Hanya nilai token yang berubah: tidak ada komponen yang
+   perlu tahu tema apa yang aktif.
+
+   Aksen tetap satu kobalt (design.md), hanya dinaikkan terangnya supaya
+   kontrasnya cukup di atas permukaan gelap. Tidak ada neon dan tidak ada
+   glow: warna jenuh hanya boleh datang dari artwork game.
+   ========================================================================== */
+html.dark {
+  color-scheme: dark;
+
+  --color-brand-primary: #e6e9ee;
+  --color-brand-secondary: #98a2b3;
+  --color-brand-tertiary: #6689d8;
+
+  --color-neutral: #0b0d10;
+  --color-surface: #14181d;
+  --color-surface-raised: #1b2026;
+  --color-on-primary: #ffffff;
+
+  --color-poster-scrim: rgba(8, 11, 15, 0.78);
+
+  --color-border-default: rgba(255, 255, 255, 0.1);
+  --color-border-light: rgba(255, 255, 255, 0.07);
+  --color-border-lighter: rgba(255, 255, 255, 0.05);
+  --color-border-input: rgba(255, 255, 255, 0.14);
+
+  --color-success: #5cb37d;
+  --color-success-bg: rgba(92, 179, 125, 0.14);
+
+  --color-danger: #e5646b;
+  --color-danger-bg: rgba(229, 100, 107, 0.14);
+  --color-danger-muted: rgba(229, 100, 107, 0.35);
+
+  --color-warning: #d9a44a;
+  --color-warning-bg: rgba(217, 164, 74, 0.14);
+
+  --color-info: #7a93e8;
+  --color-info-bg: rgba(122, 147, 232, 0.14);
+
+  --color-overlay: rgba(0, 0, 0, 0.65);
+  /* Bukan var(--color-neutral): di tema gelap neutral adalah latar halaman,
+     jadi skeleton harus lebih terang dari kartu, bukan sama dengan halaman. */
+  --color-skeleton: rgba(255, 255, 255, 0.06);
+
+  --color-hover-danger: rgba(229, 100, 107, 0.12);
+  --color-hover-info: rgba(76, 125, 255, 0.12);
+  --color-hover-neutral: rgba(255, 255, 255, 0.05);
+
+  --color-navbar-border: rgba(255, 255, 255, 0.08);
+  --shadow-navbar: 0 4px 16px rgba(0, 0, 0, 0.5);
+
+  /* --color-brand-primary sudah jadi warna teks terang di sini, jadi footer
+     tidak bisa lagi meminjamnya sebagai latar. Nilainya sendiri, satu tingkat
+     lebih gelap dari halaman supaya footer tetap terbaca sebagai penutup. */
+  --color-footer-bg: #0a0d11;
+
+  --color-brand-tertiary-hover: #7b9be0;
+  --color-accent-tint: rgba(102, 137, 216, 0.14);
+  --color-accent-tint-strong: rgba(102, 137, 216, 0.22);
+  --color-focus-ring: rgba(102, 137, 216, 0.6);
+  --color-hover-surface: rgba(255, 255, 255, 0.07);
+
+  /* State layer harus terang di atas permukaan gelap, kalau tidak hover
+     justru menggelapkan tombol dan terasa seperti disabled. */
+  --color-state-hover: rgba(255, 255, 255, 0.09);
+  --color-state-press: rgba(255, 255, 255, 0.18);
+
+  --color-chart-revenue-from: rgba(76, 125, 255, 0.3);
+  --color-chart-revenue-to: rgba(76, 125, 255, 0);
+  --color-chart-profit-from: rgba(92, 179, 125, 0.28);
+  --color-chart-profit-to: rgba(92, 179, 125, 0);
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.55);
+  --shadow-raised: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --shadow-overlay: 0 24px 48px rgba(0, 0, 0, 0.7);
+}
+
+body {
+  background-color: var(--color-neutral);
+}
+
+h1, h2, h3, h4 {
+  font-family: "Barlow Condensed", sans-serif;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.hud-section-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-brand-secondary);
+  font-family: var(--font-label-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.hud-section-label::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: var(--color-border-light);
+}
+
+.hud-game-card {
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+}
+
+.hud-checkout-panel {
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+}
+
+.hud-checkout-control {
+  clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%);
+}
+
+.hud-checkout-field:focus {
+  border-color: var(--color-brand-tertiary) !important;
+  box-shadow: 0 0 0 1px var(--color-focus-ring);
+}
+
+.hud-product-option:hover,
+.hud-product-option[aria-pressed="true"] {
+  border-color: var(--color-brand-tertiary) !important;
+  background-color: var(--color-accent-tint) !important;
+}
+
+/* Satu rail untuk semua kategori. Touch memakai native momentum scrolling;
+   pointer mouse juga bisa menyeret rail lewat handler di CategoryGameGrid. */
+.game-rail {
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-brand-tertiary) 55%, transparent)
+    color-mix(in srgb, var(--color-brand-primary) 6%, transparent);
+  overscroll-behavior-inline: contain;
+  touch-action: pan-x pan-y;
+  cursor: grab;
+}
+
+.game-rail:active {
+  cursor: grabbing;
+}
+
+.game-rail::-webkit-scrollbar {
+  height: 6px;
+}
+
+.game-rail::-webkit-scrollbar-track {
+  background: color-mix(in srgb, var(--color-brand-primary) 6%, transparent);
+}
+
+.game-rail::-webkit-scrollbar-thumb {
+  min-width: 36px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--color-brand-tertiary) 55%, transparent);
+}
+
+.game-rail::-webkit-scrollbar-thumb:hover,
+.game-rail::-webkit-scrollbar-thumb:active {
+  background: var(--color-brand-tertiary);
+}
+
+.hud-game-card::before,
+.hud-game-card::after {
+  content: "";
+  position: absolute;
+  z-index: 10;
+  width: 15px;
+  height: 15px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+
+.hud-game-card::before {
+  top: 6px;
+  left: 6px;
+  border-top: 1px solid var(--color-brand-tertiary);
+  border-left: 1px solid var(--color-brand-tertiary);
+}
+
+.hud-game-card::after {
+  right: 6px;
+  bottom: 6px;
+  border-right: 1px solid var(--color-brand-tertiary);
+  border-bottom: 1px solid var(--color-brand-tertiary);
+}
+
+.hud-game-card:focus-visible {
+  border-color: var(--color-brand-tertiary) !important;
+}
+
+.hud-game-card:focus-visible::before,
+.hud-game-card:focus-visible::after {
+  opacity: 1;
+}
+
+.hud-hero-slide {
+  width: 86vw;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.hud-hero-slide.active {
+  left: 50%;
+  z-index: 2;
+  transform: translateX(-50%);
+}
+
+.hud-hero-slide.previous {
+  right: calc(93% + 10px);
+  opacity: 0.58;
+}
+
+.hud-hero-slide.next {
+  left: calc(93% + 10px);
+  opacity: 0.58;
+}
+
+@media (min-width: 640px) {
+  .hud-hero-slide {
+    width: 82vw;
+  }
+
+  .hud-hero-slide.previous {
+    right: calc(91% + 14px);
+  }
+
+  .hud-hero-slide.next {
+    left: calc(91% + 14px);
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .hud-game-card:hover {
+    border-color: var(--color-brand-tertiary) !important;
+    transform: scale(1.015);
+  }
+
+  .hud-game-card:hover::before,
+  .hud-game-card:hover::after {
+    opacity: 1;
+  }
+
+  .hud-game-card:hover > img {
+    transform: scale(1.03);
+  }
+}
+
+/* Label mono ala HUD — dipakai untuk meta/kategori/CTA kecil. Ini yang
+   membuat komposisinya terbaca "game", bukan warna: design.md sudah
+   menetapkan label = Geist Mono, sebelumnya tidak pernah dipakai. */
+.label-mono {
+  font-family: var(--font-label-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Harga dan angka: lebar digit sama supaya kolom nominal tidak bergoyang. */
+.tabular-price {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
 /* Feedback hover/press untuk SEMUA button, tanpa menyentuh komponennya.
    Pakai overlay inset + transform, bukan background-color: banyak button
    punya style="" inline yang selalu menang atas stylesheet. Di @layer base
@@ -144,20 +441,46 @@
    memang tidak bisa ditulis inline.
    ========================================================================== */
 .site-footer {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   background-color: var(--color-footer-bg);
-  color: var(--color-footer-text);
+  background-image: linear-gradient(rgba(5, 8, 12, 0.78), rgba(5, 8, 12, 0.88)), url("/footer.webp");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  color: rgba(255, 255, 255, 0.76);
+  border-top: 1px solid rgba(76, 125, 255, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.site-footer::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: rgba(5, 8, 12, 0.12);
+  pointer-events: none;
+}
+
+.site-footer-content {
+  position: relative;
 }
 
 .site-footer a {
-  color: var(--color-footer-link);
+  color: rgba(255, 255, 255, 0.8);
   text-decoration: none;
-  transition: color 140ms ease;
+  transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease;
 }
 
 /* (hover: hover) — di layar sentuh :hover nempel setelah tap */
 @media (hover: hover) {
   .site-footer a:hover {
     color: var(--color-footer-link-hover);
+  }
+
+  .site-footer-links a:hover {
+    transform: translateX(3px);
   }
 }
 
@@ -171,41 +494,134 @@
 .site-footer-brand:hover {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   color: var(--color-footer-heading);
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-size: 1.35rem;
+  font-weight: 750;
+  letter-spacing: 0;
+}
+
+.site-footer-logo {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--admin-radius-md);
+  backdrop-filter: blur(8px);
 }
 
 .site-footer-tagline {
-  max-width: 32ch;
-  font-size: 0.875rem;
-  line-height: 1.6;
+  max-width: 34ch;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.site-footer-kicker {
+  color: #7ba0ff;
+  font-family: var(--font-label-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .site-footer-heading {
-  margin: 0 0 12px;
+  margin: 0 0 16px;
   color: var(--color-footer-heading);
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-family: var(--font-label-mono);
+  font-size: 0.72rem;
+  font-weight: 650;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+.site-footer-heading::after {
+  content: "";
+  display: block;
+  width: 24px;
+  height: 2px;
+  margin-top: 8px;
+  background: #4c7dff;
 }
 
 .site-footer-links {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 11px;
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 0.875rem;
+  font-size: 0.9rem;
+}
+
+.site-footer-links a {
+  display: inline-block;
+  transition: color 140ms ease, transform 140ms ease;
 }
 
 .site-footer-bottom {
-  border-top: 1px solid var(--color-footer-border);
+  min-height: 64px;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
   font-size: 0.8rem;
+}
+
+.site-footer-support,
+.site-footer-support:hover {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 10px;
+  padding: 9px 11px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--admin-radius-md);
+  font-size: 0.82rem;
+  font-weight: 600;
+  backdrop-filter: blur(8px);
+}
+
+.site-footer-support span:not(.site-footer-support-icon) {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.site-footer-support small {
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+
+.site-footer-support-icon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: #ffffff;
+  background: #2c5ef5;
+  border-radius: var(--admin-radius-sm);
+}
+
+@media (min-width: 640px) {
+  .site-footer-support {
+    align-self: center;
+  }
+}
+
+@media (max-width: 767px) {
+  .site-footer {
+    background-position: 58% center;
+  }
+
+  .site-footer-main nav {
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

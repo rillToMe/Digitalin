@@ -23,11 +23,14 @@ public interface IProductService
         int? limit = null);
 
     /// <summary>
-    /// Brand terpopuler untuk section otomatis di homepage: order COMPLETED
-    /// 30 hari terakhir, peringkat turun, hanya brand yang masih punya produk
-    /// Games aktif. Kosong bila belum ada penjualan.
+    /// Brand pilihan admin untuk section Populer homepage.
     /// </summary>
     Task<IEnumerable<CategoryInfo>> GetPopularGameBrandsAsync();
+
+    Task<IEnumerable<GameMetadataResponse>> GetPopularGameOptionsAsync();
+
+    Task<IEnumerable<CategoryInfo>> UpdatePopularGameBrandsAsync(
+        IReadOnlyList<string> slugs);
 
     Task<IEnumerable<GameCategoryInfo>> GetGameCategoriesAsync();
 
@@ -47,8 +50,6 @@ public interface IProductService
     Task<GameProduct> CreateProductAsync(GameProduct product);
 
     Task<string?> UpdateProductIconAsync(int id, IFormFile file);
-
-    Task<IEnumerable<GameProduct>> GetProductsByBrandAsync(string brand);
 
     Task<(int Added, int Updated, int Deactivated)>
         SyncCatalogFromDigiflazzAsync();

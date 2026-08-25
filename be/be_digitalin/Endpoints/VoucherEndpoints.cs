@@ -1,3 +1,4 @@
+using be_digitalin.Constants;
 using be_digitalin.DTOs.Requests;
 using be_digitalin.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -50,7 +51,7 @@ public static class VoucherEndpoints
             try
             {
                 var voucher = await voucherService.CreateVoucherAsync(request);
-                return Results.Created($"/admin/vouchers/{voucher.Id}", voucher);
+                return Results.Created($"{AppConstants.Api.Prefix}/admin/vouchers/{voucher.Id}", voucher);
             }
             catch (InvalidOperationException ex)
             {

@@ -109,32 +109,23 @@ export default function SearchBar({ variant = "expandable", onClose }: SearchBar
 
 //   const isOverlay = variant === "overlay";
 
-  // Expandable (Desktop)
+  // Desktop search stays visible; mobile still uses the overlay variant.
   if (variant === "expandable") {
     return (
-      <div ref={containerRef} style={{ position: "relative", display: "flex", alignItems: "center" }}>
-        {/* Expandable input section — animates in/out */}
+      <div ref={containerRef} className="min-w-0" style={{ position: "relative" }}>
         <div
+          className="flex h-10 w-[220px] items-center gap-2 border px-3 xl:w-[260px]"
           style={{
-            width: isExpanded ? 280 : 0,
-            opacity: isExpanded ? 1 : 0,
-            overflow: "hidden",
-            transition: "width 220ms cubic-bezier(0.4, 0, 0.2, 1), opacity 180ms ease",
+            backgroundColor: "var(--color-surface-raised)",
+            borderColor:
+              isOpen && hasQuery
+                ? "var(--color-brand-tertiary)"
+                : "var(--color-border-light)",
+            clipPath:
+              "polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px))",
           }}
         >
-          <div
-            className="flex items-center gap-2 rounded-xl"
-            style={{
-              backgroundColor: "var(--color-neutral, #F1F3F5)",
-              border: "1.5px solid",
-              borderColor: isOpen && hasQuery ? "var(--color-brand-tertiary, #2C5EF5)" : "rgba(0,0,0,0.08)",
-              padding: "0 12px",
-              height: 40,
-              width: 280,
-              boxSizing: "border-box",
-            }}
-          >
-            <Search size={16} style={{ color: "var(--color-brand-secondary, #4A5568)", flexShrink: 0 }} />
+            <Search size={16} style={{ color: "var(--color-brand-secondary)", flexShrink: 0 }} />
             <input
               ref={inputRef}
               type="text"
@@ -143,7 +134,10 @@ export default function SearchBar({ variant = "expandable", onClose }: SearchBar
                 setQuery(e.target.value);
                 if (!isOpen) setIsOpen(true);
               }}
-              onFocus={() => { if (hasQuery) setIsOpen(true); }}
+              onFocus={() => {
+                setIsExpanded(true);
+                if (hasQuery) setIsOpen(true);
+              }}
               onKeyDown={handleKeyDown}
               placeholder="Cari game..."
               aria-label="Cari game"
@@ -152,7 +146,7 @@ export default function SearchBar({ variant = "expandable", onClose }: SearchBar
               aria-activedescendant={activeIndex >= 0 ? `search-result-${activeIndex}` : undefined}
               autoComplete="off"
               className="flex-1 outline-none bg-transparent"
-              style={{ color: "var(--color-brand-primary, #0F1419)", fontSize: "0.875rem", minWidth: 0 }}
+              style={{ color: "var(--color-brand-primary)", fontSize: "0.875rem", minWidth: 0 }}
             />
             {isFetching && <Loader2 size={14} className="animate-spin" style={{ color: "var(--color-brand-secondary, #4A5568)", flexShrink: 0 }} />}
             {hasQuery && !isFetching && (
@@ -165,27 +159,7 @@ export default function SearchBar({ variant = "expandable", onClose }: SearchBar
                 <X size={14} />
               </button>
             )}
-          </div>
         </div>
-
-        {/* Toggle icon button */}
-        <button
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={() => {
-            if (isExpanded) {
-              setIsExpanded(false);
-              setIsOpen(false);
-              setQuery("");
-            } else {
-              setIsExpanded(true);
-            }
-          }}
-          aria-label={isExpanded ? "Tutup pencarian" : "Buka pencarian"}
-          className="p-2 rounded-lg transition-colors hover:bg-gray-100"
-          style={{ color: "var(--color-brand-primary, #0F1419)", flexShrink: 0 }}
-        >
-          <Search size={18} />
-        </button>
 
         {/* Dropdown */}
         {showDropdown && (
@@ -193,8 +167,8 @@ export default function SearchBar({ variant = "expandable", onClose }: SearchBar
             style={{
               position: "absolute",
               top: "calc(100% + 8px)",
-              right: 0,
-              width: 340,
+              left: 0,
+              width: "min(340px, 90vw)",
               backgroundColor: "var(--color-surface, #fff)",
               border: "1px solid rgba(0,0,0,0.08)",
               borderRadius: 12,

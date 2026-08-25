@@ -11,10 +11,10 @@
 
 | # | Gotcha | Detail |
 |---|--------|--------|
-| 1 | **Upload Cover Game uses `GameMetadata` ID** | `POST /admin/system/metadata/{id}/upload-game-cover` — the `{id}` is a `GameMetadata.Id` |
-| 2 | **Upload Item Image uses `GameProduct` ID** | `POST /admin/products/{id}/upload-item-image` — the `{id}` is a `GameProduct.Id` |
+| 1 | **Upload Cover Game uses `GameMetadata` ID** | `POST /api/v1/admin/system/metadata/{id}/upload-game-cover` — the `{id}` is a `GameMetadata.Id` |
+| 2 | **Upload Item Image uses `GameProduct` ID** | `POST /api/v1/admin/products/{id}/upload-item-image` — the `{id}` is a `GameProduct.Id` |
 | 3 | **`inputType` determines form rendering** | If `USER_ID_AND_ZONE_ID`, the order form MUST show a Zone/Server ID field |
-| 4 | **Typo in GET /auth/profile response** | The field is literally `"createtAt"` (NOT `"createdAt"`) — match this exactly |
+| 4 | **Typo in GET /api/v1/auth/profile response** | The field is literally `"createtAt"` (NOT `"createdAt"`) — match this exactly |
 | 5 | **PlayerId concatenation has NO separator** | `playerId = targetId + zoneId` (e.g. `"12345" + "6789"` → `"123456789"`) |
 | 6 | **Voucher matching is case-insensitive** | Always send voucher codes as-is; backend normalizes |
 | 7 | **All decimal values use `decimal` precision** | Do NOT truncate or round on frontend — display as received |
@@ -33,20 +33,20 @@
 
 | Role | JWT Claim | Token Lifetime | Issued By |
 |------|-----------|----------------|-----------|
-| CUSTOMER | `ClaimTypes.NameIdentifier` = customerId, `ClaimTypes.Role` = "CUSTOMER" | 24 hours | `POST /auth/local/login` |
-| ADMIN | `ClaimTypes.Name` = username, `ClaimTypes.Role` = `"ADMIN"` | 12 hours | `POST /admin/auth/login` |
-| SUPER_ADMIN | `ClaimTypes.Name` = username, `ClaimTypes.Role` = `"SUPER_ADMIN"` | 12 hours | `POST /admin/auth/login` |
+| CUSTOMER | `ClaimTypes.NameIdentifier` = customerId, `ClaimTypes.Role` = "CUSTOMER" | 24 hours | `POST /api/v1/auth/local/login` |
+| ADMIN | `ClaimTypes.Name` = username, `ClaimTypes.Role` = `"ADMIN"` | 12 hours | `POST /api/v1/admin/auth/login` |
+| SUPER_ADMIN | `ClaimTypes.Name` = username, `ClaimTypes.Role` = `"SUPER_ADMIN"` | 12 hours | `POST /api/v1/admin/auth/login` |
 
 ### Endpoint Protection Levels
 
 | Prefix / Pattern | Auth Required | Role |
 |------------------|---------------|------|
-| `POST /auth/local/*`, `POST /auth/google`, `GET /games/*` | No | Public |
-| `GET /banners/` | No | Public |
-| `POST /orders/`, `POST /orders/preview` | Optional | Any (customerId extracted if present) |
-| `GET /auth/profile`, `PUT /auth/profile`, `GET /orders/my-history` | Yes | CUSTOMER |
-| `/admin/*` (`AdminOnly`) | Yes | ADMIN, SUPER_ADMIN |
-| `/admin/admins/*` (`SuperAdminOnly`) | Yes | SUPER_ADMIN only |
+| `POST /api/v1/auth/local/*`, `POST /api/v1/auth/google`, `GET /api/v1/games/*` | No | Public |
+| `GET /api/v1/banners/` | No | Public |
+| `POST /api/v1/orders/`, `POST /api/v1/orders/preview` | Optional | Any (customerId extracted if present) |
+| `GET /api/v1/auth/profile`, `PUT /api/v1/auth/profile`, `GET /api/v1/orders/my-history` | Yes | CUSTOMER |
+| `/api/v1/admin/*` (`AdminOnly`) | Yes | ADMIN, SUPER_ADMIN |
+| `/api/v1/admin/admins/*` (`SuperAdminOnly`) | Yes | SUPER_ADMIN only |
 | `/webhooks/*` | No (signature-validated) | N/A |
 
 ---
@@ -96,14 +96,14 @@ PENDING ──(payment received)──► PAID ──(Digiflazz called)──►
 
 ---
 
-### POST /admin/auth/login
+### POST /api/v1/admin/auth/login
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `POST` |
-| Path | `/admin/auth/login` |
+| Path | `/api/v1/admin/auth/login` |
 | Description | Authenticate admin using database credentials and receive JWT |
 | Auth | None (Public) |
 
@@ -137,14 +137,14 @@ interface AdminLoginResponse {
 
 ---
 
-### POST /auth/local/request-otp
+### POST /api/v1/auth/local/request-otp
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `POST` |
-| Path | `/auth/local/request-otp` |
+| Path | `/api/v1/auth/local/request-otp` |
 | Description | Sends a 6-digit OTP to the user's email for registration |
 | Auth | None (Public) |
 | Rate Limit | 3 requests per 10 minutes per IP |
@@ -172,14 +172,14 @@ interface RequestOtpResponse {
 
 ---
 
-### POST /auth/local/register
+### POST /api/v1/auth/local/register
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `POST` |
-| Path | `/auth/local/register` |
+| Path | `/api/v1/auth/local/register` |
 | Description | Register a new customer account using OTP verification |
 | Auth | None (Public) |
 
@@ -209,14 +209,14 @@ interface RegisterResponse {
 
 ---
 
-### POST /auth/local/login
+### POST /api/v1/auth/local/login
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `POST` |
-| Path | `/auth/local/login` |
+| Path | `/api/v1/auth/local/login` |
 | Description | Authenticate customer and receive JWT |
 | Auth | None (Public) |
 
@@ -243,14 +243,14 @@ interface LoginResponse {
 
 ---
 
-### POST /auth/google
+### POST /api/v1/auth/google
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `POST` |
-| Path | `/auth/google` |
+| Path | `/api/v1/auth/google` |
 | Description | Authenticate with Google ID Token (from Google Identity Services on frontend). Auto-registers if the email is new; links to existing local account if the same email already exists. Returns the same JWT shape as local login. |
 | Auth | None (Public) |
 
@@ -283,14 +283,14 @@ interface GoogleLoginResponse {
 
 ---
 
-### GET /auth/profile
+### GET /api/v1/auth/profile
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `GET` |
-| Path | `/auth/profile` |
+| Path | `/api/v1/auth/profile` |
 | Description | Get authenticated customer's profile |
 | Auth | JWT Required (CUSTOMER) |
 | Headers | `Authorization: Bearer <token>` |
@@ -318,14 +318,14 @@ interface ProfileResponse {
 
 ---
 
-### PUT /auth/profile
+### PUT /api/v1/auth/profile
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `PUT` |
-| Path | `/auth/profile` |
+| Path | `/api/v1/auth/profile` |
 | Description | Update authenticated customer's profile |
 | Auth | JWT Required (CUSTOMER) |
 | Headers | `Authorization: Bearer <token>` |
@@ -355,14 +355,14 @@ interface UpdateProfileResponse {
 
 
 
-### POST /auth/local/request-password-reset
+### POST /api/v1/auth/local/request-password-reset
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `POST` |
-| Path | `/auth/local/request-password-reset` |
+| Path | `/api/v1/auth/local/request-password-reset` |
 | Description | Sends a 6-digit OTP to the user's email for password reset |
 | Auth | None (Public) |
 | Rate Limit | 3 requests per 10 minutes per IP (shared with OtpPolicy) |
@@ -395,14 +395,14 @@ interface RequestPasswordResetResponse {
 
 ---
 
-### POST /auth/local/reset-password
+### POST /api/v1/auth/local/reset-password
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `POST` |
-| Path | `/auth/local/reset-password` |
+| Path | `/api/v1/auth/local/reset-password` |
 | Description | Validates OTP and updates the customer's password |
 | Auth | None (Public) |
 
@@ -450,14 +450,14 @@ interface ResetPasswordResponse {
 
 ---
 
-### GET /admin/admins
+### GET /api/v1/admin/admins
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `GET` |
-| Path | `/admin/admins` |
+| Path | `/api/v1/admin/admins` |
 | Description | Retrieve list of all admins |
 | Auth | SuperAdminOnly (SUPER_ADMIN) |
 
@@ -483,14 +483,14 @@ type AdminListResponse = AdminListItem[];
 
 ---
 
-### POST /admin/admins
+### POST /api/v1/admin/admins
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `POST` |
-| Path | `/admin/admins` |
+| Path | `/api/v1/admin/admins` |
 | Description | Create a new admin account |
 | Auth | SuperAdminOnly (SUPER_ADMIN) |
 
@@ -522,14 +522,14 @@ interface CreateAdminResponse {
 
 ---
 
-### PUT /admin/admins/{id}/role
+### PUT /api/v1/admin/admins/{id}/role
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `PUT` |
-| Path | `/admin/admins/{id}/role` |
+| Path | `/api/v1/admin/admins/{id}/role` |
 | Description | Update the role of an existing admin |
 | Auth | SuperAdminOnly (SUPER_ADMIN) |
 
@@ -558,14 +558,14 @@ interface UpdateRoleResponse {
 
 ---
 
-### PUT /admin/admins/{id}/password
+### PUT /api/v1/admin/admins/{id}/password
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `PUT` |
-| Path | `/admin/admins/{id}/password` |
+| Path | `/api/v1/admin/admins/{id}/password` |
 | Description | Reset password for an existing admin |
 | Auth | SuperAdminOnly (SUPER_ADMIN) |
 
@@ -593,14 +593,14 @@ interface ResetAdminPasswordResponse {
 
 ---
 
-### DELETE /admin/admins/{id}
+### DELETE /api/v1/admin/admins/{id}
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `DELETE` |
-| Path | `/admin/admins/{id}` |
+| Path | `/api/v1/admin/admins/{id}` |
 | Description | Permanently delete an admin account |
 | Auth | SuperAdminOnly (SUPER_ADMIN) |
 
@@ -624,14 +624,14 @@ interface DeleteAdminResponse {
 
 ---
 
-### GET /games/brands
+### GET /api/v1/games/brands
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `GET` |
-| Path | `/games/brands` |
+| Path | `/api/v1/games/brands` |
 | Description | List game brands for the storefront catalog, optionally filtered by category and paginated |
 | Auth | None (Public) |
 
@@ -666,24 +666,24 @@ interface BrandItem {
 - Results ordered alphabetically by `brand`
 - `slug` is derived from brand name (lowercase, spaces → hyphens)
 - Only brands with at least one active `Games` product are returned
-- `categorySlugs` comes from the `GameMetadata.Categories` column (comma-separated slugs), editable via `PUT /admin/system/metadata/{id}`. A game may belong to several categories at once and then appears in each of their sections; an empty array means the brand is not categorized yet (frontend groups it under "Lainnya")
+- `categorySlugs` comes from the `GameMetadata.Categories` column (comma-separated slugs), editable via `PUT /api/v1/admin/system/metadata/{id}`. A game may belong to several categories at once and then appears in each of their sections; an empty array means the brand is not categorized yet (frontend groups it under "Lainnya")
 - `category` is normalized like any other slug (trim → lowercase → spaces to hyphens), so `?category=Lainnya` and `?category=lainnya` are the same filter. Two virtual buckets are accepted here but can never be created by an admin (reserved slugs): `all` = no filter, `lainnya` = brands whose `categorySlugs` is empty
 - A `category` that no brand uses returns `[]`, not the whole catalog
 - `limit` is clamped to **1..60**; a larger value is silently capped. `offset` below 0 becomes 0, and an offset past the end returns `[]`. Omitting `limit` returns everything after `offset` — kept for callers that legitimately want the full catalog
 - Pagination is **offset-based on purpose**: the homepage first batch is deliberately smaller than the "show more" batch (12/6 then 24), which page numbers cannot express without skipping or repeating brands. The caller advances `offset` by the number of brands it already holds
-- The section total is not returned here — use `brandCount` from `GET /games/categories`, so a section knows when to stop without an extra request
+- The section total is not returned here — use `brandCount` from `GET /api/v1/games/categories`, so a section knows when to stop without an extra request
 
 ---
 
-### GET /games/brands/popular
+### GET /api/v1/games/brands/popular
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `GET` |
-| Path | `/games/brands/popular` |
-| Description | Best-selling game brands for the automatic "Populer" section on the homepage |
+| Path | `/api/v1/games/brands/popular` |
+| Description | Game brands manually curated by admin for the "Populer" section at the top of the homepage |
 | Auth | None (Public) |
 
 #### REQUEST PAYLOAD
@@ -693,30 +693,29 @@ _No request body or query parameters._
 #### RESPONSE PAYLOAD
 
 ```typescript
-// 200 OK — same shape as GET /games/brands, ordered by sales instead of alphabetically
+// 200 OK — same shape as GET /api/v1/games/brands, ordered by the admin selection
 type BrandsResponse = BrandItem[];
 ```
 
 #### BUSINESS RULES & EDGE CASES
 
-- Ranking is fully automatic: number of `TopupOrders` with `status = "COMPLETED"` in the last **30 days**, counted per `BrandName` snapshot. There is no manual curation and no admin setting
-- Orders in any other status (`PENDING`, `PAID`, `EXPIRED`, `FAILED`, …) are not sales and do not count
-- Ordered by sales count descending; ties broken alphabetically by brand so the order is stable between requests
-- Capped at **12** brands (one full homepage grid)
-- A brand is dropped if it has no `GameMetadata` row or no active `Games` product left — its card would link to an empty detail page
-- Returns `[]` when there are no completed sales in the window (new shop, or quiet month). The frontend hides the section entirely rather than rendering an empty heading
-- `"populer"` is a reserved storefront category slug (`PUT /admin/system/game-categories` rejects it) — this section is virtual and must not collide with a manually created category. A brand listed here still shows in its own categories' sections too
+- The list is manually curated through `PUT /api/v1/admin/system/popular-games`; array order is preserved on the homepage
+- Capped at **12** brands (one full homepage rail)
+- A selected brand is dropped from the public response if it has no `GameMetadata` row or no active `Games` product left, while the saved setting remains unchanged
+- Missing, blank, or malformed `AppSettings["POPULAR_GAMES"]` degrades to `[]` instead of failing the storefront
+- Returns `[]` before an admin selects any game. The frontend hides the section entirely rather than rendering an empty heading
+- `"populer"` is a reserved storefront category slug (`PUT /api/v1/admin/system/game-categories` rejects it) — this section is virtual and must not collide with a manually created category. A brand listed here still shows in its own categories' sections too
 
 ---
 
-### GET /games/categories
+### GET /api/v1/games/categories
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `GET` |
-| Path | `/games/categories` |
+| Path | `/api/v1/games/categories` |
 | Description | List storefront categories with their active brand counts (including the virtual `all` and `lainnya` buckets) |
 | Auth | None (Public) |
 
@@ -740,25 +739,25 @@ interface GameCategoryItem {
 #### BUSINESS RULES & EDGE CASES
 
 - The first entry is always the virtual bucket `all` ("Semua"), whose `brandCount` is the number of **distinct** brands with an active `Games` product — a multi-category brand is counted once here
-- The last entry is the virtual bucket `lainnya` ("Lainnya") when at least one brand has no category; it is omitted when there are none. Both virtual slugs are reserved (`PUT /admin/system/game-categories` rejects them) so a manual category can never collide with them
-- Every `slug` returned here is a valid `?category=` value for `GET /games/brands`, and its `brandCount` is exactly how many brands that call can page through — the frontend uses it to decide when to stop fetching
+- The last entry is the virtual bucket `lainnya` ("Lainnya") when at least one brand has no category; it is omitted when there are none. Both virtual slugs are reserved (`PUT /api/v1/admin/system/game-categories` rejects them) so a manual category can never collide with them
+- Every `slug` returned here is a valid `?category=` value for `GET /api/v1/games/brands`, and its `brandCount` is exactly how many brands that call can page through — the frontend uses it to decide when to stop fetching
 - Returns `[]` when no brand has an active `Games` product (empty catalog); the frontend renders no tabs at all rather than a "Semua 0" tab
 - Real categories with `brandCount = 0` are omitted (not returned at all)
 - Brands without a category (`GameMetadata.Categories = null`) contribute only to `all` and `lainnya`, never to a real category
 - A brand with several categories is counted in **each** of them, so the sum of the real categories' `brandCount` may exceed `all`
-- Result order is `all` → the admin-defined registry order (`AppSettings["GAME_CATEGORIES"]`, see `PUT /admin/system/game-categories`) → `lainnya`; the frontend renders sections/tabs in the order received
+- Result order is `all` → the admin-defined registry order (`AppSettings["GAME_CATEGORIES"]`, see `PUT /api/v1/admin/system/game-categories`) → `lainnya`; the frontend renders sections/tabs in the order received
 - `name` comes from the registry (admin-editable). Slugs found on brands but missing from the registry are appended after the registry entries, sorted by slug, named from the built-in name map or the slug itself — so a brand can never silently vanish from the storefront
 
 ---
 
-### GET /games/{brandSlug}
+### GET /api/v1/games/{brandSlug}
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `GET` |
-| Path | `/games/{brandSlug}` |
+| Path | `/api/v1/games/{brandSlug}` |
 | Description | Get a specific brand's details and its available products |
 | Auth | None (Public) |
 
@@ -800,14 +799,14 @@ interface ProductItem {
 
 ---
 
-### GET /admin/products/
+### GET /api/v1/admin/products/
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `GET` |
-| Path | `/admin/products/` |
+| Path | `/api/v1/admin/products/` |
 | Description | List all products with pagination and search (admin) |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -851,14 +850,14 @@ interface ProductResponse {
 
 ---
 
-### POST /admin/products/
+### POST /api/v1/admin/products/
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `POST` |
-| Path | `/admin/products/` |
+| Path | `/api/v1/admin/products/` |
 | Description | Create a new product manually |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -899,14 +898,14 @@ interface ProductResponse {
 
 ---
 
-### POST /admin/products/{id}/upload-item-image
+### POST /api/v1/admin/products/{id}/upload-item-image
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `POST` |
-| Path | `/admin/products/{id}/upload-item-image` |
+| Path | `/api/v1/admin/products/{id}/upload-item-image` |
 | Description | Upload/replace the image for a specific product nominal |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>`, `Content-Type: multipart/form-data` |
@@ -938,14 +937,14 @@ interface UploadItemImageResponse {
 
 ---
 
-### PUT /admin/products/{id}/margin
+### PUT /api/v1/admin/products/{id}/margin
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `PUT` |
-| Path | `/admin/products/{id}/margin` |
+| Path | `/api/v1/admin/products/{id}/margin` |
 | Description | Set or update custom margin for a product |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -977,14 +976,14 @@ interface SetMarginResponse {
 
 ---
 
-### POST /orders/preview
+### POST /api/v1/orders/preview
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `POST` |
-| Path | `/orders/preview` |
+| Path | `/api/v1/orders/preview` |
 | Description | Simulate checkout — returns price, discount, and final price WITHOUT creating an order |
 | Auth | None (Public) |
 
@@ -1028,13 +1027,13 @@ interface CheckoutPreviewResponse {
 - **This endpoint does NOT create an order** — it only simulates checkout
 - **This endpoint does NOT reserve voucher quota** — it only validates
 - If `voucherCode` is empty/null: `discountAmount = 0`, `finalPrice = originalPrice`, `isVoucherApplied = false`
-- If `voucherCode` is provided, the same validation chain runs as `POST /orders/`:
+- If `voucherCode` is provided, the same validation chain runs as `POST /api/v1/orders/`:
   1. Code must exist → `"Kode voucher tidak ditemukan."`
   2. Must be active → `"Voucher ini sudah tidak aktif."`
   3. Must not be expired → `"Voucher ini sudah kedaluwarsa."`
   4. Quota available → `"Kuota voucher ini sudah habis."`
   5. Minimum transaction → `"Voucher ini membutuhkan minimal transaksi sebesar Rp{amount}."`
-- Discount calculation is **identical** to `POST /orders/` (same shared method)
+- Discount calculation is **identical** to `POST /api/v1/orders/` (same shared method)
 - Error 400: `"Produk tidak ditemukan!"` — invalid productId
 - Error 400: `"Harga akhir setelah diskon tidak boleh nol atau negatif."` — finalPrice ≤ 0
 
@@ -1090,14 +1089,14 @@ interface CheckoutPreviewResponse {
 
 ---
 
-### POST /orders/
+### POST /api/v1/orders/
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `POST` |
-| Path | `/orders/` |
+| Path | `/api/v1/orders/` |
 | Description | Create a new top-up order with optional voucher |
 | Auth | Optional (JWT accepted but not required) |
 | Headers | `Authorization: Bearer <token>` (optional) |
@@ -1152,14 +1151,14 @@ interface CreateOrderResponse {
 
 ---
 
-### GET /orders/my-history
+### GET /api/v1/orders/my-history
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `GET` |
-| Path | `/orders/my-history` |
+| Path | `/api/v1/orders/my-history` |
 | Description | Get paginated order history for authenticated customer |
 | Auth | JWT Required (CUSTOMER) |
 | Headers | `Authorization: Bearer <token>` |
@@ -1207,14 +1206,14 @@ interface OrderResponse {
 
 ---
 
-### GET /admin/orders/
+### GET /api/v1/admin/orders/
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `GET` |
-| Path | `/admin/orders/` |
+| Path | `/api/v1/admin/orders/` |
 | Description | Get all orders (admin view) |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -1229,7 +1228,7 @@ interface OrderResponse {
 #### RESPONSE PAYLOAD
 
 ```typescript
-// 200 OK — same structure as /orders/my-history
+// 200 OK — same structure as /api/v1/orders/my-history
 interface AdminOrdersResponse {
   data: OrderResponse[];
   totalItems: number;
@@ -1245,14 +1244,14 @@ interface AdminOrdersResponse {
 
 ---
 
-### POST /admin/orders/{orderNo}/retry
+### POST /api/v1/admin/orders/{orderNo}/retry
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `POST` |
-| Path | `/admin/orders/{orderNo}/retry` |
+| Path | `/api/v1/admin/orders/{orderNo}/retry` |
 | Description | Retry failed Digiflazz fulfillment for an order |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -1290,14 +1289,14 @@ interface RetryAlreadyCompleteResponse {
 
 ---
 
-### POST /admin/orders/{orderNo}/refund
+### POST /api/v1/admin/orders/{orderNo}/refund
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `POST` |
-| Path | `/admin/orders/{orderNo}/refund` |
+| Path | `/api/v1/admin/orders/{orderNo}/refund` |
 | Description | Mark order as refunded (manual process) |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -1333,14 +1332,14 @@ interface RefundResponse {
 
 ---
 
-### GET /banners/
+### GET /api/v1/banners/
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `GET` |
-| Path | `/banners/` |
+| Path | `/api/v1/banners/` |
 | Description | Get all active banners for storefront display |
 | Auth | None (Public) |
 
@@ -1370,14 +1369,14 @@ interface BannerItem {
 
 ---
 
-### POST /admin/banners/upload
+### POST /api/v1/admin/banners/upload
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `POST` |
-| Path | `/admin/banners/upload` |
+| Path | `/api/v1/admin/banners/upload` |
 | Description | Upload a new banner image |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>`, `Content-Type: multipart/form-data` |
@@ -1411,14 +1410,14 @@ interface CreateBannerResponse {
 
 ---
 
-### PUT /admin/banners/{id}/toggle
+### PUT /api/v1/admin/banners/{id}/toggle
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `PUT` |
-| Path | `/admin/banners/{id}/toggle` |
+| Path | `/api/v1/admin/banners/{id}/toggle` |
 | Description | Toggle a banner's active/inactive status |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -1446,14 +1445,14 @@ interface ToggleBannerResponse {
 
 ---
 
-### DELETE /admin/banners/{id}
+### DELETE /api/v1/admin/banners/{id}
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `DELETE` |
-| Path | `/admin/banners/{id}` |
+| Path | `/api/v1/admin/banners/{id}` |
 | Description | Permanently delete a banner and its image |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -1486,14 +1485,14 @@ interface DeleteBannerResponse {
 
 ---
 
-### GET /admin/dashboard/stats
+### GET /api/v1/admin/dashboard/stats
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `GET` |
-| Path | `/admin/dashboard/stats` |
+| Path | `/api/v1/admin/dashboard/stats` |
 | Description | Get today's order statistics summary |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -1526,14 +1525,14 @@ interface DashboardStatsResponse {
 
 ---
 
-### GET /admin/dashboard/chart
+### GET /api/v1/admin/dashboard/chart
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `GET` |
-| Path | `/admin/dashboard/chart` |
+| Path | `/api/v1/admin/dashboard/chart` |
 | Description | Get revenue/profit chart data for a time range |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -1578,14 +1577,14 @@ interface ChartDataPoint {
 
 ---
 
-### GET /admin/dashboard/balance
+### GET /api/v1/admin/dashboard/balance
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `GET` |
-| Path | `/admin/dashboard/balance` |
+| Path | `/api/v1/admin/dashboard/balance` |
 | Description | Get remaining Digiflazz (supplier) deposit balance |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -1622,14 +1621,14 @@ interface ErrorResponse {
 
 ---
 
-### POST /admin/system/sync-digiflazz
+### POST /api/v1/admin/system/sync-digiflazz
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `POST` |
-| Path | `/admin/system/sync-digiflazz` |
+| Path | `/api/v1/admin/system/sync-digiflazz` |
 | Description | Manually trigger product sync from Digiflazz API |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -1654,14 +1653,14 @@ interface SyncResponse {
 
 ---
 
-### DELETE /admin/system/clean-dummy-products
+### DELETE /api/v1/admin/system/clean-dummy-products
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `DELETE` |
-| Path | `/admin/system/clean-dummy-products` |
+| Path | `/api/v1/admin/system/clean-dummy-products` |
 | Description | Remove products with no BuyerSkuCode (dummy/test data) |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -1686,14 +1685,14 @@ interface CleanDummyResponse {
 
 ---
 
-### GET /admin/system/midtrans-expiry
+### GET /api/v1/admin/system/midtrans-expiry
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `GET` |
-| Path | `/admin/system/midtrans-expiry` |
+| Path | `/api/v1/admin/system/midtrans-expiry` |
 | Description | Get current Midtrans payment expiry setting |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -1713,14 +1712,14 @@ interface MidtransExpiryResponse {
 
 ---
 
-### PUT /admin/system/midtrans-expiry
+### PUT /api/v1/admin/system/midtrans-expiry
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `PUT` |
-| Path | `/admin/system/midtrans-expiry` |
+| Path | `/api/v1/admin/system/midtrans-expiry` |
 | Description | Update Midtrans payment expiry duration |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -1742,14 +1741,14 @@ interface UpdateExpiryResponse {
 
 ---
 
-### GET /admin/system/game-templates
+### GET /api/v1/admin/system/game-templates
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `GET` |
-| Path | `/admin/system/game-templates` |
+| Path | `/api/v1/admin/system/game-templates` |
 | Description | List all built-in game input template presets (SSOT for input schema & target template) |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -1789,14 +1788,14 @@ interface GameInputField {
 
 ---
 
-### GET /admin/system/game-categories
+### GET /api/v1/admin/system/game-categories
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `GET` |
-| Path | `/admin/system/game-categories` |
+| Path | `/api/v1/admin/system/game-categories` |
 | Description | Storefront category registry (display order, names, usage count) for the admin editor |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -1820,20 +1819,20 @@ interface GameCategoryInfo {
 
 #### BUSINESS RULES & EDGE CASES
 
-- Same shape as public `GET /games/categories`, but **includes categories with `brandCount = 0`** so a newly created custom category is assignable in the metadata editor before any game uses it
+- Same shape as public `GET /api/v1/games/categories`, but **includes categories with `brandCount = 0`** so a newly created custom category is assignable in the metadata editor before any game uses it
 - Registry is stored as JSON in `AppSettings["GAME_CATEGORIES"]`; corrupt/missing value degrades to the built-in defaults (`mobile`, `pc`, `voucher`, `e-money`, `pulsa-data`) instead of failing
 - Slugs present on games but absent from the registry are appended at the end (sorted by slug) so admin can see and adopt them
 
 ---
 
-### PUT /admin/system/game-categories
+### PUT /api/v1/admin/system/game-categories
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `PUT` |
-| Path | `/admin/system/game-categories` |
+| Path | `/api/v1/admin/system/game-categories` |
 | Description | Replace the whole registry — reorder, rename, add custom, delete |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>`, `Content-Type: application/json` |
@@ -1878,19 +1877,97 @@ interface ErrorResponse {
   - name that yields no slug → `"Nama kategori \"...\" tidak bisa dijadikan slug."`
   - reserved slug `all` / `lainnya` / `populer` (frontend virtual buckets) → `"Slug \"...\" dipakai sistem dan tidak bisa dijadikan kategori."`
   - duplicate slug, case-insensitive → `"Slug kategori \"...\" duplikat."`
-- **Delete guard**: omitting a category that is still referenced by any `GameMetadata` → `400` `"Kategori \"<slug>\" masih dipakai N game. Pindahkan game-nya dulu sebelum menghapus kategori."` The guard sees the slug in any position of a game's category list, not just the first. Move the games first (via `PUT /admin/system/metadata/{id}`), then delete.
+- **Delete guard**: omitting a category that is still referenced by any `GameMetadata` → `400` `"Kategori \"<slug>\" masih dipakai N game. Pindahkan game-nya dulu sebelum menghapus kategori."` The guard sees the slug in any position of a game's category list, not just the first. Move the games first (via `PUT /api/v1/admin/system/metadata/{id}`), then delete.
 - Deleting a category with `brandCount = 0` is allowed only if no game references it at all — `brandCount` counts brands with an active product, the guard counts all metadata rows, so it can still refuse.
 
 ---
 
-### GET /admin/system/metadata
+### GET /api/v1/admin/system/popular-games
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `GET` |
-| Path | `/admin/system/metadata` |
+| Path | `/api/v1/admin/system/popular-games` |
+| Description | Get the current manual game curation and all active game options for the admin editor |
+| Auth | Admin JWT Required |
+| Headers | `Authorization: Bearer <token>` |
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK
+interface PopularGamesAdminResponse {
+  selected: BrandItem[];        // saved order, excluding games that are no longer active
+  options: GameMetadataItem[];  // games with at least one active Games product
+}
+```
+
+#### BUSINESS RULES & EDGE CASES
+
+- `selected` uses the same `BrandItem` shape as `GET /api/v1/games/brands/popular` and preserves the saved admin order
+- `options` is sorted alphabetically by brand and only includes metadata whose brand has at least one active `Games` product
+- A saved game that later becomes inactive is omitted from `selected` but does not cause the endpoint to fail
+
+---
+
+### PUT /api/v1/admin/system/popular-games
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `PUT` |
+| Path | `/api/v1/admin/system/popular-games` |
+| Description | Replace the manually curated games shown in the homepage Populer section |
+| Auth | Admin JWT Required |
+| Headers | `Authorization: Bearer <token>`, `Content-Type: application/json` |
+
+#### REQUEST PAYLOAD
+
+```typescript
+interface UpdatePopularGamesRequest {
+  slugs: string[]; // brand slugs in display order, maximum 12
+}
+```
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK
+interface UpdatePopularGamesResponse {
+  message: "Daftar game populer berhasil disimpan!";
+  selected: BrandItem[];
+}
+
+// 400 Bad Request
+interface ErrorResponse {
+  message: string;
+}
+```
+
+#### BUSINESS RULES & EDGE CASES
+
+- **Replace-all semantics**: array order becomes the display order in the homepage Populer rail
+- Sending `[]` clears the curation; the homepage then hides the Populer section
+- Maximum 12 slugs; duplicates are rejected case-insensitively
+- Every slug must resolve to a game with metadata and at least one active `Games` product
+- Missing/null `slugs` → `400` `"Daftar game populer wajib dikirim."`
+- More than 12 items → `400` `"Maksimal 12 game populer."`
+- Duplicate slugs → `400` `"Game populer tidak boleh duplikat."`
+- Unknown or inactive game → `400` `"Ada game yang tidak ditemukan atau tidak aktif."`
+
+---
+
+### GET /api/v1/admin/system/metadata
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `GET` |
+| Path | `/api/v1/admin/system/metadata` |
 | Description | List all game metadata configurations |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -1908,6 +1985,7 @@ type MetadataListResponse = GameMetadataItem[];
 interface GameMetadataItem {
   id: number;
   brand: string;
+  brandSlug: string; // persisted URL slug (kebab-case); use as-is, never re-derive from brand
   inputType: "USER_ID_ONLY" | "USER_ID_AND_ZONE_ID";
   serverList: string | null;
   imageUrl: string | null;
@@ -1921,14 +1999,14 @@ interface GameMetadataItem {
 
 ---
 
-### PUT /admin/system/metadata/{id}
+### PUT /api/v1/admin/system/metadata/{id}
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `PUT` |
-| Path | `/admin/system/metadata/{id}` |
+| Path | `/api/v1/admin/system/metadata/{id}` |
 | Description | Update game metadata settings (input type, server list) |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -1957,14 +2035,14 @@ interface UpdateMetadataResponse {
 
 ---
 
-### POST /admin/system/metadata/{id}/upload-game-cover
+### POST /api/v1/admin/system/metadata/{id}/upload-game-cover
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `POST` |
-| Path | `/admin/system/metadata/{id}/upload-game-cover` |
+| Path | `/api/v1/admin/system/metadata/{id}/upload-game-cover` |
 | Description | Upload/replace cover image for a game brand |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>`, `Content-Type: multipart/form-data` |
@@ -1995,14 +2073,14 @@ interface UploadGameCoverResponse {
 
 ---
 
-### GET /admin/settings/maintenance
+### GET /api/v1/admin/settings/maintenance
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `GET` |
-| Path | `/admin/settings/maintenance` |
+| Path | `/api/v1/admin/settings/maintenance` |
 | Description | Returns the current Maintenance Mode configuration |
 | Auth | Bearer JWT — Admin only |
 
@@ -2027,14 +2105,14 @@ interface MaintenanceStatusResponse {
 
 ---
 
-### PUT /admin/settings/maintenance
+### PUT /api/v1/admin/settings/maintenance
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `PUT` |
-| Path | `/admin/settings/maintenance` |
+| Path | `/api/v1/admin/settings/maintenance` |
 | Description | Enables or disables Maintenance Mode and updates all related configuration |
 | Auth | Bearer JWT — Admin only |
 
@@ -2086,11 +2164,11 @@ interface MaintenanceStatusResponse {
 - When `enabled = true` and `allowAdmin = true`: authenticated admin JWT holders bypass the 503 block on all endpoints
 - When `enabled = true` and `allowAdmin = false`: **even admins** are blocked (use with caution — you may lock yourself out)
 - The following paths are **always whitelisted** regardless of maintenance state:
-  - `/admin/*` — admin panel
-  - `/auth/local/login` — user login
-  - `/auth/google` — Google OAuth
-  - `/auth/local/request-password-reset` — password recovery
-  - `/auth/local/reset-password` — password recovery
+  - `/api/v1/admin/*` — admin panel
+  - `/api/v1/auth/local/login` — user login
+  - `/api/v1/auth/google` — Google OAuth
+  - `/api/v1/auth/local/request-password-reset` — password recovery
+  - `/api/v1/auth/local/reset-password` — password recovery
   - `/health`, `/swagger`, `/ping-db` — dev/ops tools
 
 #### ERROR RESPONSES
@@ -2110,14 +2188,14 @@ interface MaintenanceStatusResponse {
 
 ---
 
-### GET /search/games
+### GET /api/v1/search/games
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `GET` |
-| Path | `/search/games` |
+| Path | `/api/v1/search/games` |
 | Description | Search game brands by keyword for frontend autocomplete |
 | Auth | None (Public) |
 
@@ -2156,10 +2234,10 @@ interface GameSearchResult {
 #### EXAMPLE REQUESTS
 
 ```
-GET /search/games?q=mobile
-GET /search/games?q=free
-GET /search/games?q=genshin&limit=5
-GET /search/games?q=        → returns []
+GET /api/v1/search/games?q=mobile
+GET /api/v1/search/games?q=free
+GET /api/v1/search/games?q=genshin&limit=5
+GET /api/v1/search/games?q=        → returns []
 ```
 
 ---
@@ -2167,8 +2245,8 @@ GET /search/games?q=        → returns []
 ## 9. Voucher Management
 
 > Voucher is a **first-class feature** with its own admin CRUD, validation pipeline, and usage tracking.  
-> Vouchers are applied during order creation (`POST /orders/`) via the `voucherCode` field — there is no separate "apply voucher" endpoint.  
-> See **Section 3 — POST /orders/** for the customer-facing voucher validation chain.
+> Vouchers are applied during order creation (`POST /api/v1/orders/`) via the `voucherCode` field — there is no separate "apply voucher" endpoint.  
+> See **Section 3 — POST /api/v1/orders/** for the customer-facing voucher validation chain.
 
 ---
 
@@ -2194,14 +2272,14 @@ GET /search/games?q=        → returns []
 
 ---
 
-### GET /admin/vouchers
+### GET /api/v1/admin/vouchers
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `GET` |
-| Path | `/admin/vouchers` |
+| Path | `/api/v1/admin/vouchers` |
 | Description | List all vouchers with pagination, search, filter, and sorting |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -2255,7 +2333,7 @@ interface AdminVoucherItem {
 #### EXAMPLE REQUEST
 
 ```
-GET /admin/vouchers?search=HEMAT&status=Active&sortBy=createdAt&sortOrder=desc&page=1&limit=20
+GET /api/v1/admin/vouchers?search=HEMAT&status=Active&sortBy=createdAt&sortOrder=desc&page=1&limit=20
 ```
 
 #### EXAMPLE RESPONSE
@@ -2287,14 +2365,14 @@ GET /admin/vouchers?search=HEMAT&status=Active&sortBy=createdAt&sortOrder=desc&p
 
 ---
 
-### GET /admin/vouchers/{id}
+### GET /api/v1/admin/vouchers/{id}
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `GET` |
-| Path | `/admin/vouchers/{id}` |
+| Path | `/api/v1/admin/vouchers/{id}` |
 | Description | Get full detail of a single voucher |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -2335,7 +2413,7 @@ interface AdminVoucherDetailResponse {
 #### EXAMPLE REQUEST
 
 ```
-GET /admin/vouchers/1
+GET /api/v1/admin/vouchers/1
 ```
 
 #### EXAMPLE RESPONSE
@@ -2360,14 +2438,14 @@ GET /admin/vouchers/1
 
 ---
 
-### POST /admin/vouchers
+### POST /api/v1/admin/vouchers
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `POST` |
-| Path | `/admin/vouchers` |
+| Path | `/api/v1/admin/vouchers` |
 | Description | Create a new voucher |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -2468,14 +2546,14 @@ interface AdminVoucherDetailResponse {
 
 ---
 
-### PUT /admin/vouchers/{id}
+### PUT /api/v1/admin/vouchers/{id}
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `PUT` |
-| Path | `/admin/vouchers/{id}` |
+| Path | `/api/v1/admin/vouchers/{id}` |
 | Description | Update all voucher fields (full replacement) |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -2563,14 +2641,14 @@ interface AdminVoucherDetailResponse {
 
 ---
 
-### PATCH /admin/vouchers/{id}/status
+### PATCH /api/v1/admin/vouchers/{id}/status
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `PATCH` |
-| Path | `/admin/vouchers/{id}/status` |
+| Path | `/api/v1/admin/vouchers/{id}/status` |
 | Description | Enable or disable a voucher without changing other data |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -2617,14 +2695,14 @@ interface UpdateVoucherStatusResponse {
 
 ---
 
-### DELETE /admin/vouchers/{id}
+### DELETE /api/v1/admin/vouchers/{id}
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `DELETE` |
-| Path | `/admin/vouchers/{id}` |
+| Path | `/api/v1/admin/vouchers/{id}` |
 | Description | Permanently delete a voucher |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -2650,14 +2728,14 @@ interface DeleteVoucherResponse {
 
 - Error 404: `"Voucher tidak ditemukan."`
 - Error 409: `"Voucher tidak dapat dihapus karena sudah pernah digunakan ({usedCount} transaksi). Nonaktifkan voucher sebagai gantinya."` — if `usedCount > 0`
-- **Soft approach**: If a voucher has been used, deletion is **blocked**. Admin must disable it instead via `PATCH /admin/vouchers/{id}/status`
+- **Soft approach**: If a voucher has been used, deletion is **blocked**. Admin must disable it instead via `PATCH /api/v1/admin/vouchers/{id}/status`
 - Deletion is **permanent** and irreversible for vouchers with zero usage
 - Existing orders that referenced the voucher code retain their `voucherCode` and `discountAmount` — deletion does NOT affect completed orders
 
 #### EXAMPLE REQUEST
 
 ```
-DELETE /admin/vouchers/5
+DELETE /api/v1/admin/vouchers/5
 ```
 
 #### EXAMPLE RESPONSE
@@ -2668,14 +2746,14 @@ DELETE /admin/vouchers/5
 
 ---
 
-### GET /admin/vouchers/{id}/usage
+### GET /api/v1/admin/vouchers/{id}/usage
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `GET` |
-| Path | `/admin/vouchers/{id}/usage` |
+| Path | `/api/v1/admin/vouchers/{id}/usage` |
 | Description | Get paginated list of orders that used this voucher |
 | Auth | Admin JWT Required |
 | Headers | `Authorization: Bearer <token>` |
@@ -2720,7 +2798,7 @@ interface VoucherUsageInfo {
 #### EXAMPLE REQUEST
 
 ```
-GET /admin/vouchers/1/usage?page=1&limit=10
+GET /api/v1/admin/vouchers/1/usage?page=1&limit=10
 ```
 
 #### EXAMPLE RESPONSE
@@ -2981,7 +3059,7 @@ finalPrice = price - discountAmount
 | 404 | `"Voucher tidak ditemukan."` | Voucher ID does not exist |
 | 409 | `"Voucher tidak dapat dihapus karena sudah pernah digunakan ({usedCount} transaksi). Nonaktifkan voucher sebagai gantinya."` | Delete blocked: voucher has usage |
 
-### Customer Validation (at Checkout — `POST /orders/`)
+### Customer Validation (at Checkout — `POST /api/v1/orders/`)
 
 Validation runs in this exact order. First failure stops the chain:
 
@@ -3022,7 +3100,7 @@ The Voucher model is designed to accommodate future features **without breaking 
 | Code | Meaning |
 |------|---------|
 | 200 | Success |
-| 201 | Created (POST /admin/products/, POST /admin/banners/upload, POST /admin/vouchers) |
+| 201 | Created (POST /api/v1/admin/products/, POST /api/v1/admin/banners/upload, POST /api/v1/admin/vouchers) |
 | 400 | Bad Request (validation failed, business rule violated) |
 | 401 | Unauthorized (missing/invalid/expired token) |
 | 404 | Not Found |

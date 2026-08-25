@@ -36,6 +36,17 @@ public class DigitalinDbContext : DbContext
             // Custom Margin keuntungan (Contoh: 5,000.00)
             entity.Property(p => p.CustomMargin)
                 .HasPrecision(18, 2);
+
+            // Satu SKU supplier = satu baris. Dedup di memori saat sync hanya
+            // optimasi; index ini proteksi terakhir kalau dua sync jalan
+            // bersamaan. Panjang dibatasi karena MySQL tidak bisa mengindeks
+            // longtext tanpa key length (SKU Digiflazz terpanjang 11 karakter).
+            entity.Property(p => p.BuyerSkuCode)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            entity.HasIndex(p => p.BuyerSkuCode)
+                .IsUnique();
         });
 
         // GAME METADATA
@@ -46,6 +57,16 @@ public class DigitalinDbContext : DbContext
                 .HasMaxLength(255);
 
             entity.HasIndex(m => m.Brand)
+                .IsUnique();
+
+            // Slug brand dipersist: URL & endpoint detail memakai kolom ini,
+            // tidak ada sanitasi ulang di query. Unique agar dua brand tidak
+            // pernah berbagi satu URL detail.
+            entity.Property(m => m.BrandSlug)
+                .IsRequired()
+                .HasMaxLength(255);
+
+            entity.HasIndex(m => m.BrandSlug)
                 .IsUnique();
 
             entity.Property(m => m.InputSchemaJson)

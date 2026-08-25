@@ -46,7 +46,7 @@ public static class BannerEndpoints
                 return Results.BadRequest($"Ukuran file terlalu besar. Maksimal {AppConstants.FileLimits.MaxImageBytes / (1024 * 1024)} MB.");
             
             var banner = await bannerService.CreateBannerAsync(title, file);
-            return Results.Created($"/admin/banners/{banner.Id}", banner);
+            return Results.Created($"{AppConstants.Api.Prefix}/admin/banners/{banner.Id}", banner);
         }).DisableAntiforgery();
         
         // PUT /admin/banners/{id}/toggle = Nyala/Matikan banner

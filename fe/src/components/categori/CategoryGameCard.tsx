@@ -1,17 +1,18 @@
 import { useNavigate } from "react-router";
-import { ArrowRight, Gamepad2 } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import type { BrandItem } from "../../api/index";
 
 interface CategoryGameCardProps {
   brand: BrandItem;
+  /** Urutan kurasi admin pada section "Populer". Tanpa ini, badge tidak muncul. */
+  rank?: number;
 }
 
 /**
- * Kartu game pada grid kategori.
- * Interaksi (murni CSS): lift saat hover, zoom gambar, dan CTA bar
- * "Top Up" yang slide-up dari bawah gambar (juga muncul saat focus keyboard).
+ * Kartu game pada grid kategori. Poster mempertahankan rasio 3:4, sedangkan
+ * judul berada di bawah poster agar artwork tetap bersih.
  */
-export default function CategoryGameCard({ brand }: CategoryGameCardProps) {
+export default function CategoryGameCard({ brand, rank }: CategoryGameCardProps) {
   const navigate = useNavigate();
 
   const goToDetail = () => navigate(`/game/${brand.slug}`);
@@ -30,59 +31,70 @@ export default function CategoryGameCard({ brand }: CategoryGameCardProps) {
       aria-label={`Top up ${brand.brand}`}
       onClick={goToDetail}
       onKeyDown={handleKeyDown}
-      className="group relative cursor-pointer overflow-hidden rounded-2xl p-3 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_8px_24px_var(--color-border-default)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-brand-tertiary)"
-      style={{
-        backgroundColor: "var(--color-surface)",
-        border: "1px solid var(--color-border-light)",
-      }}
+      className="group cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-brand-tertiary)"
     >
-      <div className="relative aspect-square w-full overflow-hidden rounded-xl">
+      <div
+        className="hud-game-card relative aspect-[3/4] overflow-hidden transition-transform duration-150"
+        style={{
+          backgroundColor: "var(--color-surface)",
+          border: "1px solid var(--color-border-light)",
+          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
+        }}
+      >
         {brand.imageUrl ? (
           <img
             src={brand.imageUrl}
             alt={brand.brand}
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            className="h-full w-full object-cover transition-transform duration-150"
             loading="lazy"
             decoding="async"
           />
         ) : (
           <div
             className="flex h-full w-full items-center justify-center"
-            style={{ backgroundColor: "var(--color-neutral)" }}
+            style={{ backgroundColor: "var(--color-surface-raised)" }}
           >
-            <Gamepad2 size={32} style={{ color: "var(--color-brand-secondary)" }} />
+            <span className="label-mono" style={{ color: "var(--color-brand-secondary)" }}>Artwork unavailable</span>
           </div>
         )}
 
-        {/* CTA bar — slide-up saat hover / focus */}
+        {/* Nomor urutan kurasi admin pada section Populer. */}
+        {rank !== undefined && (
+          <div
+            className="label-mono absolute left-2 top-2 border px-1.5 py-0.5"
+            style={{
+              backgroundColor: "rgba(8, 11, 15, 0.82)",
+              color: "var(--color-on-primary)",
+            }}
+          >
+            {String(rank).padStart(2, "0")}
+          </div>
+        )}
+
+        {/* CTA — fade-in di sudut saat hover / fokus keyboard. */}
         <div
-          className="absolute inset-x-0 bottom-0 flex translate-y-full items-center justify-between px-3 py-2 transition-transform duration-200 group-hover:translate-y-0 group-focus-within:translate-y-0"
+          className="absolute right-2 top-2 flex items-center gap-1 border px-2 py-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 motion-reduce:transition-none"
           style={{
             backgroundColor: "var(--color-brand-tertiary)",
             color: "var(--color-on-primary)",
           }}
         >
-          <span style={{ fontSize: "0.78rem", fontWeight: 600 }}>Top Up</span>
-          <ArrowRight size={14} />
+          <span className="label-mono">Top Up</span>
+          <ArrowRight size={12} aria-hidden="true" />
         </div>
       </div>
 
-      {/* Tinggi judul dikunci 2 baris (sesuai line-clamp-2) supaya kartu dengan
-          nama panjang tidak jadi lebih tinggi dari tetangganya di grid. */}
-      <div className="px-1 pt-3">
-        <p
-          className="line-clamp-2"
-          style={{
-            color: "var(--color-brand-primary)",
-            fontWeight: 600,
-            fontSize: "0.9rem",
-            lineHeight: 1.3,
-            minHeight: "2.6em",
-          }}
-        >
-          {brand.brand}
-        </p>
-      </div>
+      <p
+        className="mt-2 line-clamp-2 px-0.5 text-center"
+        style={{
+          color: "var(--color-brand-primary)",
+          fontWeight: 600,
+          fontSize: "0.85rem",
+          lineHeight: 1.3,
+        }}
+      >
+        {brand.brand}
+      </p>
     </div>
   );
 }

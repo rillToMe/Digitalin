@@ -31,7 +31,7 @@ export const UNCATEGORIZED_CATEGORY_SLUG = "lainnya";
 
 /**
  * Slug section virtual "Populer" — isinya dari GET /games/brands/popular
- * (peringkat penjualan), bukan dari registry kategori. Slug ini reserved di BE
+ * (kurasi manual admin), bukan dari registry kategori. Slug ini reserved di BE
  * supaya admin tidak bisa membuat kategori dengan slug sama.
  */
 export const POPULAR_CATEGORY_SLUG = "populer";
@@ -96,7 +96,7 @@ export function categorySlugPreview(name: string): string {
 export const INITIAL_FETCH_LIMIT = 12;
 
 /** "Lainnya" isinya brand yang belum dikurasi admin — batch awalnya lebih kecil. */
-export const INITIAL_FETCH_LIMIT_UNCATEGORIZED = 6;
+export const INITIAL_FETCH_LIMIT_UNCATEGORIZED = 7;
 
 export const MORE_FETCH_LIMIT = 24;
 

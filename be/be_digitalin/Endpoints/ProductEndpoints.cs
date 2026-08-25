@@ -94,8 +94,15 @@ public static class ProductEndpoints
         // POST /admin/products (BUAT PRODUK MANUAL)
         adminGroup.MapPost("/", async (GameProduct product, [FromServices] IProductService productService) =>
         {
-            var createdProduct = await productService.CreateProductAsync(product);
-            return Results.Created($"/admin/products/{createdProduct.Id}", createdProduct);
+            try
+            {
+                var createdProduct = await productService.CreateProductAsync(product);
+                return Results.Created($"{AppConstants.Api.Prefix}/admin/products/{createdProduct.Id}", createdProduct);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
         });
         
         // POST /admin/products/{id}/upload-icon (UPLOAD ICON KE CLOUDFLARE R2)
@@ -125,13 +132,20 @@ public static class ProductEndpoints
         // POST /admin/system/sync-digiflazz (SINKRONISASI MANUAL DARI TOMBOL ADMIN)
         systemGroup.MapPost("/sync-digiflazz", async ([FromServices] IProductService productService) =>
         {
-            var (added, updated, deactivated) =
-                await productService.SyncCatalogFromDigiflazzAsync();
-
-            return Results.Ok(new
+            try
             {
-                message = $"Sync selesai! {added} produk baru, {updated} produk diupdate, {deactivated} produk dinonaktifkan."
-            });
+                var (added, updated, deactivated) =
+                    await productService.SyncCatalogFromDigiflazzAsync();
+
+                return Results.Ok(new
+                {
+                    message = $"Sync selesai! {added} produk baru, {updated} produk diupdate, {deactivated} produk dinonaktifkan."
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
         });
         
         // DELETE /admin/system/clean-dummy-products (HAPUS DATA DUMMY)
@@ -188,6 +202,34 @@ public static class ProductEndpoints
         {
             var categories = await productService.GetGameCategoryRegistryAsync();
             return Results.Ok(categories);
+        });
+
+        // GET /admin/system/popular-games (GAME AKTIF + PILIHAN ADMIN)
+        systemGroup.MapGet("/popular-games", async (
+            [FromServices] IProductService productService) =>
+        {
+            var selected = await productService.GetPopularGameBrandsAsync();
+            var options = await productService.GetPopularGameOptionsAsync();
+            return Results.Ok(new { selected, options });
+        });
+
+        // PUT /admin/system/popular-games (GANTI SELURUH KURASI GAME POPULER)
+        systemGroup.MapPut("/popular-games", async (
+            [FromBody] UpdatePopularGamesRequest req,
+            [FromServices] IProductService productService) =>
+        {
+            if (req.Slugs == null)
+                return Results.BadRequest(new { message = "Daftar game populer wajib dikirim." });
+
+            try
+            {
+                var selected = await productService.UpdatePopularGameBrandsAsync(req.Slugs);
+                return Results.Ok(new { message = "Daftar game populer berhasil disimpan!", selected });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
         });
 
         // PUT /admin/system/game-categories (URUTAN / RENAME / TAMBAH / HAPUS KATEGORI)
@@ -264,4 +306,5 @@ public static class ProductEndpoints
 }
 
 public record UpdateCustomMarginRequest(decimal? Margin);
+public record UpdatePopularGamesRequest(IReadOnlyList<string>? Slugs);
 public record UpdateExpiryRequest(int Expiry);

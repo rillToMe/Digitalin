@@ -21,5 +21,9 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  /* Self-check *.check.ts dijalankan lewat `npx tsx`, bukan ikut bundle app.
+     Isinya API Node (node:assert, node:fs) yang tidak ada di types app, jadi
+     kalau ikut di-typecheck error-nya menenggelamkan error asli di src. */
+  "exclude": ["src/**/*.check.ts"]
 }

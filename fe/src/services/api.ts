@@ -63,10 +63,17 @@ import type {
   CreateAdminPayload,
   UpdateAdminRolePayload,
   ResetAdminPasswordPayload,
+  PopularGamesAdminResponse,
+  UpdatePopularGamesResponse,
 } from "../api/index";
 
+// Versi kontrak API — satu tempat. Endpoint di bawah tidak tahu soal versi.
+const API_PREFIX = "/api/v1";
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5210",
+  baseURL:
+    (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5210").replace(/\/+$/, "") +
+    API_PREFIX,
   headers: { "Content-Type": "application/json" },
 });
 
@@ -160,7 +167,7 @@ export const brandService = {
   /** Tanpa params = katalog penuh; dengan category/offset/limit = satu batch section. */
   getAll: (params?: BrandsQueryParams) =>
     api.get<BrandsResponse>("/games/brands", { params }).then((r) => r.data),
-  /** Section "Populer" homepage — peringkat penjualan, dihitung BE. */
+  /** Section "Populer" homepage — kurasi admin, urutan dari BE. */
   getPopular: () =>
     api.get<BrandsResponse>("/games/brands/popular").then((r) => r.data),
   getBySlug: (slug: string) =>
@@ -237,6 +244,10 @@ export const adminService = {
     api.get<GameCategoriesResponse>("/admin/system/game-categories").then((r) => r.data),
   updateGameCategories: (payload: UpdateGameCategoriesPayload) =>
     api.put<UpdateGameCategoriesResponse>("/admin/system/game-categories", payload).then((r) => r.data),
+  getPopularGames: () =>
+    api.get<PopularGamesAdminResponse>("/admin/system/popular-games").then((r) => r.data),
+  updatePopularGames: (slugs: string[]) =>
+    api.put<UpdatePopularGamesResponse>("/admin/system/popular-games", { slugs }).then((r) => r.data),
   getMetadata: () =>
     api.get<MetadataListResponse>("/admin/system/metadata").then((r) => r.data),
   updateMetadata: (id: number, payload: UpdateMetadataPayload) =>
