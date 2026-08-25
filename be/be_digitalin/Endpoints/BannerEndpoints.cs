@@ -1,6 +1,6 @@
 ﻿using be_digitalin.Constants;
-using be_digitalin.Services;
 using Microsoft.AspNetCore.Mvc;
+using be_digitalin.Services.Content;
 
 namespace be_digitalin.Endpoints;
 

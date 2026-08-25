@@ -1,6 +1,5 @@
 using be_digitalin.Data;
 using be_digitalin.Endpoints;
-using be_digitalin.Services;
 using be_digitalin.Config;
 using be_digitalin.Constants;
 using be_digitalin.Workers;
@@ -16,6 +15,15 @@ using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.OpenApi;
+using be_digitalin.Services.Admin;
+using be_digitalin.Services.Auth;
+using be_digitalin.Services.Commerce;
+using be_digitalin.Services.Content;
+using be_digitalin.Services.Customer;
+using be_digitalin.Services.Games;
+using be_digitalin.Services.Orders;
+using be_digitalin.Services.Security;
+using be_digitalin.Services.Settings;
 
 var builder = WebApplication.CreateBuilder(args);
 

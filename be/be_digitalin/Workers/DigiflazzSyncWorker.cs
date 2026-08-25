@@ -1,4 +1,4 @@
-﻿using be_digitalin.Services;
+﻿using be_digitalin.Services.Games;
 
 namespace be_digitalin.Workers;
 

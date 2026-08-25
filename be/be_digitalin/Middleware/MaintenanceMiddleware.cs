@@ -3,7 +3,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using be_digitalin.Constants;
 using be_digitalin.DTOs.Responses;
-using be_digitalin.Services;
+using be_digitalin.Services.Settings;
 
 namespace be_digitalin.Middleware;
 

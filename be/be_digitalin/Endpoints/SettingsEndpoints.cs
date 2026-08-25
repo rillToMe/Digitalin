@@ -1,8 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using be_digitalin.DTOs.Requests;
 using be_digitalin.DTOs.Responses;
-using be_digitalin.Services;
 using Microsoft.AspNetCore.Mvc;
+using be_digitalin.Services.Settings;
 
 namespace be_digitalin.Endpoints;
 

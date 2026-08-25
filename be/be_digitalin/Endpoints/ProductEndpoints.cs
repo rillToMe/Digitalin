@@ -1,9 +1,9 @@
 ﻿using be_digitalin.Models;
 using be_digitalin.Constants;
-using be_digitalin.Services;
-using be_digitalin.Services.GameTemplates;
 using be_digitalin.DTOs;
 using Microsoft.AspNetCore.Mvc;
+using be_digitalin.Services.Games;
+using be_digitalin.Services.Games.GameTemplates;
 namespace be_digitalin.Endpoints;
 
 public static class ProductEndpoints

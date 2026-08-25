@@ -2,8 +2,9 @@
 using System.Text.Json;
 using be_digitalin.Constants;
 using be_digitalin.DTOs;
-using be_digitalin.Services;
 using Microsoft.AspNetCore.Mvc;
+using be_digitalin.Services.Customer;
+using be_digitalin.Services.Orders;
 
 namespace be_digitalin.Endpoints;
 

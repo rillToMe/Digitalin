@@ -1,5 +1,5 @@
-using be_digitalin.Services;
 using Microsoft.AspNetCore.Mvc;
+using be_digitalin.Services.Games;
 
 namespace be_digitalin.Endpoints;
 

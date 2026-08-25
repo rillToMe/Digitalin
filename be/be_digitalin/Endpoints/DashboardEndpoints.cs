@@ -1,6 +1,6 @@
 ﻿using be_digitalin.DTOs;
-using be_digitalin.Services;
 using Microsoft.AspNetCore.Mvc;
+using be_digitalin.Services.Admin;
 
 namespace be_digitalin.Endpoints;
 

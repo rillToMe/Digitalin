@@ -6,7 +6,6 @@ using System.Text;
 using be_digitalin.Config;
 using be_digitalin.Constants;
 using be_digitalin.Data;
-using be_digitalin.Services;
 using be_digitalin.Providers; // <-- Jangan lupa Provider Email
 using be_digitalin.DTOs.Requests;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -16,6 +15,9 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Caching.Memory; // <-- Jangan lupa MemoryCache
+using be_digitalin.Services.Admin;
+using be_digitalin.Services.Auth;
+using be_digitalin.Services.Customer;
 
 namespace be_digitalin.Endpoints;
 
