@@ -705,7 +705,7 @@ public class ProductService : IProductService
         );
     }
 
-    public async Task<Services.Orders.PagedResult<GameProduct>> GetPagedProductsAsync(
+    public async Task<PagedResult<GameProduct>> GetPagedProductsAsync(
         string? search,
         string? brand,
         int page,
@@ -743,7 +743,7 @@ public class ProductService : IProductService
         var totalPages = (int)Math.Ceiling(
             totalCount / (double)limit);
 
-        return new Services.Orders.PagedResult<GameProduct>(
+        return new PagedResult<GameProduct>(
             items,
             totalCount,
             totalPages,

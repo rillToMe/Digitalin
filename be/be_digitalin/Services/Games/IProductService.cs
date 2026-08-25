@@ -7,7 +7,7 @@ namespace be_digitalin.Services.Games;
 public interface IProductService
 {
     
-    Task<Services.Orders.PagedResult<GameProduct>> GetPagedProductsAsync(
+    Task<PagedResult<GameProduct>> GetPagedProductsAsync(
         string? search,
         string? brand,
         int page,

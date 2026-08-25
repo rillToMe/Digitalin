@@ -194,7 +194,7 @@ public class CustomerService : ICustomerService
         return true;
     }
 
-    public async Task<Services.Orders.PagedResult<OrderResponse>> GetCustomerHistoryAsync(int customerId, int page = 1, int limit = 20)
+    public async Task<PagedResult<OrderResponse>> GetCustomerHistoryAsync(int customerId, int page = 1, int limit = 20)
     {
         return await _orderService.GetOrdersAsync(customerId, page, limit);
     }
