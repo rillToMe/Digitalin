@@ -1,4 +1,4 @@
-﻿using be_digitalin.Services.Games;
+using be_digitalin.Services.Games;
 
 namespace be_digitalin.Workers;
 
@@ -25,7 +25,7 @@ public class DigiflazzSyncWorker : BackgroundService
         {
             try
             {
-                await SyncKatalogAsync();
+                await SyncKatalogAsync(stoppingToken);
             }
             catch (Exception ex)
             {
@@ -34,7 +34,7 @@ public class DigiflazzSyncWorker : BackgroundService
         } while (await timer.WaitForNextTickAsync(stoppingToken));
     }
 
-    private async Task SyncKatalogAsync()
+    private async Task SyncKatalogAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("[AUTO-SYNC] Menarik data terbaru dari Digiflazz...");
 
@@ -44,7 +44,7 @@ public class DigiflazzSyncWorker : BackgroundService
         var productService = scope.ServiceProvider.GetRequiredService<IProductService>();
 
         var (added, updated, deactivated) =
-            await productService.SyncCatalogFromDigiflazzAsync();
+            await productService.SyncCatalogFromDigiflazzAsync(stoppingToken);
 
         _logger.LogInformation(
             "[AUTO-SYNC] Selesai! {Added} produk baru, {Updated} produk diupdate, {Deactivated} produk dinonaktifkan.",

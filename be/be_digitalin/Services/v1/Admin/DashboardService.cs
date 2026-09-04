@@ -24,26 +24,40 @@ public class DashboardService : IDashboardService
         var localNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, Wib);
         var todayStartUtc = TimeZoneInfo.ConvertTimeToUtc(localNow.Date, Wib);
 
-        // Baca langsung dari TopupOrder — tanpa join Product
-        var todayOrders = await _db.TopupOrders
+        // Baca langsung dari TopupOrder — tanpa join Product.
+        // Aggregation dilakukan database-side (GROUP BY Status); mapping
+        // status → kategori dashboard tetap di C# agar portable.
+        var statusAggregates = await _db.TopupOrders
             .AsNoTracking()
             .Where(o => o.OrderDate >= todayStartUtc)
+            .GroupBy(o => o.Status)
+            .Select(g => new
+            {
+                Status = g.Key,
+                Count = g.Count(),
+                Revenue = g.Sum(o => o.TotalPaid),
+                Profit = g.Sum(o => o.ProfitAmount)
+            })
             .ToListAsync();
 
-        var completedOrders = todayOrders
-            .Where(o => o.Status == AppConstants.OrderStatus.Completed)
-            .ToList();
+        var completed = statusAggregates.FirstOrDefault(s =>
+            s.Status == AppConstants.OrderStatus.Completed);
+        var pendingCount = statusAggregates
+            .Where(s => s.Status == AppConstants.OrderStatus.Pending)
+            .Sum(s => s.Count);
+        var failedCount = statusAggregates
+            .Where(s => s.Status == AppConstants.OrderStatus.Failed ||
+                        s.Status == AppConstants.OrderStatus.Expired)
+            .Sum(s => s.Count);
 
         return new DashboardStatsResponse
         {
-            TotalRevenueToday = completedOrders.Sum(o => o.TotalPaid),
-            TotalProfitToday = completedOrders.Sum(o => o.ProfitAmount),
-            TotalOrdersToday = todayOrders.Count,
-            SuccessOrdersToday = completedOrders.Count,
-            PendingOrdersToday = todayOrders.Count(o => o.Status == AppConstants.OrderStatus.Pending),
-            FailedOrdersToday = todayOrders.Count(o =>
-                o.Status == AppConstants.OrderStatus.Failed ||
-                o.Status == AppConstants.OrderStatus.Expired)
+            TotalRevenueToday = completed?.Revenue ?? 0m,
+            TotalProfitToday = completed?.Profit ?? 0m,
+            TotalOrdersToday = statusAggregates.Sum(s => s.Count),
+            SuccessOrdersToday = completed?.Count ?? 0,
+            PendingOrdersToday = pendingCount,
+            FailedOrdersToday = failedCount
         };
     }
 

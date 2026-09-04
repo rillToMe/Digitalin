@@ -1,11 +1,11 @@
 ﻿using be_digitalin.Config;
 using be_digitalin.Data;
 using be_digitalin.DTOs;
+using be_digitalin.Infrastructure.Redis;
 using be_digitalin.Models;
 using be_digitalin.Constants;
 using be_digitalin.Providers;
 using System.Security.Cryptography;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using be_digitalin.Services.Auth;
@@ -22,7 +22,7 @@ public class CustomerService : ICustomerService
     private readonly IRecaptchaService _recaptchaService;
     private readonly RecaptchaSettings _recaptchaSettings;
     private readonly EmailProvider _emailProvider;
-    private readonly IMemoryCache _cache;
+    private readonly IRedisService _redis;
 
     public CustomerService(
         DigitalinDbContext db,
@@ -31,7 +31,7 @@ public class CustomerService : ICustomerService
         IRecaptchaService recaptchaService,
         IOptions<RecaptchaSettings> recaptchaSettings,
         EmailProvider emailProvider,
-        IMemoryCache cache)
+        IRedisService redis)
     {
         _db = db;
         _tokenService = tokenService;
@@ -39,9 +39,12 @@ public class CustomerService : ICustomerService
         _recaptchaService = recaptchaService;
         _recaptchaSettings = recaptchaSettings.Value;
         _emailProvider = emailProvider;
-        _cache = cache;
+        _redis = redis;
     }
     
+    /// <summary>Key Redis OTP registrasi — email dipakai apa adanya sesuai flow existing.</summary>
+    private static string OtpKey(string email) => $"digitalin:otp:registration:{email}";
+
     public async Task<string?> RegisterAsync(
         string email,
         string password,
@@ -49,10 +52,8 @@ public class CustomerService : ICustomerService
         string otpCode,
         CancellationToken cancellationToken = default)
     {
-        if (!_cache.TryGetValue(
-                $"OTP_{email}",
-                out string? savedOtp) ||
-            savedOtp != otpCode)
+        var savedOtp = await _redis.GetAsync(OtpKey(email));
+        if (savedOtp is null || savedOtp != otpCode)
         {
             return null;
         }
@@ -76,7 +77,7 @@ public class CustomerService : ICustomerService
         _db.Customers.Add(customer);
         await _db.SaveChangesAsync(cancellationToken);
 
-        _cache.Remove($"OTP_{email}");
+        await _redis.DeleteAsync(OtpKey(email));
 
         return _tokenService.CreateCustomerToken(customer.Id);
     }
@@ -118,8 +119,8 @@ public class CustomerService : ICustomerService
 
         var otpCode = otpNumber.ToString();
 
-        _cache.Set(
-            $"OTP_{email}",
+        await _redis.SetAsync(
+            OtpKey(email),
             otpCode,
             TimeSpan.FromMinutes(5));
 
@@ -174,7 +175,11 @@ public class CustomerService : ICustomerService
     
     public async Task<Models.Customer?> GetProfileAsync(int id)
     {
-        return await _db.Customers.FindAsync(id);
+        // Read-only: profile tidak dimodifikasi setelah retrieval
+        // (update lewat UpdateProfileAsync yang FindAsync terpisah).
+        return await _db.Customers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == id);
     }
 
     public async Task<bool> UpdateProfileAsync(int id, string fullName, string? newPassword)

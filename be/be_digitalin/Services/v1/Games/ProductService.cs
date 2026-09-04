@@ -1,4 +1,4 @@
-﻿using be_digitalin.Data;
+using be_digitalin.Data;
 using be_digitalin.DTOs;
 using be_digitalin.Models;
 using be_digitalin.Constants;
@@ -7,8 +7,11 @@ using be_digitalin.Providers;
 using be_digitalin.Infrastructure.Serialization;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using be_digitalin.Infrastructure.Redis;
+using be_digitalin.Infrastructure.Storage;
 using be_digitalin.Services.Games.GameTemplates;
 using be_digitalin.Services.Orders;
+using be_digitalin.Services.Settings;
 
 namespace be_digitalin.Services.Games;
 
@@ -17,6 +20,9 @@ public class ProductService : IProductService
     private readonly DigitalinDbContext _db;
     private readonly CloudflareR2Provider _r2Provider;
     private readonly DigiflazzProvider _digiflazzProvider;
+    private readonly IAppSettingsService _appSettings;
+    private readonly ILogger<ProductService> _logger;
+    private readonly IRedisService _redis;
 
     /// <summary>
     /// Jumlah game di section "Populer". Sama dengan batas grid homepage,
@@ -24,39 +30,38 @@ public class ProductService : IProductService
     /// </summary>
     private const int PopularBrandLimit = 12;
 
+    // TTL dasar + jitter kecil supaya expiration banyak key tidak serentak.
+    private static TimeSpan CacheTtl(int minutes) =>
+        TimeSpan.FromMinutes(minutes).Add(TimeSpan.FromSeconds(Random.Shared.Next(0, 31)));
+
     public ProductService(
         DigitalinDbContext db,
         CloudflareR2Provider r2Provider,
-        DigiflazzProvider digiflazzProvider)
+        DigiflazzProvider digiflazzProvider,
+        IAppSettingsService appSettings,
+        ILogger<ProductService> logger,
+        IRedisService redis)
     {
         _db = db;
         _r2Provider = r2Provider;
         _digiflazzProvider = digiflazzProvider;
+        _appSettings = appSettings;
+        _logger = logger;
+        _redis = redis;
     }
     
     public async Task<IReadOnlyList<GameMetadataResponse>>
         GetGameMetadataAsync()
     {
-        var metadata = await _db.GameMetadata
-            .AsNoTracking()
-            .OrderBy(m => m.Brand)
-            .ToListAsync();
-
-        return metadata
-            .Select(MapMetadataResponse)
-            .ToList();
+        return await TryGetGameMetadataListAsync();
     }
 
     public async Task<GameMetadataResponse?>
         GetGameMetadataByIdAsync(int id)
     {
-        var metadata = await _db.GameMetadata
-            .AsNoTracking()
-            .FirstOrDefaultAsync(m => m.Id == id);
+        var list = await TryGetGameMetadataListAsync();
 
-        return metadata == null
-            ? null
-            : MapMetadataResponse(metadata);
+        return list.FirstOrDefault(m => m.Id == id);
     }
 
     public async Task<GameMetadataResponse?>
@@ -82,6 +87,10 @@ public class ProductService : IProductService
         metadata.Categories = NormalizeCategories(request.Categories);
 
         await _db.SaveChangesAsync();
+
+        // DB sudah sukses — schema/template berubah, cache metadata dibuang
+        // agar order path tidak memakai konfigurasi lama (best-effort).
+        await TryInvalidateCacheAsync(RedisCacheKeys.GameMetadata);
 
         return MapMetadataResponse(metadata);
     }
@@ -121,9 +130,9 @@ public class ProductService : IProductService
     }
 
     // logic sync
-    public async Task<(int Added, int Updated, int Deactivated)> SyncCatalogFromDigiflazzAsync()
+    public async Task<(int Added, int Updated, int Deactivated)> SyncCatalogFromDigiflazzAsync(CancellationToken cancellationToken = default)
     {
-        var dataArray = await _digiflazzProvider.GetPriceListAsync();
+        var dataArray = await _digiflazzProvider.GetPriceListAsync(cancellationToken);
 
         int added = 0;
         int updated = 0;
@@ -310,6 +319,15 @@ public class ProductService : IProductService
                 ex);
         }
 
+        // DB sudah sukses — sync mengubah metadata (BrandSlug/SupplierNote/baru)
+        // dan katalog aktif, jadi seluruh cache turunannya dibuang (best-effort):
+        // metadata, popular games, serta hitungan kategori storefront & admin.
+        await TryInvalidateCacheAsync(
+            RedisCacheKeys.GameMetadata,
+            RedisCacheKeys.PopularGames,
+            RedisCacheKeys.GameCategories,
+            RedisCacheKeys.GameCategoryRegistry);
+
         return (added, updated, deactivated);
     }
 
@@ -329,33 +347,66 @@ public class ProductService : IProductService
         int offset = 0,
         int? limit = null)
     {
-        // Kategori disimpan CSV, jadi kolomnya diambil mentah lalu dipecah di
-        // memori (SQL tidak bisa memecah CSV secara portabel).
-        var games = await _db.GameMetadata
-            .AsNoTracking()
-            .Where(metadata =>
-                _db.GameProducts.Any(product =>
-                    product.Brand == metadata.Brand &&
-                    product.Category == AppConstants.Categories.Games &&
-                    product.IsActive))
-            .OrderBy(metadata => metadata.Brand)
-            .Select(metadata => new
-            {
-                metadata.Brand,
-                metadata.BrandSlug,
-                metadata.ImageUrl,
-                metadata.Categories
-            })
-            .ToListAsync();
+        List<CategoryInfo> brands;
 
-        return PageBrands(
-            games.Select(metadata => new CategoryInfo(
+        var cached = await TryGetCacheAsync<List<GameMetadataResponse>>(RedisCacheKeys.GameMetadata);
+        if (cached is not null)
+        {
+            // Cache hit: metadata dari Redis, hanya daftar brand aktif yang
+            // tetap di-query dari DB (ketergantungan GameProducts, bukan scope cache).
+            var activeBrands = await _db.GameProducts
+                .AsNoTracking()
+                .Where(product =>
+                    product.Category == AppConstants.Categories.Games &&
+                    product.IsActive)
+                .Select(product => product.Brand)
+                .Distinct()
+                .ToListAsync();
+            var activeSet = activeBrands.ToHashSet(StringComparer.Ordinal);
+
+            brands = cached
+                .Where(metadata => activeSet.Contains(metadata.Brand))
+                .OrderBy(metadata => metadata.Brand, StringComparer.OrdinalIgnoreCase)
+                .Select(metadata => new CategoryInfo(
+                    metadata.Brand,
+                    metadata.BrandSlug,
+                    metadata.ImageUrl,
+                    AppConstants.Categories.Games,
+                    metadata.Categories))
+                .ToList();
+        }
+        else
+        {
+            // Kategori disimpan CSV, jadi kolomnya diambil mentah lalu dipecah di
+            // memori (SQL tidak bisa memecah CSV secara portabel).
+            var games = await _db.GameMetadata
+                .AsNoTracking()
+                .Where(metadata =>
+                    _db.GameProducts.Any(product =>
+                        product.Brand == metadata.Brand &&
+                        product.Category == AppConstants.Categories.Games &&
+                        product.IsActive))
+                .OrderBy(metadata => metadata.Brand)
+                .Select(metadata => new
+                {
+                    metadata.Brand,
+                    metadata.BrandSlug,
+                    metadata.ImageUrl,
+                    metadata.Categories
+                })
+                .ToListAsync();
+
+            brands = games.Select(metadata => new CategoryInfo(
                 metadata.Brand,
                 metadata.BrandSlug,
                 metadata.ImageUrl,
                 AppConstants.Categories.Games,
                 GameMetadata.ParseCategories(metadata.Categories)
-            )),
+            )).ToList();
+        }
+
+        return PageBrands(
+            brands,
             category,
             offset,
             limit);
@@ -398,8 +449,12 @@ public class ProductService : IProductService
     // HOMEPAGE: Section "Populer" — urutan pilihan admin dari AppSettings.
     public async Task<IEnumerable<CategoryInfo>> GetPopularGameBrandsAsync()
     {
+        var cached = await TryGetCacheAsync<List<CategoryInfo>>(RedisCacheKeys.PopularGames);
+        if (cached is not null)
+            return cached;
+
         var slugs = ParsePopularGameSlugs(
-            await GetSettingAsync(AppConstants.SystemSettings.PopularGames));
+            await _appSettings.GetAsync(AppConstants.SystemSettings.PopularGames));
 
         if (slugs.Count == 0)
             return [];
@@ -430,11 +485,14 @@ public class ProductService : IProductService
                 AppConstants.Categories.Games,
                 GameMetadata.ParseCategories(metadata.Categories));
 
-        return slugs
+        var result = slugs
             .Where(bySlug.ContainsKey)
             .Select(slug => bySlug[slug])
             .Take(PopularBrandLimit)
             .ToList();
+
+        await TrySetCacheAsync(RedisCacheKeys.PopularGames, result, 5);
+        return result;
     }
 
     internal static List<string> ParsePopularGameSlugs(string? json)
@@ -497,9 +555,13 @@ public class ProductService : IProductService
         if (normalized.Any(slug => !validSlugs.Contains(slug)))
             throw new InvalidOperationException("Ada game yang tidak ditemukan atau tidak aktif.");
 
-        await SetSettingAsync(
+        await _appSettings.SetAsync(
             AppConstants.SystemSettings.PopularGames,
             JsonSerializer.Serialize(normalized));
+
+        // DB sudah sukses — kegagalan cache invalidation tidak menggagalkan update;
+        // key akan expired sendiri dan ter-rebuild pada read berikutnya.
+        await TryInvalidateCacheAsync(RedisCacheKeys.PopularGames);
 
         return await GetPopularGameBrandsAsync();
     }
@@ -515,8 +577,12 @@ public class ProductService : IProductService
     // memegang seluruh katalog untuk menghitung sendiri.
     public async Task<IEnumerable<GameCategoryInfo>> GetGameCategoriesAsync()
     {
+        var cached = await TryGetCacheAsync<List<GameCategoryInfo>>(RedisCacheKeys.GameCategories);
+        if (cached is not null)
+            return cached;
+
         var registry = GameCategoryRegistry.Parse(
-            await GetSettingAsync(AppConstants.SystemSettings.GameCategories));
+            await _appSettings.GetAsync(AppConstants.SystemSettings.GameCategories));
 
         var merged = GameCategoryRegistry.Merge(
             registry,
@@ -545,6 +611,7 @@ public class ProductService : IProductService
                 AppConstants.StorefrontCategories.UncategorizedName,
                 uncategorized));
 
+        await TrySetCacheAsync(RedisCacheKeys.GameCategories, result, 5);
         return result;
     }
 
@@ -552,13 +619,21 @@ public class ProductService : IProductService
     // supaya kategori baru bisa dipilih di editor metadata.
     public async Task<IEnumerable<GameCategoryInfo>> GetGameCategoryRegistryAsync()
     {
-        var registry = GameCategoryRegistry.Parse(
-            await GetSettingAsync(AppConstants.SystemSettings.GameCategories));
+        var cached = await TryGetCacheAsync<List<GameCategoryInfo>>(RedisCacheKeys.GameCategoryRegistry);
+        if (cached is not null)
+            return cached;
 
-        return GameCategoryRegistry.Merge(
+        var registry = GameCategoryRegistry.Parse(
+            await _appSettings.GetAsync(AppConstants.SystemSettings.GameCategories));
+
+        var result = GameCategoryRegistry.Merge(
             registry,
             await GetActiveBrandCountsAsync(),
-            includeEmpty: true);
+            includeEmpty: true)
+            .ToList();
+
+        await TrySetCacheAsync(RedisCacheKeys.GameCategoryRegistry, result, 5);
+        return result;
     }
 
     // ADMIN: ganti seluruh registry (urutan / rename / tambah / hapus sekali simpan).
@@ -589,9 +664,12 @@ public class ProductService : IProductService
                 $"Kategori \"{orphan.Slug}\" masih dipakai {orphan.Count} game. " +
                 "Pindahkan game-nya dulu sebelum menghapus kategori.");
 
-        await SetSettingAsync(
+        await _appSettings.SetAsync(
             AppConstants.SystemSettings.GameCategories,
             GameCategoryRegistry.Serialize(entries));
+
+        // DB sudah sukses — registry berubah, storefront & admin registry sama-sama stale.
+        await TryInvalidateCacheAsync(RedisCacheKeys.GameCategories, RedisCacheKeys.GameCategoryRegistry);
 
         return GameCategoryRegistry.Merge(
             entries,
@@ -670,9 +748,9 @@ public class ProductService : IProductService
         if (slug == null)
             return null;
 
-        var metadata = await _db.GameMetadata
-            .AsNoTracking()
-            .FirstOrDefaultAsync(m => m.BrandSlug == slug);
+        // Metadata dari cache global; query produk tetap ke DB (bukan scope cache).
+        var metadataList = await TryGetGameMetadataListAsync();
+        var metadata = metadataList.FirstOrDefault(m => m.BrandSlug == slug);
 
         if (metadata == null)
             return null;
@@ -700,7 +778,7 @@ public class ProductService : IProductService
             metadata.Brand,
             metadata.BrandSlug,
             metadata.ImageUrl,
-            GameInputSchemaSerializer.Deserialize(metadata.InputSchemaJson),
+            metadata.InputFields,
             products
         );
     }
@@ -775,17 +853,19 @@ public class ProductService : IProductService
         return product;
     }
 
-    public async Task<string?> UpdateProductIconAsync(int productId, IFormFile file)
+    public async Task<string?> UpdateProductIconAsync(int productId, IFormFile file, CancellationToken cancellationToken = default)
     {
         var product = await _db.GameProducts.FindAsync(productId);
         if (product == null) return null;
 
+        await ImageFileValidator.EnsureValidImageAsync(file, cancellationToken);
+
         if (!string.IsNullOrEmpty(product.ImageUrl))
         {
-            await _r2Provider.DeleteFileAsync(product.ImageUrl);
+            await _r2Provider.DeleteFileAsync(product.ImageUrl, cancellationToken);
         }
 
-        var newImageUrl = await _r2Provider.UploadFileAsync(file, "icon-item");
+        var newImageUrl = await _r2Provider.UploadFileAsync(file, "icon-item", cancellationToken);
 
         product.ImageUrl = newImageUrl;
         await _db.SaveChangesAsync();
@@ -827,61 +907,108 @@ public class ProductService : IProductService
 
     public async Task<int> GetMidtransExpiryAsync()
     {
-        var value = await GetSettingAsync(AppConstants.SystemSettings.MidtransExpiry);
+        var value = await _appSettings.GetAsync(AppConstants.SystemSettings.MidtransExpiry);
 
         return int.TryParse(value, out var minutes) ? minutes : 5; // default 5 menit
     }
 
     public async Task SetMidtransExpiryAsync(int expiryMinutes)
     {
-        await SetSettingAsync(
+        await _appSettings.SetAsync(
             AppConstants.SystemSettings.MidtransExpiry,
             expiryMinutes.ToString());
     }
 
-    /// <summary>Baca satu baris AppSettings. Null bila key belum pernah disimpan.</summary>
-    private async Task<string?> GetSettingAsync(string key)
+    // ── Redis L2 cache helpers (read-heavy storefront data) ──────────────
+    // MySQL tetap SSOT: cache failure tidak boleh menggagalkan endpoint.
+
+    /// <summary>
+    /// Sumber metadata global untuk semua read path yang aman dicache
+    /// (admin list/detail, detail publik, brands list). Order path TIDAK
+    /// memakai ini — PlaceOrderAsync tetap query DB langsung.
+    /// TTL 10 menit: safety net; invalidation utama tetap explicit DELETE
+    /// pada sync/update/cover.
+    /// </summary>
+    private async Task<List<GameMetadataResponse>> TryGetGameMetadataListAsync()
     {
-        var setting = await _db.AppSettings
+        var cached = await TryGetCacheAsync<List<GameMetadataResponse>>(RedisCacheKeys.GameMetadata);
+        if (cached is not null)
+            return cached;
+
+        var metadata = await _db.GameMetadata
             .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.Key == key);
+            .OrderBy(m => m.Brand)
+            .ToListAsync();
 
-        return setting?.Value;
+        var result = metadata
+            .Select(MapMetadataResponse)
+            .ToList();
+
+        await TrySetCacheAsync(RedisCacheKeys.GameMetadata, result, 10);
+        return result;
     }
 
-    /// <summary>Upsert satu baris AppSettings.</summary>
-    private async Task SetSettingAsync(string key, string value)
+    private async Task<T?> TryGetCacheAsync<T>(string key) where T : class
     {
-        var setting = await _db.AppSettings
-            .FirstOrDefaultAsync(s => s.Key == key);
-
-        if (setting == null)
+        try
         {
-            _db.AppSettings.Add(new AppSetting { Key = key, Value = value });
+            var json = await _redis.GetAsync(key);
+            return json is null ? null : JsonSerializer.Deserialize<T>(json);
         }
-        else
+        catch (Exception ex)
         {
-            setting.Value = value;
+            _logger.LogWarning(ex, "Redis GET gagal untuk {CacheKey}; fallback ke database.", key);
+            return null;
         }
-
-        await _db.SaveChangesAsync();
     }
 
-    public async Task<string?> UpdateGameCoverAsync(int metadataId, IFormFile file)
+    private async Task TrySetCacheAsync<T>(string key, T value, int ttlMinutes)
     {
+        try
+        {
+            await _redis.SetAsync(key, JsonSerializer.Serialize(value), CacheTtl(ttlMinutes));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Redis SET gagal untuk {CacheKey}; melewati cache.", key);
+        }
+    }
+
+    private async Task TryInvalidateCacheAsync(params string[] keys)
+    {
+        foreach (var key in keys)
+        {
+            try
+            {
+                await _redis.DeleteAsync(key);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Redis DELETE gagal untuk {CacheKey}; cache akan expired sendiri.", key);
+            }
+        }
+    }
+
+    public async Task<string?> UpdateGameCoverAsync(int metadataId, IFormFile file, CancellationToken cancellationToken = default)
+    {
+        await ImageFileValidator.EnsureValidImageAsync(file, cancellationToken);
+
         var meta = await _db.GameMetadata.FindAsync(metadataId);
         if (meta == null) return null;
 
         // hapus gambar lama
         if (!string.IsNullOrEmpty(meta.ImageUrl))
         {
-            await _r2Provider.DeleteFileAsync(meta.ImageUrl);
+            await _r2Provider.DeleteFileAsync(meta.ImageUrl, cancellationToken);
         }
 
-        var imageUrl = await _r2Provider.UploadFileAsync(file, "icon-cover");
+        var imageUrl = await _r2Provider.UploadFileAsync(file, "icon-cover", cancellationToken);
 
         meta.ImageUrl = imageUrl;
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
+
+        // DB sudah sukses — cover baru harus tampil pada read berikutnya (best-effort).
+        await TryInvalidateCacheAsync(RedisCacheKeys.GameMetadata);
 
         return imageUrl;
     }
@@ -1101,3 +1228,5 @@ public class ProductService : IProductService
     }
     
 }
+
+

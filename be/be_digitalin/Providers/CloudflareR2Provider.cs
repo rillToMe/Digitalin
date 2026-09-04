@@ -27,12 +27,12 @@ public class CloudflareR2Provider
         _publicUrl = config.PublicUrl;
     }
 
-    public async Task<string> UploadFileAsync(IFormFile file, string folder)
+    public async Task<string> UploadFileAsync(IFormFile file, string folder, CancellationToken cancellationToken = default)
     {
         var fileName = $"{folder}/{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
-        
+
         using var newStream = new MemoryStream();
-        await file.CopyToAsync(newStream);
+        await file.CopyToAsync(newStream, cancellationToken);
 
         var uploadRequest = new TransferUtilityUploadRequest
         {
@@ -42,21 +42,21 @@ public class CloudflareR2Provider
             ContentType = file.ContentType,
             DisablePayloadSigning = true
         };
-        
+
         var fileTransferUtility = new TransferUtility(_s3Client);
-        await fileTransferUtility.UploadAsync(uploadRequest);
+        await fileTransferUtility.UploadAsync(uploadRequest, cancellationToken);
 
         return $"{_publicUrl}/{fileName}";
     }
-    
-    public async Task<bool> DeleteFileAsync(string fileUrl)
+
+    public async Task<bool> DeleteFileAsync(string fileUrl, CancellationToken cancellationToken = default)
     {
         try
         {
             if (string.IsNullOrEmpty(fileUrl)) return false;
 
             var uri = new Uri(fileUrl);
-            var objectKey = uri.AbsolutePath.TrimStart('/'); 
+            var objectKey = uri.AbsolutePath.TrimStart('/');
 
             var deleteRequest = new DeleteObjectRequest
             {
@@ -64,7 +64,7 @@ public class CloudflareR2Provider
                 Key = objectKey
             };
 
-            await _s3Client.DeleteObjectAsync(deleteRequest);
+            await _s3Client.DeleteObjectAsync(deleteRequest, cancellationToken);
             Console.WriteLine($"[R2] File {objectKey} berhasil dihapus dari cloud.");
             return true;
         }

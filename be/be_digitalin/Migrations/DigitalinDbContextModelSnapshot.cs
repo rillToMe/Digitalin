@@ -117,7 +117,8 @@ namespace be_digitalin.Migrations
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
 
                     b.Property<string>("FullName")
                         .IsRequired()
@@ -131,6 +132,9 @@ namespace be_digitalin.Migrations
                         .HasColumnType("longtext");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
 
                     b.ToTable("Customers");
                 });
@@ -226,7 +230,8 @@ namespace be_digitalin.Migrations
 
                     b.Property<string>("Brand")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
 
                     b.Property<string>("BuyerSkuCode")
                         .IsRequired()
@@ -235,7 +240,8 @@ namespace be_digitalin.Migrations
 
                     b.Property<string>("Category")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
 
                     b.Property<decimal?>("CustomMargin")
                         .HasPrecision(18, 2)
@@ -263,6 +269,8 @@ namespace be_digitalin.Migrations
 
                     b.HasIndex("BuyerSkuCode")
                         .IsUnique();
+
+                    b.HasIndex("Brand", "Category", "IsActive");
 
                     b.ToTable("GameProducts");
                 });
@@ -309,7 +317,8 @@ namespace be_digitalin.Migrations
 
                     b.Property<string>("OrderNo")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
 
                     b.Property<decimal>("OriginalPrice")
                         .HasPrecision(18, 2)
@@ -346,7 +355,8 @@ namespace be_digitalin.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
 
                     b.Property<decimal>("TotalPaid")
                         .HasPrecision(18, 2)
@@ -360,6 +370,10 @@ namespace be_digitalin.Migrations
                     b.HasIndex("CustomerId");
 
                     b.HasIndex("GameProductId");
+
+                    b.HasIndex("OrderNo");
+
+                    b.HasIndex("Status", "OrderDate");
 
                     b.ToTable("TopupOrders");
                 });

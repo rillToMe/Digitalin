@@ -15,7 +15,7 @@ public class EmailProvider
         _settings = settings.Value;
     }
 
-    public async Task SendOtpEmailAsync(string targetEmail, string otpCode)
+    public async Task SendOtpEmailAsync(string targetEmail, string otpCode, CancellationToken cancellationToken = default)
     {
         var message = new MimeMessage();
         message.From.Add(new MailboxAddress(_settings.SenderName, _settings.SenderEmail));
@@ -39,15 +39,15 @@ public class EmailProvider
         try
         {
             // Hubungkan ke Mailtrap
-            await client.ConnectAsync(_settings.Host, _settings.Port, SecureSocketOptions.StartTls);
-            await client.AuthenticateAsync(_settings.Username, _settings.Password);
+            await client.ConnectAsync(_settings.Host, _settings.Port, SecureSocketOptions.StartTls, cancellationToken);
+            await client.AuthenticateAsync(_settings.Username, _settings.Password, cancellationToken);
             
             // Kirim Email
-            await client.SendAsync(message);
+            await client.SendAsync(message, cancellationToken);
         }
         finally
         {
-            await client.DisconnectAsync(true);
+            await client.DisconnectAsync(true, cancellationToken);
         }
     }
 
@@ -55,7 +55,7 @@ public class EmailProvider
     /// Sends a dedicated password-reset OTP email with a subject and body
     /// that clearly communicate the reset-password context.
     /// </summary>
-    public async Task SendPasswordResetOtpEmailAsync(string targetEmail, string otpCode)
+    public async Task SendPasswordResetOtpEmailAsync(string targetEmail, string otpCode, CancellationToken cancellationToken = default)
     {
         var message = new MimeMessage();
         message.From.Add(new MailboxAddress(_settings.SenderName, _settings.SenderEmail));
@@ -80,13 +80,13 @@ public class EmailProvider
         using var client = new SmtpClient();
         try
         {
-            await client.ConnectAsync(_settings.Host, _settings.Port, SecureSocketOptions.StartTls);
-            await client.AuthenticateAsync(_settings.Username, _settings.Password);
-            await client.SendAsync(message);
+            await client.ConnectAsync(_settings.Host, _settings.Port, SecureSocketOptions.StartTls, cancellationToken);
+            await client.AuthenticateAsync(_settings.Username, _settings.Password, cancellationToken);
+            await client.SendAsync(message, cancellationToken);
         }
         finally
         {
-            await client.DisconnectAsync(true);
+            await client.DisconnectAsync(true, cancellationToken);
         }
     }
 }

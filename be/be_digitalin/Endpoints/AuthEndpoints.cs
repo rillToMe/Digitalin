@@ -1,20 +1,8 @@
-using System.IdentityModel.Tokens.Jwt;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
-using be_digitalin.Config;
-using be_digitalin.Constants;
-using be_digitalin.Data;
-using be_digitalin.Providers; // <-- Jangan lupa Provider Email
+using be_digitalin.Providers;
 using be_digitalin.DTOs.Requests;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc; 
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.JsonWebTokens;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.Extensions.Caching.Memory; // <-- Jangan lupa MemoryCache
 using be_digitalin.Services.Admin;
 using be_digitalin.Services.Auth;
 using be_digitalin.Services.Customer;
@@ -84,12 +72,13 @@ public static class AuthEndpoints
             return token != null
                 ? Results.Ok(new { token })
                 : Results.Unauthorized();
-        });
+        }).RequireRateLimiting("CustomerLoginPolicy");
 
         // ENDPOINT REQUEST RESET PASSWORD
         localAuthGroup.MapPost("/request-password-reset", async (
             [FromBody] RequestPasswordResetRequest req,
-            [FromServices] IPasswordResetService passwordResetService) =>
+            [FromServices] IPasswordResetService passwordResetService,
+            CancellationToken cancellationToken) =>
         {
             // Manual validation (Minimal API doesn't auto-validate DataAnnotations)
             var validationResults = new List<ValidationResult>();
@@ -98,7 +87,7 @@ public static class AuthEndpoints
                 return Results.BadRequest(new { message = validationResults[0].ErrorMessage });
             }
 
-            var success = await passwordResetService.RequestPasswordResetAsync(req.Email);
+            var success = await passwordResetService.RequestPasswordResetAsync(req.Email, cancellationToken);
 
             if (!success)
             {
@@ -111,7 +100,8 @@ public static class AuthEndpoints
         // ENDPOINT RESET PASSWORD
         localAuthGroup.MapPost("/reset-password", async (
             [FromBody] ResetPasswordRequest req,
-            [FromServices] IPasswordResetService passwordResetService) =>
+            [FromServices] IPasswordResetService passwordResetService,
+            CancellationToken cancellationToken) =>
         {
             // Manual validation
             var validationResults = new List<ValidationResult>();
@@ -120,7 +110,7 @@ public static class AuthEndpoints
                 return Results.BadRequest(new { message = validationResults[0].ErrorMessage });
             }
 
-            var result = await passwordResetService.ResetPasswordAsync(req.Email, req.OtpCode, req.NewPassword);
+            var result = await passwordResetService.ResetPasswordAsync(req.Email, req.OtpCode, req.NewPassword, cancellationToken);
 
             return result switch
             {
@@ -129,7 +119,7 @@ public static class AuthEndpoints
                 PasswordResetResult.InvalidOtp    => Results.BadRequest(new { message = "Kode OTP salah atau sudah kedaluwarsa." }),
                 _                                => Results.Problem("Terjadi kesalahan yang tidak diketahui.")
             };
-        });
+        }).RequireRateLimiting("OtpPolicy");
 
         // GOOGLE LOGIN ENDPOINT
         // Verifies a Google ID Token, auto-registers if needed, returns JWT.
@@ -156,7 +146,7 @@ public static class AuthEndpoints
             {
                 return Results.BadRequest(new { message = ex.Message });
             }
-        });
+        }).RequireRateLimiting("CustomerLoginPolicy");
 
 
         // GET PROFILE
@@ -231,7 +221,7 @@ public static class AuthEndpoints
             return token != null
                 ? Results.Ok(new { token })
                 : Results.Unauthorized();
-        }).AllowAnonymous();
+        }).RequireRateLimiting("AdminLoginPolicy").AllowAnonymous();
     }
 }
 
@@ -253,3 +243,5 @@ public record RequestOtpRequest(
 public record RegisterRequest(string Email, string Password, string FullName, string OtpCode);
 public record UpdateProfileRequest(string FullName, string? NewPassword);
 public record GoogleLoginRequest(string IdToken);
+
+

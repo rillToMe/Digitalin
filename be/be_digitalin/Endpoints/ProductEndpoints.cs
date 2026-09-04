@@ -107,9 +107,10 @@ public static class ProductEndpoints
         
         // POST /admin/products/{id}/upload-icon (UPLOAD ICON KE CLOUDFLARE R2)
         adminGroup.MapPost("/{id}/upload-item-image", async (
-            int id, 
-            IFormFile file, 
-            [FromServices] IProductService productService) =>
+            int id,
+            IFormFile file,
+            [FromServices] IProductService productService,
+            CancellationToken cancellationToken) =>
         {
             if (file == null || file.Length == 0) return Results.BadRequest("File tidak boleh kosong.");
 
@@ -117,10 +118,17 @@ public static class ProductEndpoints
             if (file.Length > AppConstants.FileLimits.MaxImageBytes)
                 return Results.BadRequest($"Ukuran file terlalu besar. Maksimal {AppConstants.FileLimits.MaxImageBytes / (1024 * 1024)} MB.");
 
-            var imageUrl = await productService.UpdateProductIconAsync(id, file);
-            if (imageUrl == null) return Results.NotFound(new { message = "Produk tidak ditemukan." });
+            try
+            {
+                var imageUrl = await productService.UpdateProductIconAsync(id, file, cancellationToken);
+                if (imageUrl == null) return Results.NotFound(new { message = "Produk tidak ditemukan." });
 
-            return Results.Ok(new { message = "Gambar item nominal berhasil diperbarui!", url = imageUrl });
+                return Results.Ok(new { message = "Gambar item nominal berhasil diperbarui!", url = imageUrl });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
         }).DisableAntiforgery();
         
 
@@ -130,12 +138,14 @@ public static class ProductEndpoints
                              .RequireAuthorization("AdminOnly"); 
 
         // POST /admin/system/sync-digiflazz (SINKRONISASI MANUAL DARI TOMBOL ADMIN)
-        systemGroup.MapPost("/sync-digiflazz", async ([FromServices] IProductService productService) =>
+        systemGroup.MapPost("/sync-digiflazz", async (
+            [FromServices] IProductService productService,
+            CancellationToken cancellationToken) =>
         {
             try
             {
                 var (added, updated, deactivated) =
-                    await productService.SyncCatalogFromDigiflazzAsync();
+                    await productService.SyncCatalogFromDigiflazzAsync(cancellationToken);
 
                 return Results.Ok(new
                 {
@@ -289,7 +299,8 @@ public static class ProductEndpoints
         systemGroup.MapPost("/metadata/{id}/upload-game-cover", async (
             int id,
             IFormFile file,
-            [FromServices] IProductService productService) =>
+            [FromServices] IProductService productService,
+            CancellationToken cancellationToken) =>
         {
             if (file == null || file.Length == 0) return Results.BadRequest("File tidak boleh kosong.");
 
@@ -297,10 +308,17 @@ public static class ProductEndpoints
             if (file.Length > AppConstants.FileLimits.MaxImageBytes)
                 return Results.BadRequest($"Ukuran file terlalu besar. Maksimal {AppConstants.FileLimits.MaxImageBytes / (1024 * 1024)} MB.");
 
-            var imageUrl = await productService.UpdateGameCoverAsync(id, file);
-            if (imageUrl == null) return Results.NotFound(new { message = "Metadata Game tidak ditemukan." });
+            try
+            {
+                var imageUrl = await productService.UpdateGameCoverAsync(id, file, cancellationToken);
+                if (imageUrl == null) return Results.NotFound(new { message = "Metadata Game tidak ditemukan." });
 
-            return Results.Ok(new { message = "Gambar cover game berhasil diperbarui!", url = imageUrl });
+                return Results.Ok(new { message = "Gambar cover game berhasil diperbarui!", url = imageUrl });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(new { message = ex.Message });
+            }
         }).DisableAntiforgery();
     }
 }

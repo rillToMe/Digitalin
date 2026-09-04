@@ -65,48 +65,55 @@ public class VoucherService : IVoucherService
     {
         var query = _db.Vouchers.AsNoTracking().AsQueryable();
 
-        // Search by code
+        // Search by code — Code selalu tersimpan uppercase dan input
+        // dinormalisasi uppercase, jadi equality/Contains tanpa UPPER().
         if (!string.IsNullOrWhiteSpace(search))
         {
             string upperSearch = search.ToUpper();
-            query = query.Where(v => v.Code.ToUpper().Contains(upperSearch));
+            query = query.Where(v => v.Code.Contains(upperSearch));
         }
 
-        // Materialize to compute status in-memory
-        var allVouchers = await query.ToListAsync();
-
-        // Filter by computed status
+        // Computed status diekspresikan sebagai predicate DB-side. Urutan
+        // kondisi mereplikasi ComputeStatus: Disabled > Expired > QuotaExceeded.
         if (!string.IsNullOrWhiteSpace(status))
         {
-            allVouchers = allVouchers.Where(v =>
-                ComputeStatus(v).Equals(status, StringComparison.OrdinalIgnoreCase)).ToList();
+            var now = DateTime.UtcNow;
+            query = status.ToLowerInvariant() switch
+            {
+                "active" => query.Where(v => v.IsActive && v.ExpiredAt > now && v.UsedCount < v.UsageLimit),
+                "disabled" => query.Where(v => !v.IsActive),
+                "expired" => query.Where(v => v.IsActive && v.ExpiredAt <= now),
+                "quotaexceeded" => query.Where(v => v.IsActive && v.ExpiredAt > now && v.UsedCount >= v.UsageLimit),
+                _ => query
+            };
         }
 
         // Sort
         bool ascending = string.Equals(sortOrder, "asc", StringComparison.OrdinalIgnoreCase);
-        allVouchers = (sortBy?.ToLower()) switch
+        query = (sortBy?.ToLower()) switch
         {
             "code" => ascending
-                ? allVouchers.OrderBy(v => v.Code).ToList()
-                : allVouchers.OrderByDescending(v => v.Code).ToList(),
+                ? query.OrderBy(v => v.Code)
+                : query.OrderByDescending(v => v.Code),
             "expiredat" => ascending
-                ? allVouchers.OrderBy(v => v.ExpiredAt).ToList()
-                : allVouchers.OrderByDescending(v => v.ExpiredAt).ToList(),
+                ? query.OrderBy(v => v.ExpiredAt)
+                : query.OrderByDescending(v => v.ExpiredAt),
             "discountvalue" => ascending
-                ? allVouchers.OrderBy(v => v.DiscountValue).ToList()
-                : allVouchers.OrderByDescending(v => v.DiscountValue).ToList(),
+                ? query.OrderBy(v => v.DiscountValue)
+                : query.OrderByDescending(v => v.DiscountValue),
             _ => ascending // default: createdAt
-                ? allVouchers.OrderBy(v => v.CreatedAt).ToList()
-                : allVouchers.OrderByDescending(v => v.CreatedAt).ToList()
+                ? query.OrderBy(v => v.CreatedAt)
+                : query.OrderByDescending(v => v.CreatedAt)
         };
 
-        int totalCount = allVouchers.Count;
+        int totalCount = await query.CountAsync();
         int totalPages = totalCount == 0 ? 0 : (int)Math.Ceiling(totalCount / (double)limit);
         int currentPage = page;
 
-        var items = allVouchers
+        var items = (await query
             .Skip((page - 1) * limit)
             .Take(limit)
+            .ToListAsync())
             .Select(ToDto)
             .ToList();
 
@@ -130,7 +137,7 @@ public class VoucherService : IVoucherService
 
         // Check uniqueness (case-insensitive)
         string upperCode = request.Code.ToUpper();
-        bool exists = await _db.Vouchers.AnyAsync(v => v.Code.ToUpper() == upperCode);
+        bool exists = await _db.Vouchers.AnyAsync(v => v.Code == upperCode);
         if (exists)
             throw new InvalidOperationException("Kode voucher sudah digunakan.");
 
@@ -167,7 +174,7 @@ public class VoucherService : IVoucherService
 
         // Check code uniqueness (excluding self)
         string upperCode = request.Code.ToUpper();
-        bool codeTaken = await _db.Vouchers.AnyAsync(v => v.Id != id && v.Code.ToUpper() == upperCode);
+        bool codeTaken = await _db.Vouchers.AnyAsync(v => v.Id != id && v.Code == upperCode);
         if (codeTaken)
             throw new InvalidOperationException("Kode voucher sudah digunakan.");
 
@@ -230,8 +237,8 @@ public class VoucherService : IVoucherService
         var query = _db.TopupOrders
             .AsNoTracking()
             .Include(o => o.Customer)
-            .Where(o => o.VoucherCode != null && o.VoucherCode.ToUpper() ==
-                _db.Vouchers.AsNoTracking().Where(v => v.Id == id).Select(v => v.Code.ToUpper()).FirstOrDefault())
+        .Where(o => o.VoucherCode != null && o.VoucherCode ==
+            _db.Vouchers.AsNoTracking().Where(v => v.Id == id).Select(v => v.Code).FirstOrDefault())
             .OrderByDescending(o => o.OrderDate);
 
         int totalCount = await query.CountAsync();
@@ -261,7 +268,7 @@ public class VoucherService : IVoucherService
     public async Task<(Voucher? Voucher, string? Error)> ValidateVoucherAsync(string code, decimal transactionAmount)
     {
         var voucher = await _db.Vouchers
-            .FirstOrDefaultAsync(v => v.Code.ToUpper() == code.ToUpper());
+            .FirstOrDefaultAsync(v => v.Code == code.ToUpper());
 
         if (voucher == null)
             return (null, "Kode voucher tidak ditemukan.");
@@ -328,7 +335,7 @@ public class VoucherService : IVoucherService
         string upperCode = voucherCode.ToUpper();
 
         await _db.Vouchers
-            .Where(v => v.Code.ToUpper() == upperCode && v.UsedCount > 0)
+            .Where(v => v.Code == upperCode && v.UsedCount > 0)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(v => v.UsedCount, v => v.UsedCount - 1)
                 .SetProperty(v => v.UpdatedAt, DateTime.UtcNow));

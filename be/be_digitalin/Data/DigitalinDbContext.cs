@@ -26,6 +26,40 @@ public class DigitalinDbContext : DbContext
             .Property(o => o.RowVersion)
             .IsRowVersion();
 
+        // Lookup OrderNo dipakai webhook Midtrans/Digiflazz, retry, refund,
+        // dan sweep — jalur pembayaran yang paling sering mencari berdasarkan
+        // nomor order. Non-unique: model tidak menjamin ketiadaan duplikat.
+        modelBuilder.Entity<TopupOrder>()
+            .HasIndex(o => o.OrderNo);
+
+        // Panjang eksplisit agar kolom bisa di-index (indexed string tidak
+        // boleh longtext di MariaDB).
+        modelBuilder.Entity<TopupOrder>()
+            .Property(o => o.OrderNo)
+            .HasMaxLength(255);
+
+        modelBuilder.Entity<TopupOrder>()
+            .Property(o => o.Status)
+            .HasMaxLength(255);
+
+        // Sweep worker (Status = Processing AND OrderDate <= cutoff) dan
+        // dashboard chart (range OrderDate + Status Completed).
+        modelBuilder.Entity<TopupOrder>()
+            .HasIndex(o => new { o.Status, o.OrderDate });
+
+        // CUSTOMER
+        modelBuilder.Entity<Customer>(entity =>
+        {
+            // Email adalah identity lookup untuk login, registrasi, Google
+            // auth, dan cek email — unique sesuai kontrak bisnis.
+            entity.HasIndex(c => c.Email)
+                .IsUnique();
+
+            entity.Property(c => c.Email)
+                .IsRequired()
+                .HasMaxLength(255);
+        });
+
         // GAME PRODUCT
         modelBuilder.Entity<GameProduct>(entity =>
         {
@@ -47,6 +81,19 @@ public class DigitalinDbContext : DbContext
 
             entity.HasIndex(p => p.BuyerSkuCode)
                 .IsUnique();
+
+            // Storefront: brands list, detail game, popular brands — semuanya
+            // memfilter Brand (+ Category) dengan produk aktif. Panjang
+            // eksplisit karena ketiga kolom ikut composite index.
+            entity.HasIndex(p => new { p.Brand, p.Category, p.IsActive });
+
+            entity.Property(p => p.Brand)
+                .IsRequired()
+                .HasMaxLength(255);
+
+            entity.Property(p => p.Category)
+                .IsRequired()
+                .HasMaxLength(255);
         });
 
         // GAME METADATA

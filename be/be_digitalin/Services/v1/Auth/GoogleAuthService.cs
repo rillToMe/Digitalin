@@ -31,7 +31,7 @@ public class GoogleAuthService : IGoogleAuthService
         var displayName = payload.Name;
 
         // 2. Find existing Customer by email
-        var customer = await _db.Customers.FirstOrDefaultAsync(c => c.Email == email);
+        var customer = await FindCustomerByEmailAsync(email);
 
         if (customer == null)
         {
@@ -47,7 +47,23 @@ public class GoogleAuthService : IGoogleAuthService
             };
 
             _db.Customers.Add(customer);
-            await _db.SaveChangesAsync();
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                // Kalah race melawan login Google paralel dengan email sama:
+                // unique index IX_Customers_Email menolak insert kedua. Detach
+                // instance gagal, ambil customer yang dibuat instance lain, dan
+                // lanjut login normal — tanpa 500 dan tanpa duplikat.
+                _db.Entry(customer).State = EntityState.Detached;
+
+                customer = await FindCustomerByEmailAsync(email);
+
+                if (customer == null)
+                    throw;
+            }
         }
         else if (string.IsNullOrEmpty(customer.GoogleId))
         {
@@ -67,4 +83,7 @@ public class GoogleAuthService : IGoogleAuthService
         var token = _tokenService.CreateCustomerToken(customer.Id);
         return new AuthResponse(token);
     }
+
+    private Task<Models.Customer?> FindCustomerByEmailAsync(string email) =>
+        _db.Customers.FirstOrDefaultAsync(c => c.Email == email);
 }

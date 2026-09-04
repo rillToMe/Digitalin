@@ -84,18 +84,18 @@ public class DigiflazzProvider
         return null;
     }
 
-    public async Task<JsonElement.ArrayEnumerator> GetPriceListAsync()
+    public async Task<JsonElement.ArrayEnumerator> GetPriceListAsync(CancellationToken cancellationToken = default)
     {
-        var payload = new { 
-            cmd = AppConstants.DigiflazzCommands.Prepaid, 
-            username = _settings.Username, 
-            sign = GenerateSignature(AppConstants.DigiflazzCommands.Pricelist) 
+        var payload = new {
+            cmd = AppConstants.DigiflazzCommands.Prepaid,
+            username = _settings.Username,
+            sign = GenerateSignature(AppConstants.DigiflazzCommands.Pricelist)
         };
-        
+
         var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-        
-        var response = await _httpClient.PostAsync(EndpointPriceList, content);
-        var responseString = await response.Content.ReadAsStringAsync();
+
+        var response = await _httpClient.PostAsync(EndpointPriceList, content, cancellationToken);
+        var responseString = await response.Content.ReadAsStringAsync(cancellationToken);
         var jsonDoc = JsonDocument.Parse(responseString);
         
         var dataElement = jsonDoc.RootElement.GetProperty(AppConstants.DigiflazzResponseKeys.Data);
@@ -195,7 +195,13 @@ public class DigiflazzProvider
     }
     
     //  Bot Patroli membaca status real-time
-    public async Task<(string Status, string Sn, string Message)> CheckStatusAsync(string sku, string customerNo, string refId)
+    //
+    // Sesuai kontrak resmi Digiflazz (developer.digiflazz.com — Prabayar,
+    // "Topup / Cek Status"): cek status dilakukan dengan mengirim ulang topup
+    // menggunakan ref_id yang sama — provider mende-duplicate by ref_id.
+    // Aturan provider: JANGAN dipanggil < 1 menit antar-pemanggilan untuk
+    // transaksi yang sama, dan transaksi > 90 hari akan terbentuk BARU.
+    public async Task<(string Status, string Sn, string Message)> CheckStatusAsync(string sku, string customerNo, string refId, CancellationToken cancellationToken = default)
     {
         var payload = new
         {
@@ -207,9 +213,9 @@ public class DigiflazzProvider
         };
 
         var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-        
-        var response = await _httpClient.PostAsync(EndpointTransaction, content);
-        var jsonString = await response.Content.ReadAsStringAsync();
+
+        var response = await _httpClient.PostAsync(EndpointTransaction, content, cancellationToken);
+        var jsonString = await response.Content.ReadAsStringAsync(cancellationToken);
 
         using var document = JsonDocument.Parse(jsonString);
         var root = document.RootElement;

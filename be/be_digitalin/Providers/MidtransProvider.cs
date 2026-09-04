@@ -4,8 +4,7 @@ using System.Text;
 using System.Text.Json;
 using be_digitalin.Config;
 using be_digitalin.Constants;
-using be_digitalin.Data;
-using Microsoft.EntityFrameworkCore;
+using be_digitalin.Services.Settings;
 using Microsoft.Extensions.Options;
 
 namespace be_digitalin.Providers;
@@ -14,21 +13,22 @@ public class MidtransProvider
 {
     private readonly HttpClient _httpClient;
     private readonly MidtransSettings _settings;
-    private readonly DigitalinDbContext _db;
+    private readonly IAppSettingsService _appSettings;
 
-    public MidtransProvider(HttpClient httpClient, IOptions<MidtransSettings> settings, DigitalinDbContext db)
+    public MidtransProvider(HttpClient httpClient, IOptions<MidtransSettings> settings, IAppSettingsService appSettings)
     {
         _httpClient = httpClient;
         _settings = settings.Value;
-        _db = db;
+        _appSettings = appSettings;
     }
 
     // nembak API untuk dapat Token Pop-Up UI
     public async Task<(string? Token, string? RedirectUrl)> CreateSnapTransactionAsync(
-        string orderNo, decimal grossAmount, string productId, string productName, string customerName)
+        string orderNo, decimal grossAmount, string productId, string productName, string customerName,
+        CancellationToken cancellationToken = default)
     {
-        var expirySetting = await _db.AppSettings.FirstOrDefaultAsync(s => s.Key == AppConstants.SystemSettings.MidtransExpiry);
-        int expiryDuration = expirySetting != null ? int.Parse(expirySetting.Value) : 30;
+        var expiryValue = await _appSettings.GetAsync(AppConstants.SystemSettings.MidtransExpiry);
+        int expiryDuration = expiryValue != null ? int.Parse(expiryValue) : 30;
         
         var payload = new
         {
@@ -45,7 +45,7 @@ public class MidtransProvider
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(AppConstants.HttpAuthSchemes.Basic, base64ServerKey);
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-        var response = await _httpClient.PostAsync(_settings.BaseUrl, content);
+        var response = await _httpClient.PostAsync(_settings.BaseUrl, content, cancellationToken);
         var responseString = await response.Content.ReadAsStringAsync();
 
         if (!response.IsSuccessStatusCode)

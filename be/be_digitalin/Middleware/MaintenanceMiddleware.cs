@@ -1,5 +1,4 @@
 using System.Net.Mime;
-using System.Security.Claims;
 using System.Text.Json;
 using be_digitalin.Constants;
 using be_digitalin.DTOs.Responses;
@@ -28,7 +27,7 @@ public class MaintenanceMiddleware
         $"{AppConstants.Api.Prefix}/auth/local/request-password-reset", // Password recovery should remain open
         $"{AppConstants.Api.Prefix}/auth/local/reset-password",
         "/health",                         // Health / readiness probes
-        "/swagger",                        // Swagger UI (dev)
+        "/scalar",                         // Scalar API UI (dev)
         "/ping-db",                        // DB connectivity check (dev)
     ];
 

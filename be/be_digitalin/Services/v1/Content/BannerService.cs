@@ -1,7 +1,8 @@
-﻿using be_digitalin.Constants;
+using be_digitalin.Constants;
 using be_digitalin.Data;
 using be_digitalin.Models;
 using be_digitalin.Providers;
+using be_digitalin.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
 
 namespace be_digitalin.Services.Content;
@@ -29,9 +30,11 @@ public class BannerService : IBannerService
             .ToListAsync();
     }
     
-    public async Task<Banner> CreateBannerAsync(string title, IFormFile file)
+    public async Task<Banner> CreateBannerAsync(string title, IFormFile file, CancellationToken cancellationToken = default)
     {
-        var imageUrl = await _r2Provider.UploadFileAsync(file, AppConstants.StorageFolders.Banners); 
+        await ImageFileValidator.EnsureValidImageAsync(file, cancellationToken);
+
+        var imageUrl = await _r2Provider.UploadFileAsync(file, AppConstants.StorageFolders.Banners, cancellationToken);
 
         var banner = new Banner
         {
@@ -39,7 +42,7 @@ public class BannerService : IBannerService
         };
 
         _db.Banners.Add(banner);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
 
         return banner;
     }
@@ -55,19 +58,22 @@ public class BannerService : IBannerService
         return banner.IsActive;
     }
     
-    public async Task<bool> DeleteBannerAsync(int id)
+    public async Task<bool> DeleteBannerAsync(int id, CancellationToken cancellationToken = default)
     {
         var banner = await _db.Banners.FindAsync(id);
         if (banner == null) return false;
 
         if (!string.IsNullOrEmpty(banner.ImageUrl))
         {
-            await _r2Provider.DeleteFileAsync(banner.ImageUrl);
+            await _r2Provider.DeleteFileAsync(banner.ImageUrl, cancellationToken);
         }
 
         _db.Banners.Remove(banner);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 }
+
+
+

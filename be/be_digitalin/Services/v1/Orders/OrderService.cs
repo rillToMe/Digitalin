@@ -1,4 +1,4 @@
-﻿using be_digitalin.Data;
+using be_digitalin.Data;
 using be_digitalin.DTOs;
 using be_digitalin.Models;
 using be_digitalin.Providers;
@@ -269,65 +269,72 @@ public class OrderService : IOrderService
             return;
         }
 
-        using var dbTransaction = await _db.Database.BeginTransactionAsync();
-        try
+        // ── Transaksi SANGAT singkat: hanya PENDING → PAID ──
+        // Tidak ada external call di dalam transaction supaya row lock tidak
+        // bertahan selama panggilan HTTP Digiflazz (hardening P1).
+        using (var dbTransaction = await _db.Database.BeginTransactionAsync())
         {
-            order.Status = AppConstants.OrderStatus.Paid;
-            order.ProcessedAt = DateTime.UtcNow;
-            await _db.SaveChangesAsync();
-
             try
             {
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-                string? sn = await _digiflazzProvider.TopupAsync(
-                    order.BuyerSkuCode,
-                    order.PlayerId,
-                    order.OrderNo,
-                    cts.Token);
-
-                // Digiflazz responded - advance to PROCESSING
-                order.Status = AppConstants.OrderStatus.Processing;
-
-                // Instan SN
-                if (!string.IsNullOrEmpty(sn))
-                {
-                    order.Sn = sn;
-                    order.Status = AppConstants.OrderStatus.Completed;
-                    _logger.LogInformation("[WEBHOOK] SN sudah di terima {OrderNo}: {SN}", order.OrderNo, sn);
-                }
+                order.Status = AppConstants.OrderStatus.Paid;
+                order.ProcessedAt = DateTime.UtcNow;
+                await _db.SaveChangesAsync();
+                await dbTransaction.CommitAsync();
             }
-            catch (OperationCanceledException)
+            catch (DbUpdateConcurrencyException)
             {
+                await dbTransaction.RollbackAsync();
                 _logger.LogWarning(
-                    "[WEBHOOK] Digiflazz TIMEOUT saat memesan {OrderNo}. Pesanan tetap DIBAYAR, menunggu bot jalan.",
+                    "[WEBHOOK] Konflik konkurensi pada Pesanan {OrderNo}. Proses lain sudah menanganinya",
                     order.OrderNo);
-                order.Status = AppConstants.OrderStatus.NeedsAction;
-
-                await SendStuckOrderAlertAsync(order, "Digiflazz API timeout (30s).");
+                return;
             }
-            catch (Exception ex)
-            {
-                _logger.LogCritical(ex,
-                    "[WEBHOOK] Digiflazz gagal memesan {OrderNo}", order.OrderNo);
-                order.Status = AppConstants.OrderStatus.NeedsAction;
-                await SendStuckOrderAlertAsync(order, ex.Message);
-            }
-
-            await _db.SaveChangesAsync();
-            await dbTransaction.CommitAsync();
         }
-        catch (DbUpdateConcurrencyException)
+
+        // ── Fulfillment DI LUAR transaction ──
+        // Kegagalan Digiflazz/Telegram tidak pernah rollback status pembayaran:
+        // PAID adalah fakta yang sudah di-commit; kegagalan fulfillment menjadi
+        // NEEDS_ACTION dan direkonsiliasi sweep/retry.
+        try
         {
-            await dbTransaction.RollbackAsync();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            string? sn = await _digiflazzProvider.TopupAsync(
+                order.BuyerSkuCode,
+                order.PlayerId,
+                order.OrderNo,
+                cts.Token);
+
+            // Digiflazz responded - advance to PROCESSING
+            if (!TryTransition(order, AppConstants.OrderStatus.Processing)) return;
+
+            // Instan SN
+            if (!string.IsNullOrEmpty(sn))
+            {
+                order.Sn = sn;
+                order.Status = AppConstants.OrderStatus.Completed;
+                _logger.LogInformation("[WEBHOOK] SN sudah di terima {OrderNo}: {SN}", order.OrderNo, sn);
+            }
+
+            await SafeSaveChangesAsync(order.OrderNo);
+        }
+        catch (OperationCanceledException)
+        {
             _logger.LogWarning(
-                "[WEBHOOK] Konflik konkurensi pada Pesanan {OrderNo}. Proses lain sudah menanganinya",
+                "[WEBHOOK] Digiflazz TIMEOUT saat memesan {OrderNo}. Pesanan tetap DIBAYAR, menunggu bot jalan.",
                 order.OrderNo);
+
+            if (!TryTransition(order, AppConstants.OrderStatus.NeedsAction)) return;
+            if (await SafeSaveChangesAsync(order.OrderNo))
+                await SendStuckOrderAlertAsync(order, "Digiflazz API timeout (30s).");
         }
         catch (Exception ex)
         {
-            await dbTransaction.RollbackAsync();
-            _logger.LogError(ex, "[WEBHOOK] Kesalahan tidak terduga saat memproses Pesanan {OrderNo}", order.OrderNo);
-            throw;
+            _logger.LogCritical(ex,
+                "[WEBHOOK] Digiflazz gagal memesan {OrderNo}", order.OrderNo);
+
+            if (!TryTransition(order, AppConstants.OrderStatus.NeedsAction)) return;
+            if (await SafeSaveChangesAsync(order.OrderNo))
+                await SendStuckOrderAlertAsync(order, ex.Message);
         }
     }
 
@@ -543,8 +550,13 @@ public class OrderService : IOrderService
     {
         // Cari pesanan yang statusnya PROCESSING dan sudah lebih dari 3 menit
         var timeThreshold = DateTime.UtcNow.AddMinutes(-3);
+        // PAID = commit pembayaran sukses tapi fulfillment belum selesai
+        // (crash/restart antara commit dan panggilan Digiflazz) — wajib di-resume,
+        // kalau tidak order uang-masuk terlantar tanpa rekonsiliasi.
         var stuckOrders = await _db.TopupOrders
-            .Where(o => o.Status == AppConstants.OrderStatus.Processing && o.OrderDate <= timeThreshold)
+            .Where(o =>
+                (o.Status == AppConstants.OrderStatus.Processing && o.OrderDate <= timeThreshold) ||
+                (o.Status == AppConstants.OrderStatus.Paid && o.ProcessedAt <= timeThreshold))
             .ToListAsync(cancellationToken);
 
         if (stuckOrders.Count == 0) return; // tidak ada yang nyangkut
@@ -557,9 +569,17 @@ public class OrderService : IOrderService
         {
             try
             {
+                // PAID: commit pembayaran sukses tapi fulfillment belum selesai
+                // (crash/restart antara commit dan panggilan Digiflazz) — resume.
+                if (order.Status == AppConstants.OrderStatus.Paid)
+                {
+                    await ResumeFulfillmentAsync(order, cancellationToken);
+                    continue;
+                }
+
                 // Minta penjelasan status ke Digiflazz — gunakan snapshot BuyerSkuCode
                 var (status, sn, message) = await _digiflazzProvider.CheckStatusAsync(
-                    order.BuyerSkuCode, order.PlayerId, order.OrderNo);
+            order.BuyerSkuCode, order.PlayerId, order.OrderNo, cancellationToken);
 
                 if (status == AppConstants.DigiflazzStatus.Sukses)
                 {
@@ -571,7 +591,7 @@ public class OrderService : IOrderService
                 {
                     if (!TryTransition(order, AppConstants.OrderStatus.NeedsAction)) continue;
                     _logger.LogWarning("[SWEEP] Order {OrderNo} dipastikan GAGAL dari pusat. Mengunci pesanan...", order.OrderNo);
-                    await SendSweepFailedAlertAsync(order, message);
+                    await SendSweepFailedAlertAsync(order, message, cancellationToken);
                 }
                 else
                 {
@@ -582,7 +602,7 @@ public class OrderService : IOrderService
                     {
                         if (!TryTransition(order, AppConstants.OrderStatus.NeedsAction)) continue;
                         _logger.LogWarning("[SWEEP] Order {OrderNo} kelamaan Pending di Digiflazz (>15 menit). Force Needs Action!", order.OrderNo);
-                        await SendSweepTimeoutAlertAsync(order);
+                        await SendSweepTimeoutAlertAsync(order, cancellationToken);
                     }
                     else
                     {
@@ -632,7 +652,7 @@ public class OrderService : IOrderService
         return true;
     }
 
-    private async Task SendSweepFailedAlertAsync(TopupOrder order, string message)
+    private async Task SendSweepFailedAlertAsync(TopupOrder order, string message, CancellationToken cancellationToken)
     {
         string alertMessage = $@"⚠️ <b>PESANAN TERTUNDA (Hasil Sapuan Sistem)</b> ⚠️
 
@@ -648,7 +668,7 @@ Silakan buka Admin Panel untuk klik Retry atau hubungi pembeli untuk Refund.";
 
         try
         {
-            await _telegramProvider.SendNotificationAsync(alertMessage);
+            await _telegramProvider.SendNotificationAsync(alertMessage, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -656,7 +676,7 @@ Silakan buka Admin Panel untuk klik Retry atau hubungi pembeli untuk Refund.";
         }
     }
 
-    private async Task SendSweepTimeoutAlertAsync(TopupOrder order)
+    private async Task SendSweepTimeoutAlertAsync(TopupOrder order, CancellationToken cancellationToken)
     {
         string timeoutMessage = $@"⚠️ <b>PESANAN MENGGANTUNG / TIMEOUT</b> ⚠️
 
@@ -671,7 +691,7 @@ Silakan cek manual di dashboard Digiflazz. Jika pesanan tidak masuk, segera pros
 
         try
         {
-            await _telegramProvider.SendNotificationAsync(timeoutMessage);
+            await _telegramProvider.SendNotificationAsync(timeoutMessage, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -837,6 +857,87 @@ Silakan cek manual di dashboard Digiflazz. Jika pesanan tidak masuk, segera pros
         await _voucherService.ReleaseVoucherAsync(order.VoucherCode);
     }
 
+    /// <summary>
+    /// Resume fulfillment untuk order PAID yang topup-nya belum selesai
+    /// (crash/restart antara commit PAID dan panggilan Digiflazz).
+    /// Pola sama dengan RetryOrderAsync: CheckStatus dulu, baru topup ulang.
+    /// Semua transisi memakai SSOT OrderStateTransition (PAID → PROCESSING /
+    /// COMPLETED / NEEDS_ACTION sudah legal) — tidak ada aturan baru.
+    /// </summary>
+    private async Task ResumeFulfillmentAsync(TopupOrder order, CancellationToken cancellationToken)
+    {
+        // 1. Cek status aktual di provider — topup mungkin sudah dieksekusi
+        //    sebelum restart sebelumnya (jangan langsung kirim ulang).
+        try
+        {
+            var (status, sn, message) = await _digiflazzProvider.CheckStatusAsync(
+                order.BuyerSkuCode, order.PlayerId, order.OrderNo, cancellationToken);
+
+            if (status == AppConstants.DigiflazzStatus.Sukses)
+            {
+                if (!TryTransition(order, AppConstants.OrderStatus.Completed)) return;
+                order.Sn = sn;
+                await _db.SaveChangesAsync(cancellationToken);
+                _logger.LogInformation(
+                    "[SWEEP] Order {OrderNo} PAID terselesaikan — SN ditemukan di provider.", order.OrderNo);
+                return;
+            }
+
+            if (status == AppConstants.DigiflazzStatus.Pending)
+            {
+                // Topup sudah diterima provider dan masih diproses — tick
+                // berikutnya akan mengecek ulang.
+                _logger.LogInformation(
+                    "[SWEEP] Order {OrderNo} masih Pending di Digiflazz.", order.OrderNo);
+                return;
+            }
+
+            // Gagal di provider → butuh aksi manual admin.
+            if (!TryTransition(order, AppConstants.OrderStatus.NeedsAction)) return;
+            await _db.SaveChangesAsync(cancellationToken);
+            await SendSweepFailedAlertAsync(order, message, cancellationToken);
+            return;
+        }
+        catch
+        {
+            // Balasan CheckStatus tidak bisa dibaca — indikasi kuat topup belum
+            // pernah tercatat provider; lanjut kirim topup (resume) di bawah.
+        }
+
+        // 2. Kirim topup (resume fulfillment awal).
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            string? sn = await _digiflazzProvider.TopupAsync(
+                order.BuyerSkuCode, order.PlayerId, order.OrderNo, cts.Token);
+
+            if (!TryTransition(order, AppConstants.OrderStatus.Processing))
+                return;
+
+            if (!string.IsNullOrEmpty(sn))
+            {
+                if (!TryTransition(order, AppConstants.OrderStatus.Completed)) return;
+                order.Sn = sn;
+            }
+
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            if (!TryTransition(order, AppConstants.OrderStatus.NeedsAction)) return;
+            await _db.SaveChangesAsync(cancellationToken);
+            await SendStuckOrderAlertAsync(order, "Digiflazz API timeout (30s).");
+            _logger.LogWarning("[SWEEP] Resume {OrderNo} timeout — masuk NEEDS_ACTION.", order.OrderNo);
+        }
+        catch (Exception ex)
+        {
+            if (!TryTransition(order, AppConstants.OrderStatus.NeedsAction)) return;
+            await _db.SaveChangesAsync(cancellationToken);
+            await SendStuckOrderAlertAsync(order, ex.Message);
+            _logger.LogError(ex, "[SWEEP] Gagal resume fulfillment {OrderNo}", order.OrderNo);
+        }
+    }
+
     private async Task SendStuckOrderAlertAsync(TopupOrder order, string reason)
     {
         string alertMessage = $@"⚠️ <b>PESANAN TERTUNDA (Uang Sudah Masuk)</b> ⚠️
@@ -864,3 +965,4 @@ Halo Admin, ada pesanan yang pembayarannya sudah berhasil diterima, tapi pengiri
         }
     }
 }
+

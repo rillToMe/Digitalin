@@ -5,8 +5,11 @@ using be_digitalin.Constants;
 using be_digitalin.Workers;
 using be_digitalin.Providers;
 using be_digitalin.Middleware;
-using be_digitalin.Sandbox;
+using be_digitalin.Infrastructure.OpenApi;
+using be_digitalin.Infrastructure.Redis;
 using Microsoft.EntityFrameworkCore;
+using Scalar.AspNetCore;
+using StackExchange.Redis;
 using Microsoft.AspNetCore.Authentication.Abstractions;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
@@ -51,15 +54,21 @@ builder.Services.AddScoped<GoogleProvider>();
 builder.Services.AddScoped<IGoogleAuthService, GoogleAuthService>();
 builder.Services.Configure<RecaptchaSettings>(builder.Configuration.GetSection("Recaptcha"));
 builder.Services.AddScoped<IAdminAuthService, AdminAuthService>();
-builder.Services.AddHttpClient();
 
-builder.Services.AddScoped<MidtransProvider>();
-builder.Services.AddScoped<DigiflazzProvider>();
-builder.Services.AddScoped<TelegramProvider>();
-builder.Services.AddHttpClient<RecaptchaProvider>();
+// ── External HTTP clients: explicit timeout, jangan andalkan default 100s ──
+// Digiflazz 60s (price-list besar; topup tetap di-cap 30s oleh CTS caller).
+builder.Services.AddHttpClient<DigiflazzProvider>(client =>
+    client.Timeout = TimeSpan.FromSeconds(60));
+// Midtrans 20s (Snap creation sinkron di checkout path).
+builder.Services.AddHttpClient<MidtransProvider>(client =>
+    client.Timeout = TimeSpan.FromSeconds(20));
+// Telegram auxiliary: cepat gagal, tidak boleh menahan request.
+builder.Services.AddHttpClient<TelegramProvider>(client =>
+    client.Timeout = TimeSpan.FromSeconds(10));
+// reCAPTCHA verify singkat.
+builder.Services.AddHttpClient<RecaptchaProvider>(client =>
+    client.Timeout = TimeSpan.FromSeconds(10));
 
-//Sandbox mode
-builder.Services.AddSandbox(builder.Configuration);
 // Worker
 //di komen dulu supaya tidak langsung membuat limit rate digiflazz aktif setiap kali development
 // builder.Services.AddHostedService<DigiflazzSyncWorker>();   
@@ -85,8 +94,27 @@ builder.Services.Configure<be_digitalin.Config.EmailSettings>(builder.Configurat
 
 builder.Services.AddSingleton<be_digitalin.Providers.EmailProvider>(); 
 
-// AKTIVKAN MEMORY CACHE (Untuk nyimpan OTP 5 menit)
+// AKTIVKAN MEMORY CACHE (AppSettingsService — bukan untuk OTP registrasi)
 builder.Services.AddMemoryCache();
+
+// ── Redis: temporary state store (registration OTP) ──
+var redisConnectionString = builder.Configuration.GetSection("Redis")["ConnectionString"];
+if (string.IsNullOrWhiteSpace(redisConnectionString))
+{
+    throw new InvalidOperationException(
+        "Konfigurasi 'Redis:ConnectionString' belum diisi. " +
+        "Set di appsettings.{Environment}.json atau environment variable Redis__ConnectionString.");
+}
+builder.Services.Configure<RedisSettings>(builder.Configuration.GetSection("Redis"));
+builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
+    ConnectionMultiplexer.Connect(redisConnectionString, options =>
+    {
+        // Redis = optimization, bukan dependency wajib: app tetap start &
+        // read-only endpoint fallback ke MySQL saat Redis down (fail-open),
+        // sementara OTP verification tetap fail-closed di level pemakaiannya.
+        options.AbortOnConnectFail = false;
+    }));
+builder.Services.AddSingleton<IRedisService, RedisService>();
 
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
 
@@ -130,47 +158,64 @@ builder.Services.AddAuthorization(options =>
 // Rate Limiting
 builder.Services.AddRateLimiter(options =>
 {
-    options.AddFixedWindowLimiter("OtpPolicy", config =>
-    {
-        config.PermitLimit = 3;
-        config.Window = TimeSpan.FromMinutes(10);
-        config.QueueLimit = 0;          
-        config.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-    });
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-    // Custom rejection response: 429 Too Many Requests
+    // ── Rate limiting partitioned PER CLIENT-IP ──
+    // Memperbaiki bucket global lama: 1 user tidak lagi bisa menghabiskan
+    // kuota user lain. NOTE multi-instance: bucket in-memory per instance
+    // (belum distributed) — konsisten dengan deployment saat ini.
+    static FixedWindowRateLimiterOptions IpFixedWindow(int permitLimit, int windowMinutes) =>
+        new()
+        {
+            PermitLimit = permitLimit,
+            Window = TimeSpan.FromMinutes(windowMinutes),
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = 0
+        };
+
+    string PartitionByIp(HttpContext ctx) =>
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+    // Registrasi OTP + request reset password: 3 / 10 menit / IP.
+    options.AddPolicy("OtpPolicy", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            PartitionByIp(context), _ => IpFixedWindow(3, 10)));
+
+    // Customer login (lokal & Google): 10 / 5 menit / IP.
+    options.AddPolicy("CustomerLoginPolicy", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            PartitionByIp(context), _ => IpFixedWindow(10, 5)));
+
+    // Admin login: 5 / 5 menit / IP.
+    options.AddPolicy("AdminLoginPolicy", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            PartitionByIp(context), _ => IpFixedWindow(5, 5)));
+
+    // Custom rejection response: 429 Too Many Requests (semua policy).
     options.OnRejected = (context, cancellationToken) =>
     {
         context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
         context.HttpContext.Response.WriteAsJsonAsync(
-            new { message = "Terlalu banyak permintaan OTP. Coba lagi dalam beberapa menit." },
+            new { message = "Terlalu banyak permintaan. Coba lagi nanti." },
             cancellationToken);
         return ValueTask.CompletedTask;
     };
 });
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
+builder.Services.AddOpenApi(options =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Digitalin API", Version = "v1" });
+    options.OpenApiVersion = Microsoft.OpenApi.OpenApiSpecVersion.OpenApi3_1;
 
-    // Konfigurasi agar Swagger menyediakan tombol "Authorize" untuk JWT
-    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    options.AddDocumentTransformer((document, context, cancellationToken) =>
     {
-        Description = "Masukkan token JWT dengan format: Bearer {token Anda}",
-        Name = "Authorization",
-        In = ParameterLocation.Header,
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
+        document.Info ??= new OpenApiInfo();
+        document.Info.Title = "Digitalin API";
+        document.Info.Version = "v1";
+        return Task.CompletedTask;
     });
 
-    c.AddSecurityRequirement(document => new OpenApiSecurityRequirement
-    {
-        {
-            new OpenApiSecuritySchemeReference("Bearer", document, null),
-            new List<string>()
-        }
-    });
+    options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
 });
 
 //  CORS - Tightened to specific headers and methods
@@ -194,11 +239,8 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Digitalin API V1");
-    });
+    app.MapOpenApi();
+    app.MapScalarApiReference();
 }
 
 app.UseCors("AllowReactApp");
@@ -222,11 +264,6 @@ app.Use(async (context, next) =>
 });
 
 
-//sandbox mode untuk check Endpoint dari external api
-if (app.Environment.IsDevelopment())
-{
-    app.MapSandbox();
-}
 // Rate Limiter must be placed BEFORE Authentication/Authorization
 app.UseRateLimiter();
 
@@ -265,6 +302,7 @@ app.MapGet("/ping-db", async (DigitalinDbContext db) => {
 await using (var seedScope = app.Services.CreateAsyncScope())
 {
     var db = seedScope.ServiceProvider.GetRequiredService<DigitalinDbContext>();
+    var appSettings = seedScope.ServiceProvider.GetRequiredService<IAppSettingsService>();
     var defaults = new Dictionary<string, string>
     {
         [AppConstants.SystemSettings.MaintenanceKeys.Enabled]         = "false",
@@ -275,12 +313,11 @@ await using (var seedScope = app.Services.CreateAsyncScope())
     };
     foreach (var (key, value) in defaults)
     {
-        if (!await db.AppSettings.AnyAsync(s => s.Key == key))
+        if (await appSettings.GetAsync(key) is null)
         {
-            db.AppSettings.Add(new be_digitalin.Models.AppSetting { Key = key, Value = value });
+            await appSettings.SetAsync(key, value);
         }
     }
-    await db.SaveChangesAsync();
 
     // ── Seed default SUPER_ADMIN (idempotent — only inserts if no admins exist) ──
     if (!await db.Admins.AnyAsync())

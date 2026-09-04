@@ -22,10 +22,10 @@ public class PasswordResetService : IPasswordResetService
     }
 
     /// <inheritdoc />
-    public async Task<bool> RequestPasswordResetAsync(string email)
+    public async Task<bool> RequestPasswordResetAsync(string email, CancellationToken cancellationToken = default)
     {
         var customer = await _db.Customers
-            .FirstOrDefaultAsync(c => c.Email == email);
+            .FirstOrDefaultAsync(c => c.Email == email, cancellationToken);
 
         if (customer == null) return false;
 
@@ -35,16 +35,16 @@ public class PasswordResetService : IPasswordResetService
             OtpPurpose.ForgotPassword);
 
         // Send OTP via email using the dedicated password-reset template
-        await _emailProvider.SendPasswordResetOtpEmailAsync(email, otpCode);
+        await _emailProvider.SendPasswordResetOtpEmailAsync(email, otpCode, cancellationToken);
         return true;
     }
 
     /// <inheritdoc />
     public async Task<PasswordResetResult> ResetPasswordAsync(
-        string email, string otpCode, string newPassword)
+        string email, string otpCode, string newPassword, CancellationToken cancellationToken = default)
     {
         var customer = await _db.Customers
-            .FirstOrDefaultAsync(c => c.Email == email);
+            .FirstOrDefaultAsync(c => c.Email == email, cancellationToken);
 
         if (customer == null) return PasswordResetResult.EmailNotFound;
 
@@ -63,3 +63,5 @@ public class PasswordResetService : IPasswordResetService
         return PasswordResetResult.Success;
     }
 }
+
+

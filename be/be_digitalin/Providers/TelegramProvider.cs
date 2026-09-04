@@ -22,9 +22,9 @@ public class TelegramProvider
         _chatId = config["TelegramSettings:ChatId"] ?? "";
     }
 
-    public async Task SendNotificationAsync(string message)
+    public async Task SendNotificationAsync(string message, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrEmpty(_botToken) || string.IsNullOrEmpty(_chatId)) 
+        if (string.IsNullOrEmpty(_botToken) || string.IsNullOrEmpty(_chatId))
             return; // Skip kalau config kosong
 
         try
@@ -34,11 +34,11 @@ public class TelegramProvider
             {
                 chat_id = _chatId,
                 text = message,
-                parse_mode = "HTML" 
+                parse_mode = "HTML"
             };
 
             var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-            await _httpClient.PostAsync(url, content);
+            await _httpClient.PostAsync(url, content, cancellationToken);
         }
         catch (Exception ex)
         {
