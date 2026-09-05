@@ -1,5 +1,4 @@
 using be_digitalin.Data;
-using be_digitalin.Endpoints;
 using be_digitalin.Config;
 using be_digitalin.Constants;
 using be_digitalin.Workers;
@@ -17,6 +16,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi;
 using be_digitalin.Services.Admin;
 using be_digitalin.Services.Auth;
@@ -203,6 +203,37 @@ builder.Services.AddRateLimiter(options =>
 });
 
 builder.Services.AddEndpointsApiExplorer();
+
+// ── Phase 0: MVC Controllers (migrasi Minimal API → Controllers) ──
+// Belum ada controller; AddControllers() ini inert sampai MapControllers()
+// dan controllers dibuat di fase berikutnya.
+builder.Services.AddControllers();
+
+// Shim ApiBehaviorOptions: saat [ApiController] auto-validasi DataAnnotations,
+// bentuk error DIPAKSA kembali { message } (sesuai kontrak lama yang validasi
+// manual di Minimal API). Berlaku untuk action controller saja.
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    // Jangan otomatis ubah 4xx tanpa body (mis. NotFound()/BadRequest() dari
+    // action) menjadi ProblemDetails — endpoint Minimal API lama mengembalikan
+    // body kosong untuk kasus itu, dan kontrak harus tetap identik.
+    options.SuppressMapClientErrors = true;
+
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var firstMessage = context.ModelState
+            .Where(state => state.Value?.Errors.Count > 0)
+            .SelectMany(state => state.Value!.Errors)
+            .Select(error => error.ErrorMessage)
+            .FirstOrDefault(message => !string.IsNullOrWhiteSpace(message));
+
+        return new BadRequestObjectResult(new { message = firstMessage ?? "Request tidak valid." })
+        {
+            ContentTypes = { System.Net.Mime.MediaTypeNames.Application.Json }
+        };
+    };
+});
+
 builder.Services.AddOpenApi(options =>
 {
     options.OpenApiVersion = Microsoft.OpenApi.OpenApiSpecVersion.OpenApi3_1;
@@ -273,23 +304,13 @@ app.UseAuthorization();
 // Maintenance Mode — runs AFTER Auth so that JWT is parsed & we can check Admin role
 app.UseMaintenanceMode();
 
-// Seluruh API aplikasi hidup di bawah satu prefix versi (AppConstants.Api).
-var api = app.MapGroup(AppConstants.Api.Prefix);
+// Seluruh route API sekarang berasal dari Controllers (attribute routing;
+// prefix versi ada di [Route] masing-masing via AppConstants.Api.Prefix).
+// Migrasi Minimal API → Controllers selesai: folder Endpoints/ sudah dihapus.
+app.MapControllers();
 
-api.MapAuthEndpoints();
-api.MapProductEndpoints();
-api.MapOrderEndpoints();
-api.MapBannerEndpoints();
-api.MapSearchEndpoints();
-api.MapVoucherEndpoints();
-
-//admin
-api.MapDashboardEndpoints();
-api.MapSettingsEndpoints();
-api.MapAdminManagementEndpoints();
-
-// Webhook provider — path eksternal, tidak diberi prefix versi.
-app.MapWebhookEndpoints();
+// (Webhook Midtrans/Digiflazz sudah dipindah ke WebhookController —
+//  route /webhooks tetap root, tanpa prefix versi.)
 
 // Endpoint ping-db untuk testing
 app.MapGet("/ping-db", async (DigitalinDbContext db) => {
@@ -319,7 +340,7 @@ await using (var seedScope = app.Services.CreateAsyncScope())
         }
     }
 
-    // ── Seed default SUPER_ADMIN (idempotent — only inserts if no admins exist) ──
+    // Seed default SUPER_ADMIN (idempotent — only inserts if no admins exist) 
     if (!await db.Admins.AnyAsync())
     {
         db.Admins.Add(new be_digitalin.Models.Admin
