@@ -7,6 +7,7 @@ import { authService } from "../../../services/api";
 import ForgotPasswordEmailStep from "../../../components/auth/ForgotPasswordEmailStep";
 import ForgotPasswordOtpStep from "../../../components/auth/ForgotPasswordOtpStep";
 import ForgotPasswordSuccessStep from "../../../components/auth/ForgotPasswordSuccessStep";
+import BackButton from "../../../components/common/BackButton";
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
@@ -68,6 +69,11 @@ export default function ForgotPasswordPage() {
       className="min-h-screen flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8"
       style={{ backgroundColor: "var(--color-neutral)" }}
     >
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="mb-4 text-left">
+          <BackButton />
+        </div>
+      </div>
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
         {/* Brand Logo */}
         <div className="flex justify-center items-center gap-2 mb-6">

@@ -54,6 +54,12 @@ import type {
   MidtransExpiryResponse,
   UpdateMidtransExpiryPayload,
   SyncResponse,
+  FaqItem,
+  CreateFaqPayload,
+  UpdateFaqPayload,
+  LeaderboardEntry,
+  LeaderboardPeriod,
+  PublicInvoiceResponse,
   AdminVoucherListResponse,
   AdminVoucherDetailResponse,
   CreateVoucherPayload,
@@ -170,6 +176,11 @@ export const authService = {
     api.post<MessageResponse>("/auth/local/reset-password", payload).then((r) => r.data),
 };
 
+/* Login Facebook = full-page navigation (OAuth authorization-code flow via
+   backend), bukan XHR: browser menjalankan roundtrip backend → Facebook →
+   callback → redirect ke /auth/facebook/callback membawa JWT di fragment. */
+export const facebookLoginUrl = `${api.defaults.baseURL}/auth/facebook/login`;
+
 // Admin auth
 export const adminAuthService = {
   login: (payload: AdminLoginPayload) =>
@@ -210,6 +221,31 @@ export const orderService = {
 export const bannerService = {
   getAll: () =>
     api.get<BannersResponse>("/banners").then((r) => r.data),
+};
+
+// FAQ (publik — filter/search server-side, kategori dari API)
+export const faqService = {
+  getAll: (params?: { category?: string; search?: string }) =>
+    api.get<FaqItem[]>("/faqs", { params }).then((r) => r.data),
+  getFeatured: () =>
+    api.get<FaqItem[]>("/faqs/featured").then((r) => r.data),
+  getCategories: () =>
+    api.get<string[]>("/faqs/categories").then((r) => r.data),
+};
+
+// Leaderboard pembeli (publik — ranking dihitung backend per periode)
+export const leaderboardService = {
+  get: (period: LeaderboardPeriod) =>
+    api.get<LeaderboardEntry[]>("/leaderboard", { params: { period } }).then((r) => r.data),
+};
+
+/* Cek Transaksi publik — tanpa login. Interceptor tetap melampirkan JWT
+   bila ada (optional-auth) supaya backend bisa menandai invoice milik akun. */
+export const invoiceService = {
+  get: (invoiceNumber: string) =>
+    api
+      .get<PublicInvoiceResponse>(`/invoices/${encodeURIComponent(invoiceNumber.trim())}`)
+      .then((r) => r.data),
 };
 
 // Profile
@@ -307,6 +343,18 @@ export const adminService = {
     api.post<RetryOrderResponse>(`/admin/orders/${orderNo}/retry`).then((r) => r.data),
   refundOrder: (orderNo: string) =>
     api.post<RefundOrderResponse>(`/admin/orders/${orderNo}/refund`).then((r) => r.data),
+
+  // FAQ
+  getFaqs: (params?: { category?: string; search?: string }) =>
+    api.get<FaqItem[]>("/admin/faqs", { params }).then((r) => r.data),
+  getFaq: (id: number) =>
+    api.get<FaqItem>(`/admin/faqs/${id}`).then((r) => r.data),
+  createFaq: (payload: CreateFaqPayload) =>
+    api.post<FaqItem>("/admin/faqs", payload).then((r) => r.data),
+  updateFaq: (id: number, payload: UpdateFaqPayload) =>
+    api.put<FaqItem>(`/admin/faqs/${id}`, payload).then((r) => r.data),
+  deleteFaq: (id: number) =>
+    api.delete<MessageResponse>(`/admin/faqs/${id}`).then((r) => r.data),
 
   // Maintenance Mode
   getMaintenance: () =>

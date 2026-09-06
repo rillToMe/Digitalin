@@ -33,7 +33,7 @@
 
 | Role | JWT Claim | Token Lifetime | Issued By |
 |------|-----------|----------------|-----------|
-| CUSTOMER | `ClaimTypes.NameIdentifier` = customerId, `ClaimTypes.Role` = "CUSTOMER" | 24 hours | `POST /api/v1/auth/local/login` |
+| CUSTOMER | `ClaimTypes.NameIdentifier` = customerId, `ClaimTypes.Role` = "CUSTOMER" | 24 hours | `POST /api/v1/auth/local/login`, `POST /api/v1/auth/google`, `GET /api/v1/auth/facebook/callback` |
 | ADMIN | `ClaimTypes.Name` = username, `ClaimTypes.Role` = `"ADMIN"` | 12 hours | `POST /api/v1/admin/auth/login` |
 | SUPER_ADMIN | `ClaimTypes.Name` = username, `ClaimTypes.Role` = `"SUPER_ADMIN"` | 12 hours | `POST /api/v1/admin/auth/login` |
 
@@ -41,7 +41,7 @@
 
 | Prefix / Pattern | Auth Required | Role |
 |------------------|---------------|------|
-| `POST /api/v1/auth/local/*`, `POST /api/v1/auth/google`, `GET /api/v1/games/*` | No | Public |
+| `POST /api/v1/auth/local/*`, `POST /api/v1/auth/google`, `GET /api/v1/auth/facebook/*`, `GET /api/v1/faqs*`, `GET /api/v1/leaderboard`, `GET /api/v1/invoices/*`, `GET /api/v1/games/*` | No | Public |
 | `GET /api/v1/banners/` | No | Public |
 | `POST /api/v1/orders/`, `POST /api/v1/orders/preview` | Optional | Any (customerId extracted if present) |
 | `GET /api/v1/auth/profile`, `PUT /api/v1/auth/profile`, `GET /api/v1/orders/my-history` | Yes | CUSTOMER |
@@ -306,6 +306,7 @@ interface GoogleLoginResponse {
 
 - Backend verifies the Google ID Token using the official Google SDK (signature, audience, issuer, expiration)
 - **New email** → a new Customer is auto-created with `AuthProvider = "GOOGLE"`, `GoogleId = sub`, `FullName = Google display name`. Email is treated as verified.
+- **Avatar**: on every successful Google login the verified profile's `picture` URL is stored/refreshed as `Customer.AvatarUrl` (nullable; preserved as-is when Google omits the picture). Provider-agnostic field - no Google-specific columns.
 - **Existing local account with same email** → the account is linked by setting `GoogleId`. No duplicate account is created. Local password login continues to work.
 - **Existing Google-linked account** → login proceeds normally, no DB write required.
 - JWT claims are identical to local login: `NameIdentifier` = customerId, `Role` = "CUSTOMER", 24-hour expiry.
@@ -313,6 +314,81 @@ interface GoogleLoginResponse {
 - Error 400: `"Invalid Google ID token."` — token failed verification (bad signature, wrong audience, expired, or malformed)
 - Error 400: `"Google token verification failed."` — network or unexpected error during verification
 - The backend does NOT store the Google ID token, access token, or refresh token — only `GoogleId` (the `sub` claim) and the email.
+
+---
+
+### GET /api/v1/auth/facebook/login
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `GET` |
+| Path | `/api/v1/auth/facebook/login` |
+| Description | Start Facebook OAuth (authorization code flow). Issues a CSRF `state` (stored server-side, 10 minute TTL, single-use) and responds `302` redirecting the browser to the Facebook authorization dialog (scope: `email, public_profile`). Called via full-page navigation from the frontend, NOT XHR. |
+| Auth | None (Public) |
+| Rate limit | `CustomerLoginPolicy` (10 / 5 min / IP) |
+
+#### REQUEST PAYLOAD
+
+_No request body / query params._
+
+#### RESPONSE PAYLOAD
+
+```
+302 Found
+Location: https://www.facebook.com/dialog/oauth?client_id=...&redirect_uri=...&state=...&response_type=code&scope=email,public_profile
+```
+
+#### BUSINESS RULES & EDGE CASES
+
+- `state` is generated with CSPRNG (32 bytes, base64url) and stored in Redis keyed `digitalin:oauth:facebook:state:{state}` — validated and consumed at the callback.
+- If Facebook OAuth is not configured (empty `FacebookAuth:AppId/AppSecret/RedirectUri`), the endpoint responds `302` to the frontend callback URL with `#error=Login Facebook belum dikonfigurasi di server.` (or `400 { message }` if `FrontendRedirectUri` is also unset).
+
+---
+
+### GET /api/v1/auth/facebook/callback
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `GET` |
+| Path | `/api/v1/auth/facebook/callback` |
+| Description | OAuth callback target (must be registered in the Meta App as a Valid OAuth Redirect URI). Validates `state`, exchanges the code server-to-server for the Facebook profile, then logs in / auto-registers the Facebook account and `302`-redirects the browser to the configured frontend redirect URL carrying the JWT in the URL fragment. |
+| Auth | None (Public) — invoked by Facebook via browser redirect |
+| Rate limit | `CustomerLoginPolicy` (10 / 5 min / IP) |
+
+#### REQUEST PAYLOAD
+
+| Query Param | Type | Required/Optional | Description & Constraints |
+|-------------|------|-------------------|---------------------------|
+| `code` | `string` | Required (on success) | Authorization code from Facebook |
+| `state` | `string` | Required (on success) | CSRF state issued by `/auth/facebook/login` |
+| `error` | `string` | Optional | `access_denied` when the user cancels; other values for provider-side errors |
+
+#### RESPONSE PAYLOAD
+
+```
+302 Found
+Location: {FacebookAuth:FrontendRedirectUri}#token={JWT}          // success
+Location: {FacebookAuth:FrontendRedirectUri}#error={safe message} // failure
+```
+
+- The JWT is identical to local/Google login (`NameIdentifier` = customerId, `Role` = "CUSTOMER", 24h expiry) — same `ITokenService` pipeline.
+- The fragment (`#token=...`) never reaches any server; the frontend callback page clears it from the address bar after reading.
+
+#### BUSINESS RULES & EDGE CASES
+
+- **State validation (CSRF)**: `state` must exist server-side (Redis) and is deleted BEFORE the code exchange — single-use; replay or mismatched state fails with `"Sesi login Facebook kedaluwarsa atau tidak valid. Silakan coba lagi."`
+- **User cancels at Facebook** (`error=access_denied`): `#error=Login Facebook dibatalkan.` — no state consumption, no code exchange.
+- **Missing code / invalid code / token exchange failure / profile failure**: user-friendly `#error=...` messages; internal details (HTTP status, AppSecret, tokens) are never exposed or logged.
+- **Account separation (differs from Google!)**: the Facebook identity is the pair (`Provider = "FACEBOOK"`, `ProviderUserId` = Facebook user id) stored in the `ExternalLogins` table — lookup NEVER uses email. NO account linking/merging: the same email registered via local/Google stays a separate account from the Facebook one.
+- **New Facebook user** → new Customer (`AuthProvider = "FACEBOOK"`, empty `PasswordHash`) + `ExternalLogins` row.
+- **Avatar**: on every successful Facebook login the profile picture URL from the `/me` response (`picture.type(large)`, requested in the same Graph call - no extra HTTP) is stored/refreshed as `Customer.AvatarUrl` (nullable; preserved as-is when Facebook omits the picture). Provider-agnostic field - no Facebook-specific columns.
+- **Email handling**: the Facebook email is used only if no other account already uses it; otherwise (or when Facebook provides no email) a deterministic placeholder `fb_{facebookUserId}@noreply.facebook.invalid` is stored — required because `Customers.Email` has a unique index.
+- The backend stores no Facebook access token — only the provider user id (`ExternalLogins.ProviderUserId`).
+- Facebook profile data always comes from the server-side Graph API call, never from client-supplied data.
 
 ---
 
@@ -339,13 +415,17 @@ _No request body._
 interface ProfileResponse {
   email: string;
   fullName: string;
-  createtAt: string; // ⚠️ TYPO IS INTENTIONAL — ISO datetime
+  createtAt: string; // ⚠️ TYPO IS INTENTIONAL - ISO datetime
+  avatarUrl: string | null; // OAuth (Google/Facebook) profile picture URL; null = no avatar
 }
 ```
 
 #### BUSINESS RULES & EDGE CASES
 
-- ⚠️ The field is `createtAt` (NOT `createdAt`) — this is a backend typo that must be matched exactly
+- ⚠️ The field is `createtAt` (NOT `createdAt`) - this is a backend typo that must be matched exactly
+- `avatarUrl` comes ONLY from the server-verified OAuth provider profile (Google `picture` / Facebook Graph `picture`), stored as-is on `Customer.AvatarUrl`. It is provider-agnostic - never `googlePictureUrl`/`facebookPictureUrl`. `null` for email/password users without an OAuth login.
+- On successful Google/Facebook OAuth login the avatar is refreshed to the provider's current picture; if the provider omits the picture the existing `avatarUrl` is preserved (never overwritten with null).
+- `avatarUrl` cannot be set from the client - `PUT /auth/profile` accepts only `fullName`/`newPassword`.
 - Error 401: Missing/invalid token
 - Error 404: Customer not found
 
@@ -2900,6 +2980,250 @@ GET /api/v1/admin/vouchers/1/usage?page=1&limit=10
   "totalPages": 1
 }
 ```
+
+---
+
+## 10. FAQ (CMS)
+
+> FAQ dikelola admin lewat `/admin/faqs`; halaman publik (FAQ page & homepage) hanya membaca endpoint public di bawah. Semua respons memakai DTO `FaqResponse` — entity EF tidak pernah terekspos.
+
+### GET /api/v1/faqs
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `GET` |
+| Path | `/api/v1/faqs` |
+| Description | Daftar FAQ publik dengan filter kategori + search (cocok ke question ATAU answer, case-insensitive) |
+| Auth | None (Public) |
+
+#### REQUEST PAYLOAD
+
+| Query Param | Type | Required/Optional | Description & Constraints |
+|-------------|------|-------------------|---------------------------|
+| `category` | `string` | Optional | Filter kategori eksak (mis. `Top Up`) |
+| `search` | `string` | Optional | Pencocokan substring pada question atau answer |
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK — array FaqResponse, urut Id ascending
+interface FaqResponse {
+  id: number;
+  question: string;
+  answer: string;
+  category: string;
+  featured: boolean;
+}
+```
+
+#### BUSINESS RULES & EDGE CASES
+
+- Tanpa param → semua FAQ.
+- `search` di-trim; string kosong/whitespace diabaikan.
+- Kategori valid apapun diterima — kategori yang tidak ada menghasilkan array kosong (bukan error).
+
+---
+
+### GET /api/v1/faqs/featured
+
+| Property | Value |
+|----------|-------|
+| Method | `GET` |
+| Path | `/api/v1/faqs/featured` |
+| Description | FAQ unggulan untuk homepage — **maksimal 6, ditegakkan backend** |
+| Auth | None (Public) |
+
+**Response**: sama dengan `GET /faqs` (array `FaqResponse`).
+
+**Business rules:**
+- Filter `featured = true`, urut `Id` ascending, `Take(6)` — jika sumber data menandai >6 unggulan, yang dikembalikan tetap deterministik: 6 FAQ unggulan dengan Id terkecil.
+- Membuat/mengubah FAQ menjadi unggulan ke-7 ditolak `400` (lihat endpoint admin) — jalur ini hanya fallback proteksi tampilan.
+
+---
+
+### GET /api/v1/faqs/categories
+
+| Property | Value |
+|----------|-------|
+| Method | `GET` |
+| Path | `/api/v1/faqs/categories` |
+| Description | Daftar kategori FAQ distinct (urut alfabetis) — frontend TIDAK boleh hardcode kategori |
+| Auth | None (Public) |
+
+**Response**: `string[]` (mis. `["Akun","Lainnya","Pembayaran","Top Up","Transaksi","Voucher"]`).
+
+---
+
+### GET /api/v1/admin/faqs
+
+| Property | Value |
+|----------|-------|
+| Method | `GET` |
+| Path | `/api/v1/admin/faqs` |
+| Description | Daftar seluruh FAQ untuk manajemen admin (search/category filter, tanpa pagination) |
+| Auth | JWT Required (ADMIN, SUPER_ADMIN) |
+
+Query param: `search`, `category` (opsional, perilaku sama dengan `GET /faqs`). Response: array `FaqResponse` urut `Id`.
+
+---
+
+### GET /api/v1/admin/faqs/{id}
+
+| Property | Value |
+|----------|-------|
+| Method | `GET` |
+| Path | `/api/v1/admin/faqs/{id}` |
+| Description | Detail satu FAQ |
+| Auth | JWT Required (ADMIN, SUPER_ADMIN) |
+
+**Response**: `FaqResponse`. **Error 404**: `{ message: "FAQ tidak ditemukan." }`.
+
+---
+
+### POST /api/v1/admin/faqs
+
+| Property | Value |
+|----------|-------|
+| Method | `POST` |
+| Path | `/api/v1/admin/faqs` |
+| Description | Buat FAQ baru |
+| Auth | JWT Required (ADMIN, SUPER_ADMIN) |
+
+#### REQUEST PAYLOAD
+
+```typescript
+interface CreateFaqRequest {
+  question: string;  // wajib, non-kosong setelah trim
+  answer: string;    // wajib, non-kosong setelah trim
+  category: string;  // wajib, non-kosong setelah trim (string bebas — tidak divalidasi ke daftar tetap)
+  featured: boolean; // wajib
+}
+```
+
+**Response**: `201 Created` + `FaqResponse` (Location: `/api/v1/admin/faqs/{id}`). `id` tidak pernah diterima dari klien — selalu dibuat server.
+
+**Errors (400 `{ message }`):**
+- `"Pertanyaan tidak boleh kosong."` / `"Jawaban tidak boleh kosong."` / `"Kategori tidak boleh kosong."`
+- `"Maksimal 6 FAQ unggulan. Matikan salah satu terlebih dahulu."` — membuat FAQ unggulan ke-7 (ada 6 unggulan existing). Tidak ada record lain yang diam-diam di-un-featured.
+
+---
+
+### PUT /api/v1/admin/faqs/{id}
+
+Sama seperti POST (payload `UpdateFaqRequest` = shape `CreateFaqRequest`). **Response**: `200` + `FaqResponse` ter-update. **404** bila id tidak ada.
+
+**Aturan unggulan saat update**: batas maks 6 hanya dihitung bila update MENYALAKAN `featured` dari record yang sebelumnya tidak unggulan; FAQ yang sudah unggulan dan tetap unggulan tidak dihitung ulang.
+
+---
+
+### DELETE /api/v1/admin/faqs/{id}
+
+Hard delete (tidak ada soft-delete). **Response**: `200 { message: "FAQ berhasil dihapus." }`. **Error 404**: `{ message: "FAQ tidak ditemukan." }`. Menghapus FAQ unggulan membuka slot unggulan.
+
+---
+
+## 11. Leaderboard Pembeli (Public)
+
+> Ranking pembeli berdasarkan total belanja aktual — derived data murni dari order; tidak ada CRUD/tabel sendiri, admin tidak pernah mengedit rank/totalSpent.
+
+### GET /api/v1/leaderboard
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `GET` |
+| Path | `/api/v1/leaderboard` |
+| Description | Top 10 pembeli per periode, ranking = Sum(TotalPaid) order lunak milik customer teridentifikasi |
+| Auth | None (Public) |
+
+#### REQUEST PAYLOAD
+
+| Query Param | Type | Required/Optional | Description & Constraints |
+|-------------|------|-------------------|---------------------------|
+| `period` | `string` | Optional (default `today`) | `today` \| `week` \| `month` (case-insensitive, di-trim; kosong/null = `today`) |
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK — maks 10 entri, urut totalSpent descending
+interface LeaderboardEntry {
+  rank: number;        // 1..10, dihitung dari urutan hasil (tidak disimpan)
+  displayName: string; // Customer.FullName; nama bentuk email disamarkan "bud***"
+  avatarUrl: string | null; // Customer.AvatarUrl (OAuth); null = ikon default
+  totalSpent: number;  // Sum(TotalPaid), decimal
+}
+```
+
+#### BUSINESS RULES & EDGE CASES
+
+- **Ranking**: `Sum(TotalPaid)` per customer, descending. Tie-break `CustomerId` ascending (deterministik). Rank 1..10 dihitung dari urutan hasil — tidak ada kolom rank di DB.
+- **Order eligible** (uang masuk, dari state machine OrderStateTransition): `PAID`, `PROCESSING`, `COMPLETED`, `NEEDS_ACTION`. Dikecualikan: `PENDING` (belum bayar), `EXPIRED`, `FAILED`, `REFUNDED`.
+- **Guest order** (`CustomerId` null) dikecualikan — tamu tidak dikelompokkan.
+- **Periode** (kalender WIB / Asia/Jakarta, interval setengah-terbuka `start <= OrderDate < now`):
+  - `today` — 00:00 WIB hari ini → sekarang
+  - `week` — Senin 00:00 WIB minggu ini → sekarang
+  - `month` — tanggal 1 00:00 WIB bulan ini → sekarang
+- **Maks 10 entri** — ditegakkan di query (SQL `LIMIT 10`).
+- **Privasi**: hanya 4 field publik di atas. Tidak ada email/telepon/password/OAuth ID/order number/CustomerId. `displayName` yang berbentuk email (fallback auto-register OAuth) disamarkan: maks 3 karakter pertama local-part + `***`.
+- Agregasi seluruhnya terjadi di database (EF Core → `WHERE IN → JOIN → GROUP BY → SUM → ORDER BY → LIMIT`).
+- Error 400: `?period=yearly` → `{ message: "Periode tidak valid. Gunakan today, week, atau month." }`
+- Array kosong bila belum ada pembelian eligible pada periode tsb.
+
+---
+
+## 12. Cek Transaksi (Public Invoice Lookup)
+
+> Halaman "Cek Transaksi" — pengguna memasukkan nomor invoice dan melihat status transaksi TANPA login. Boundary akses order: endpoint ini (publik, satu invoice by nomor) vs `GET /orders/my-history` (privat, `[Authorize]`, khusus pemilik) vs `/admin/orders` (policy AdminOnly).
+
+### GET /api/v1/invoices/{orderNo}
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `GET` |
+| Path | `/api/v1/invoices/{orderNo}` |
+| Description | Lookup satu transaksi berdasarkan nomor invoice (`INV-yyyyMMdd-XXXXXXXXXX`) untuk tampilan publik. Tidak memerlukan login. |
+| Auth | None (Public) — **optional-auth**: JWT customer yang valid (bila ada) mengisi flag `belongsToAccount` |
+| Rate limit | `OrderPolicy` (10 / 5 menit / IP) |
+
+#### REQUEST PAYLOAD
+
+| Path Param | Type | Required/Optional | Description & Constraints |
+|------------|------|-------------------|---------------------------|
+| `orderNo` | `string` | Required | Nomor invoice lengkap; di-trim; kosong/whitespace → 400 |
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK
+interface PublicInvoiceResponse {
+  invoiceNumber: string;      // "INV-20260906-67310E54B0"
+  productName: string;        // snapshot nama produk
+  imageUrl: string | null;    // snapshot gambar produk
+  amount: number;             // decimal — TotalPaid (final setelah diskon)
+  status: string;             // status order: PENDING|PAID|PROCESSING|COMPLETED|NEEDS_ACTION|FAILED|EXPIRED|REFUNDED
+  paymentStatus: string;      // ringkasan pembayaran: UNPAID|PAID|FAILED|REFUNDED
+  createdAt: string;          // ISO datetime UTC
+  expiresAt: string | null;   // batas bayar Midtrans — HANYA saat status PENDING
+  belongsToAccount: boolean;  // true bila JWT valid dan order milik customer tsb
+}
+```
+
+#### BUSINESS RULES & EDGE CASES
+
+- **paymentStatus mapping**: PENDING → UNPAID; PAID/PROCESSING/COMPLETED/NEEDS_ACTION → PAID; EXPIRED/FAILED → FAILED; REFUNDED → REFUNDED.
+- **expiresAt**: `OrderDate + MidtransExpiryMinutes` (AppSettings — SSOT yang sama dengan Snap & sweep); null untuk status non-PENDING.
+- **Identitas publik**: nomor invoice = `OrderNo` — id publik order yang sudah ada (juga order_id Midtrans): 10 karakter hex dari CSPRNG (`Guid.NewGuid()`), non-sekuensial, bukan Id DB. Rate limit per IP menutup enumerasi. **Id DB internal tidak bisa dipakai** mencari order.
+- **Privasi**: hanya field di atas — tidak ada PlayerId, SnapToken, RedirectUrl, Sn (serial number produk), CustomerId, atau field admin. Entity EF tidak pernah diserialisasi langsung.
+- `belongsToAccount`: guest (tanpa JWT) → selalu false; pemilik → true; customer lain → false. Flag ini tidak membatasi akses dan tidak membocorkan identitas pemilik.
+- Guest order (`CustomerId` null) tetap bisa dicek publik — alur guest checkout tidak berubah.
+- Error 400: `orderNo` kosong → `{ message: "Masukkan nomor invoice." }`
+- Error 404: invoice tidak ditemukan → `{ message: "Invoice tidak ditemukan." }` (pesan sama untuk tidak-ada — tidak membocorkan keberadaan order).
+- Error 429: rate limit (pesan standar OrderPolicy).
 
 ---
 

@@ -7,9 +7,8 @@ import { ChevronLeft, ChevronRight, HelpCircle, ArrowRight,
   Headphones,
  } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { bannerService } from "../../../services/api";
+import { bannerService, faqService } from "../../../services/api";
 import type { BannerItem } from "../../../api/index";
-import { getFeaturedFaqs } from "../../../data/faqs";
 import FaqAccordion from "../../../components/common/FaqAccordion";
 import CategorySection from "../../../components/categori/CategorySection";
 
@@ -110,6 +109,12 @@ export default function HomePage() {
   const { data: banners = [], isLoading: bannersLoading } = useQuery({
     queryKey: ["banners"],
     queryFn: bannerService.getAll,
+  });
+
+  // FAQ unggulan — maks 6 sudah ditegakkan backend (GET /faqs/featured).
+  const { data: featuredFaqs = [] } = useQuery({
+    queryKey: ["faqs-featured"],
+    queryFn: faqService.getFeatured,
   });
 
   return (
@@ -258,7 +263,7 @@ export default function HomePage() {
           style={{ backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border-light)" }}
         >
           <div className="px-5">
-            <FaqAccordion items={getFeaturedFaqs().slice(0, 6)} />
+            <FaqAccordion items={featuredFaqs} />
           </div>
         </div>
         <div className="text-center mt-5">

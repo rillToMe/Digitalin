@@ -9,7 +9,9 @@ import { useAuthStore } from "../../../store/authStore";
 import type { LoginPayload, RegisterPayload } from "../../../api/index";
 import OtpInput from "../../../components/auth/OtpInput";
 import GoogleLoginButton, { googleClientId } from "../../../components/common/GoogleLoginButton";
+import FacebookLoginButton from "../../../components/common/FacebookLoginButton";
 import RecaptchaNotice from "../../../components/common/RecaptchaNotice";
+import BackButton from "../../../components/common/BackButton";
 
 /** BE membatasi request OTP 3x / 10 menit per IP, jadi kirim ulang dikunci dulu. */
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -28,6 +30,17 @@ const labelStyle = {
   display: "block" as const,
   marginBottom: 6,
 };
+
+/** Pemisah "atau" sebelum tombol login sosial (Google / Facebook). */
+function SocialDivider() {
+  return (
+    <div className="flex items-center gap-3 my-5">
+      <div className="flex-1 h-px" style={{ backgroundColor: "var(--color-border-light)" }} />
+      <span className="text-sm" style={{ color: "var(--color-brand-secondary)" }}>atau</span>
+      <div className="flex-1 h-px" style={{ backgroundColor: "var(--color-border-light)" }} />
+    </div>
+  );
+}
 
 function LoginForm() {
   const navigate = useNavigate();
@@ -153,9 +166,14 @@ function LoginForm() {
           {loading ? "Masuk..." : "Masuk"}
         </button>
 
-        {googleClientId && (
-          <GoogleLoginButton disabled={anyLoading} onLoadingChange={setGoogleLoading} />
-        )}
+        <SocialDivider />
+
+        <div className="space-y-3">
+          {googleClientId && (
+            <GoogleLoginButton disabled={anyLoading} onLoadingChange={setGoogleLoading} />
+          )}
+          <FacebookLoginButton disabled={anyLoading} />
+        </div>
       </form>
 
       <p className="text-center mt-5" style={{ color: "var(--color-brand-secondary)", fontSize: "0.875rem" }}>
@@ -387,8 +405,17 @@ function RegisterForm() {
           {otpSent ? "Daftar Sekarang" : "Kirim Kode OTP"}
         </button>
 
-        {googleClientId && !otpSent && (
-          <GoogleLoginButton disabled={anyLoading} onLoadingChange={setGoogleLoading} />
+        {!otpSent && (
+          <>
+            <SocialDivider />
+
+            <div className="space-y-3">
+              {googleClientId && (
+                <GoogleLoginButton disabled={anyLoading} onLoadingChange={setGoogleLoading} />
+              )}
+              <FacebookLoginButton disabled={anyLoading} />
+            </div>
+          </>
         )}
       </form>
 
@@ -416,6 +443,11 @@ export default function AuthPage() {
   return (
     <div className="auth-hide-scrollbar h-dvh overflow-y-auto flex px-4 py-12" style={{ backgroundColor: "var(--color-neutral)" }}>
       <div className="w-full max-w-md m-auto">
+        {/* Kembali — di atas kartu; fallback ke home saat tanpa riwayat SPA. */}
+        <div className="mb-4">
+          <BackButton />
+        </div>
+
         {/* Logo */}
         <div className="text-center mb-4">
           <div className="inline-flex items-center gap-2">

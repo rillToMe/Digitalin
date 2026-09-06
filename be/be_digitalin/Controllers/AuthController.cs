@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using be_digitalin.Config;
 using be_digitalin.Constants;
 using be_digitalin.DTOs;
 using be_digitalin.DTOs.Requests;
@@ -8,6 +9,7 @@ using be_digitalin.Services.Customer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 
 namespace be_digitalin.Controllers;
 
@@ -26,15 +28,21 @@ public class AuthController : ControllerBase
     private readonly ICustomerService _customerService;
     private readonly IPasswordResetService _passwordResetService;
     private readonly IGoogleAuthService _googleAuthService;
+    private readonly IFacebookAuthService _facebookAuthService;
+    private readonly IOptions<FacebookAuthSettings> _facebookAuthSettings;
 
     public AuthController(
         ICustomerService customerService,
         IPasswordResetService passwordResetService,
-        IGoogleAuthService googleAuthService)
+        IGoogleAuthService googleAuthService,
+        IFacebookAuthService facebookAuthService,
+        IOptions<FacebookAuthSettings> facebookAuthSettings)
     {
         _customerService = customerService;
         _passwordResetService = passwordResetService;
         _googleAuthService = googleAuthService;
+        _facebookAuthService = facebookAuthService;
+        _facebookAuthSettings = facebookAuthSettings;
     }
 
     private string? RemoteIp => HttpContext.Connection.RemoteIpAddress?.ToString();
@@ -152,6 +160,65 @@ public class AuthController : ControllerBase
         }
     }
 
+    // GET /api/v1/auth/facebook/login — mulai OAuth Facebook: terbitkan state
+    // CSRF lalu redirect browser ke dialog otorisasi Facebook (full-page
+    // navigation, bukan XHR — browser yang menangani seluruh roundtrip).
+    [HttpGet("facebook/login")]
+    [EnableRateLimiting("CustomerLoginPolicy")]
+    public async Task<IActionResult> FacebookLogin()
+    {
+        try
+        {
+            var authorizationUrl = await _facebookAuthService.BeginLoginAsync();
+            return Redirect(authorizationUrl);
+        }
+        catch (FacebookAuthenticationException ex)
+        {
+            return FacebookErrorRedirect(ex.Message);
+        }
+    }
+
+    // GET /api/v1/auth/facebook/callback — Facebook mengarahkan balang ke sini
+    // dengan code+state. Service memvalidasi state (CSRF), menukar code,
+    // login/auto-register akun Facebook, lalu browser di-redirect ke frontend
+    // membawa JWT di URL fragment (fragment tidak pernah dikirim ke server —
+    // token tidak bocor ke log/referrer).
+    [HttpGet("facebook/callback")]
+    [EnableRateLimiting("CustomerLoginPolicy")]
+    public async Task<IActionResult> FacebookCallback(
+        [FromQuery] string? code,
+        [FromQuery] string? state,
+        [FromQuery] string? error,
+        CancellationToken cancellationToken)
+    {
+        var result = await _facebookAuthService.CompleteLoginAsync(
+            code, state, error, cancellationToken);
+
+        if (result.Success)
+        {
+            return Redirect(
+                $"{_facebookAuthSettings.Value.FrontendRedirectUri}" +
+                $"#token={Uri.EscapeDataString(result.Token!)}");
+        }
+
+        return FacebookErrorRedirect(result.Error ?? "Login Facebook gagal.");
+    }
+
+    /// <summary>Arahkan error ke halaman callback frontend via fragment #error=.</summary>
+    private IActionResult FacebookErrorRedirect(string message)
+    {
+        var frontend = _facebookAuthSettings.Value.FrontendRedirectUri;
+
+        if (string.IsNullOrWhiteSpace(frontend))
+        {
+            // Frontend URI belum dikonfigurasi — redirect tidak mungkin;
+            // kembalikan bentuk { message } (kontrak error existing).
+            return BadRequest(new MessageResponse(message));
+        }
+
+        return Redirect($"{frontend}#error={Uri.EscapeDataString(message)}");
+    }
+
     // GET /api/v1/auth/profile
     [HttpGet("profile")]
     [Authorize]
@@ -166,7 +233,8 @@ public class AuthController : ControllerBase
         return Ok(new ProfileResponse(
             customer.Email,
             customer.FullName,
-            customer.CreatedAt));
+            customer.CreatedAt,
+            customer.AvatarUrl));
     }
 
     // PUT /api/v1/auth/profile

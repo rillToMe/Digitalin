@@ -32,6 +32,10 @@ public interface IApplicationDbContext
 
     DbSet<Customer> Customers { get; }
 
+    DbSet<ExternalLogin> ExternalLogins { get; }
+
+    DbSet<Faq> Faqs { get; }
+
     DbSet<AppSetting> AppSettings { get; }
 
     DbSet<Voucher> Vouchers { get; }

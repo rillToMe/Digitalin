@@ -6,6 +6,7 @@ import { orderService } from "../../../services/api";
 import { paySnap, preloadSnap, SnapError } from "../../../services/midtransSnap";
 import type { OrderStatus } from "../../../api/index";
 import { ImageWithFallback } from "../../../utils/ImageWithFallback";
+import BackButton from "../../../components/common/BackButton";
 
 const STATUS_CONFIG: Record<OrderStatus, { label: string; color: string; bg: string }> = {
   PENDING:      { label: "Menunggu",   color: "var(--color-warning)",   bg: "var(--color-warning-bg)" },
@@ -84,6 +85,7 @@ export default function HistoryPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
+      <BackButton />
       <h1 style={{ color: "var(--color-brand-primary,#0F1419)", fontWeight: 700, fontSize: "1.3rem", marginBottom: 24 }}>Riwayat Order</h1>
 
       {loading ? (

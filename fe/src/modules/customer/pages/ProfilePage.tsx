@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "../../../store/authStore";
 import { authService, orderService } from "../../../services/api";
+import UserAvatar from "../../../components/common/UserAvatar";
+import BackButton from "../../../components/common/BackButton";
 import type { UpdateProfilePayload, OrderResponse, OrderStatus } from "../../../api/index";
 
 // --- Helpers ---
@@ -139,16 +141,15 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
+      <BackButton />
       <h1 style={{ color: "var(--color-primary,#0F1419)", fontWeight: 700, fontSize: "1.3rem", marginBottom: 24 }}>Profil Saya</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* ─── LEFT COLUMN ─── */}
         <div className="space-y-5">
-          {/* Avatar Card */}
+          {/* Avatar Card — foto profil (avatarUrl); fallback ikon default. */}
           <div className="rounded-2xl p-6 flex items-center gap-5" style={{ backgroundColor: "var(--color-surface,#fff)", border: "1px solid rgba(0,0,0,0.07)" }}>
-            <div className="w-16 h-16 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "var(--color-brand-tertiary,#2C5EF5)" }}>
-              <User size={28} color="#fff" />
-            </div>
+            <UserAvatar src={profile.avatarUrl} name={profile.fullName} size={64} iconSize={28} />
             <div className="min-w-0">
               <p style={{ color: "var(--color-primary,#0F1419)", fontWeight: 700, fontSize: "1.1rem" }} className="truncate">{profile.fullName}</p>
               <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.85rem", marginTop: 2 }} className="truncate">{profile.email}</p>

@@ -26,11 +26,14 @@ const queryClient = new QueryClient({
 const HomePage = lazy(() => import("./modules/customer/pages/HomePage"));
 const GameDetailPage = lazy(() => import("./modules/customer/pages/GameDetailPage"));
 const AuthPage = lazy(() => import("./modules/customer/pages/AuthPage"));
+const FacebookCallbackPage = lazy(() => import("./modules/customer/pages/FacebookCallbackPage"));
 const ForgotPasswordPage = lazy(() => import("./modules/customer/pages/ForgotPasswordPage"));
 const MaintenancePage = lazy(() => import("./modules/customer/pages/MaintenancePage"));
 const ProfilePage = lazy(() => import("./modules/customer/pages/ProfilePage"));
 const HistoryPage = lazy(() => import("./modules/customer/pages/HistoryPage"));
+const CheckTransactionPage = lazy(() => import("./modules/customer/pages/CheckTransactionPage"));
 const FaqPage = lazy(() => import("./modules/customer/pages/FaqPage"));
+const LeaderboardPage = lazy(() => import("./modules/customer/pages/LeaderboardPage"));
 const ContactPage = lazy(() => import("./modules/customer/pages/ContactPage"));
 // const VouchersPage = lazy(() => import("./modules/customer/pages/VouchersPage"));
 
@@ -43,6 +46,7 @@ const MetadataPage = lazy(() => import("./modules/admin/pages/MetadataPage"));
 const CategoriesPage = lazy(() => import("./modules/admin/pages/CategoriesPage"));
 const PopularPage = lazy(() => import("./modules/admin/pages/PopularPage"));
 const AdminVouchersPage = lazy(() => import("./modules/admin/pages/VouchersPage"));
+const FaqsPage = lazy(() => import("./modules/admin/pages/FaqsPage"));
 const SettingsPage = lazy(() => import("./modules/admin/pages/SettingsPage"));
 const AdminManagementPage = lazy(() => import("./modules/admin/pages/AdminManagementPage"));
 
@@ -207,6 +211,9 @@ export default function App() {
 
             <Route path="/login" element={<AuthPage />} />
 
+          {/* Landing redirect OAuth Facebook dari backend (#token=/#error=). */}
+          <Route path="/auth/facebook/callback" element={<FacebookCallbackPage />} />
+
             <Route path="/register" element={<AuthPage />} />
 
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -229,11 +236,30 @@ export default function App() {
               }
             />
 
+            {/* Cek Transaksi — publik (tanpa login), lihat status by invoice. */}
+            <Route
+              path="/cek-transaksi"
+              element={
+                <CustomerRoute>
+                  <CheckTransactionPage />
+                </CustomerRoute>
+              }
+            />
+
             <Route
               path="/faq"
               element={
                 <CustomerRoute>
                   <FaqPage />
+                </CustomerRoute>
+              }
+            />
+
+            <Route
+              path="/leaderboard"
+              element={
+                <CustomerRoute>
+                  <LeaderboardPage />
                 </CustomerRoute>
               }
             />
@@ -324,6 +350,15 @@ export default function App() {
             element={
               <ProtectedAdminRoute>
                 <AdminVouchersPage />
+              </ProtectedAdminRoute>
+            }
+          />
+
+          <Route
+            path="/admin/faqs"
+            element={
+              <ProtectedAdminRoute>
+                <FaqsPage />
               </ProtectedAdminRoute>
             }
           />

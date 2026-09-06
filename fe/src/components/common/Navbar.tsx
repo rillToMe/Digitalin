@@ -16,11 +16,14 @@ import { useAuthStore } from "../../store/authStore";
 import { authService } from "../../services/api";
 import SearchBar from "./SearchBar";
 import ThemeToggle from "./ThemeToggle";
+import UserAvatar from "./UserAvatar";
 
 const navLinks = [
   { to: "/", label: "Beranda" },
   // { to: "/vouchers", label: "Voucher" },
-  { to: "/history", label: "Cek Transaksi" },
+  // { to: "/history", label: "Riwayat Order" },
+  { to: "/leaderboard", label: "Leaderboard" },
+  { to: "/cek-transaksi", label: "Cek Transaksi" },
 ];
 
 export default function Navbar() {
@@ -110,6 +113,7 @@ export default function Navbar() {
   };
 
   const displayName = profile?.fullName ?? user?.fullName ?? "Akun";
+  const avatarUrl = profile?.avatarUrl ?? user?.avatarUrl ?? null;
 
   return (
     <nav
@@ -220,15 +224,7 @@ export default function Navbar() {
                   className="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors"
                   style={{ color: "var(--color-brand-primary)" }}
                 >
-                  <div
-                    className="w-8 h-8 flex items-center justify-center"
-                    style={{
-                      backgroundColor: "var(--color-brand-tertiary)",
-                      borderRadius: "50%",
-                    }}
-                  >
-                    <User size={14} color="var(--color-on-primary)" />
-                  </div>
+                  <UserAvatar src={avatarUrl} name={displayName} size={32} iconSize={14} />
 
                   <span
                     style={{
@@ -436,7 +432,7 @@ export default function Navbar() {
                 className="pressable flex items-center gap-3 px-3 py-2 rounded-lg no-underline"
                 style={{ color: "var(--color-brand-primary)" }}
               >
-                <User size={16} />
+                <UserAvatar src={avatarUrl} name={displayName} size={20} iconSize={14} />
                 <span>{displayName}</span>
               </Link>
 

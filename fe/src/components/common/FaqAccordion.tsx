@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
-import type { FaqItem } from "../../data/faqs";
+import type { FaqItem } from "../../api/index";
 
 interface FaqAccordionProps {
   items: FaqItem[];
@@ -12,9 +12,9 @@ interface FaqAccordionProps {
  * Manages its own open/close state internally.
  */
 export default function FaqAccordion({ items }: FaqAccordionProps) {
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<number | null>(null);
 
-  const toggle = (id: string) => {
+  const toggle = (id: number) => {
     setOpenId((prev) => (prev === id ? null : id));
   };
 
@@ -23,21 +23,42 @@ export default function FaqAccordion({ items }: FaqAccordionProps) {
       {items.map((item) => {
         const isOpen = openId === item.id;
         return (
-          <div key={item.id} style={{ borderBottom: "1px solid var(--color-border-light)" }}>
+          <div
+            key={item.id}
+            style={{
+              borderBottom: "1px solid var(--color-border-light)",
+            }}
+          >
             <button
               onClick={() => toggle(item.id)}
-              className="w-full flex items-center justify-between text-left py-4 px-1 transition-colors"
+              className="
+                w-[calc(100%+52px)]
+                -mx-[26px]
+                flex items-center justify-between
+                text-left
+                py-4
+                px-[30px]
+                transition-colors
+                hover:bg-[var(--color-hover-surface)]
+              "
               style={{
                 color: "var(--color-brand-primary, #0F1419)",
                 cursor: "pointer",
-                background: "none",
+                background: "var(--color-surface, #fff)",
                 border: "none",
               }}
               aria-expanded={isOpen}
             >
-              <span style={{ fontSize: "0.9rem", fontWeight: 500, paddingRight: 16 }}>
+              <span
+                style={{
+                  fontSize: "0.9rem",
+                  fontWeight: 500,
+                  paddingRight: 16,
+                }}
+              >
                 {item.question}
               </span>
+
               <ChevronDown
                 size={18}
                 style={{
@@ -48,6 +69,7 @@ export default function FaqAccordion({ items }: FaqAccordionProps) {
                 }}
               />
             </button>
+
             <div className="collapse-panel" data-open={isOpen}>
               <div>
                 <p

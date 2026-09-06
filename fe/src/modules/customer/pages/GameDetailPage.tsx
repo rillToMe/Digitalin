@@ -8,6 +8,7 @@ import { paySnap, preloadSnap, SnapError } from "../../../services/midtransSnap"
 import { useCheckoutStore } from "../../../store/checkoutStore";
 import type { CreateOrderPayload, CheckoutPreviewResponse } from "../../../api/index";
 import VoucherCard from "../../../components/common/VoucherCard";
+import BackButton from "../../../components/common/BackButton";
 import {
   Dialog,
   DialogContent,
@@ -223,9 +224,12 @@ export default function GameDetailPage() {
 
   if (isError || !brand) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-16 text-center">
-        <AlertCircle size={40} style={{ color: "var(--color-brand-secondary)", margin: "0 auto 12px" }} />
-        <p style={{ color: "var(--color-brand-secondary)" }}>Game tidak ditemukan</p>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <BackButton />
+        <div className="py-16 text-center">
+          <AlertCircle size={40} style={{ color: "var(--color-brand-secondary)", margin: "0 auto 12px" }} />
+          <p style={{ color: "var(--color-brand-secondary)" }}>Game tidak ditemukan</p>
+        </div>
       </div>
     );
   }
@@ -275,6 +279,8 @@ export default function GameDetailPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <BackButton />
+
       {/* Header game: artwork-nya sendiri jadi latar (di-blur + scrim solid)
           dengan poster potret di depannya. Halaman ini jadi terbaca sebagai
           halaman game, bukan formulir — dan warna jenuhnya tetap hanya datang

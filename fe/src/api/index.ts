@@ -89,7 +89,58 @@ export interface ProfileResponse {
   fullName: string;
   /** ⚠️ TYPO IS INTENTIONAL - backend returns "createtAt" not "createdAt" */
   createtAt: string;
+  /** URL foto profil (dari OAuth Google/Facebook); null untuk user tanpa avatar. */
+  avatarUrl: string | null;
 }
+
+// FAQ (CMS — dikelola admin, kategori dari API, tidak di-hardcode FE)
+
+export interface FaqItem {
+  id: number;
+  question: string;
+  answer: string;
+  category: string;
+  featured: boolean;
+}
+
+// Leaderboard pembeli (derived dari order lunak — FE hanya render hasil BE)
+
+export interface LeaderboardEntry {
+  rank: number;
+  displayName: string;
+  /** Null = tampilkan avatar default (sama seperti profil). */
+  avatarUrl: string | null;
+  totalSpent: number;
+}
+
+export type LeaderboardPeriod = "today" | "week" | "month";
+
+// Cek Transaksi (public invoice lookup — tanpa login)
+
+export type InvoicePaymentStatus = "UNPAID" | "PAID" | "FAILED" | "REFUNDED";
+
+export interface PublicInvoiceResponse {
+  invoiceNumber: string;
+  productName: string;
+  imageUrl: string | null;
+  amount: number;
+  status: OrderStatus;
+  paymentStatus: InvoicePaymentStatus;
+  createdAt: string;
+  /** Hanya ada saat status PENDING (batas bayar Midtrans); null selainnya. */
+  expiresAt: string | null;
+  /** True bila invoice ini milik akun yang sedang login (optional-auth). */
+  belongsToAccount: boolean;
+}
+
+export interface CreateFaqPayload {
+  question: string;
+  answer: string;
+  category: string;
+  featured: boolean;
+}
+
+export type UpdateFaqPayload = CreateFaqPayload;
 
 // Brands / Catalog
 

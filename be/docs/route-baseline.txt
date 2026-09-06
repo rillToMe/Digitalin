@@ -13,6 +13,11 @@ PUT    /api/v1/admin/banners/{id}/toggle
 GET    /api/v1/admin/dashboard/balance
 GET    /api/v1/admin/dashboard/chart
 GET    /api/v1/admin/dashboard/stats
+GET    /api/v1/admin/faqs
+POST   /api/v1/admin/faqs
+DELETE /api/v1/admin/faqs/{id}
+GET    /api/v1/admin/faqs/{id}
+PUT    /api/v1/admin/faqs/{id}
 GET    /api/v1/admin/orders
 POST   /api/v1/admin/orders/{orderNo}/refund
 POST   /api/v1/admin/orders/{orderNo}/retry
@@ -42,6 +47,8 @@ PUT    /api/v1/admin/vouchers/{id}
 PATCH  /api/v1/admin/vouchers/{id}/status
 GET    /api/v1/admin/vouchers/{id}/usage
 GET    /api/v1/auth/check-email
+GET    /api/v1/auth/facebook/callback
+GET    /api/v1/auth/facebook/login
 POST   /api/v1/auth/google
 POST   /api/v1/auth/local/login
 POST   /api/v1/auth/local/register
@@ -50,7 +57,12 @@ POST   /api/v1/auth/local/request-password-reset
 POST   /api/v1/auth/local/reset-password
 GET    /api/v1/auth/profile
 PUT    /api/v1/auth/profile
+GET    /api/v1/invoices/{orderNo}
+GET    /api/v1/leaderboard
 GET    /api/v1/banners
+GET    /api/v1/faqs
+GET    /api/v1/faqs/categories
+GET    /api/v1/faqs/featured
 GET    /api/v1/games/brands
 GET    /api/v1/games/brands/popular
 GET    /api/v1/games/categories

@@ -99,3 +99,15 @@ Content-Type: application/json
   "fullName": "Budi Santoso",
   "otpCode": "34243"
 }
+### C. FACEBOOK OAUTH LOGIN (authorization code flow, full-page navigation)
+
+# 1. Mulai login Facebook — browser akan di-redirect ke dialog Facebook.
+#    (Jangan dipanggil lewat XHR — ini navigasi penuh.)
+GET {{host}}/api/v1/auth/facebook/login
+
+# 2. Callback (dipanggil Facebook, bukan manual). Tanpa state valid akan
+#    diarahkan ke frontend dengan #error=...
+GET {{host}}/api/v1/auth/facebook/callback?code=CONTOH_CODE&state=CONTOH_STATE
+
+# 3. Callback user cancel (error=access_denied) → #error=Login Facebook dibatalkan.
+GET {{host}}/api/v1/auth/facebook/callback?error=access_denied

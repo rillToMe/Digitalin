@@ -67,6 +67,17 @@ builder.Services.AddScoped<ICloudflareR2Provider, CloudflareR2Provider>();
 builder.Services.Configure<GoogleAuthSettings>(builder.Configuration.GetSection("GoogleAuth"));
 builder.Services.AddScoped<IGoogleProvider, GoogleProvider>();
 builder.Services.AddScoped<IGoogleAuthService, GoogleAuthService>();
+
+// ── Facebook OAuth (authorization code flow) ──
+// Konfigurasi per-environment: section "FacebookAuth" / env var Facebook__*
+// (AppId, AppSecret, RedirectUri, FrontendRedirectUri). Fitur opsional —
+// config kosong tidak mematikan app; endpoint menolak dengan pesan jelas.
+builder.Services.Configure<FacebookAuthSettings>(builder.Configuration.GetSection("FacebookAuth"));
+// HTTP ke Facebook: timeout eksplisit (jangan andalkan default 100s) —
+// token exchange + /me dua panggilan berurutan di jalur login customer.
+builder.Services.AddHttpClient<IFacebookProvider, FacebookProvider>(client =>
+    client.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddScoped<IFacebookAuthService, FacebookAuthService>();
 builder.Services.Configure<RecaptchaSettings>(builder.Configuration.GetSection("Recaptcha"));
 builder.Services.AddScoped<IAdminAuthService, AdminAuthService>();
 
@@ -94,7 +105,10 @@ builder.Services.AddHostedService<be_digitalin.Infrastructure.Workers.OrderSweep
 
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<ILeaderboardService, LeaderboardService>();
+builder.Services.AddScoped<IInvoiceLookupService, InvoiceLookupService>();
 builder.Services.AddScoped<IBannerService, BannerService>();
+builder.Services.AddScoped<IFaqService, FaqService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<ISearchService, SearchService>();
 builder.Services.AddScoped<IVoucherService, VoucherService>();

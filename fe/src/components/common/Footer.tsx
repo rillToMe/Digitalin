@@ -1,5 +1,6 @@
 import { ArrowUpRight, Headphones } from "lucide-react";
 import { Link } from "react-router";
+import { useAuthStore } from "../../store/authStore";
 
 /* Semua tujuan di sini harus benar-benar terdaftar di App.tsx — link footer
    yang mati tidak pernah kelihatan waktu ngoding karena jarang diklik.
@@ -13,25 +14,39 @@ const NAV_GROUPS: { title: string; links: { label: string; to: string }[] }[] = 
       { label: "Voucher Digital", to: "/vouchers" },
     ],
   },
-  {
-    title: "Akun",
-    links: [
-      { label: "Masuk", to: "/login" },
-      { label: "Daftar", to: "/register" },
-      { label: "Riwayat Transaksi", to: "/history" },
-    ],
-  },
-  {
-    title: "Bantuan",
-    links: [
-      { label: "FAQ", to: "/faq" },
-      { label: "Kontak", to: "/contact" },
-      { label: "Lupa Password", to: "/forgot-password" },
-    ],
-  },
+];
+
+const HELP_LINKS: { label: string; to: string }[] = [
+  { label: "FAQ", to: "/faq" },
+  { label: "Kontak", to: "/contact" },
+  { label: "Lupa Password", to: "/forgot-password" },
+];
+
+/* Guest: ajakan Masuk/Daftar. User sudah login: link ke profil — persis
+   pola Navbar (token ada = terotentikasi). */
+const GUEST_ACCOUNT_LINKS: { label: string; to: string }[] = [
+  { label: "Masuk", to: "/login" },
+  { label: "Daftar", to: "/register" },
+  { label: "Riwayat Transaksi", to: "/history" },
+];
+
+const AUTHED_ACCOUNT_LINKS: { label: string; to: string }[] = [
+  { label: "Profil Saya", to: "/profile" },
+  { label: "Riwayat Transaksi", to: "/history" },
 ];
 
 export default function Footer() {
+  const token = useAuthStore((state) => state.token);
+  const isAuthenticated = Boolean(token);
+
+  const accountLinks = isAuthenticated ? AUTHED_ACCOUNT_LINKS : GUEST_ACCOUNT_LINKS;
+
+  const groups = [
+    ...NAV_GROUPS,
+    { title: "Akun", links: accountLinks },
+    { title: "Bantuan", links: HELP_LINKS },
+  ];
+
   return (
     <footer className="site-footer mt-16">
       <div className="site-footer-content max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-14">
@@ -49,7 +64,7 @@ export default function Footer() {
             <p className="site-footer-kicker mt-5">Top up game, always on.</p>
           </div>
 
-          {NAV_GROUPS.map((group) => (
+          {groups.map((group) => (
             <nav key={group.title} aria-label={group.title}>
               <h2 className="site-footer-heading">{group.title}</h2>
 
