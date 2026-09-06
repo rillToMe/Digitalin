@@ -1,5 +1,3 @@
-import { Wrench, Zap } from "lucide-react";
-
 interface MaintenanceCardProps {
   title: string;
   message: string;
@@ -11,24 +9,32 @@ interface MaintenanceCardProps {
 
 function formatEstimatedFinish(isoString: string | null) {
   if (!isoString) return null;
+
   try {
     const date = new Date(isoString);
+
     if (isNaN(date.getTime())) return null;
-    const day = date.getDate();
-    const months = [
-      "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-      "Juli", "Agustus", "September", "Oktober", "November", "Desember"
-    ];
-    const month = months[date.getMonth()];
-    const year = date.getFullYear();
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
+
+    const formatter = new Intl.DateTimeFormat("id-ID", {
+      timeZone: "Asia/Jakarta",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+
+    const parts = formatter.formatToParts(date);
+
+    const getPart = (type: Intl.DateTimeFormatPartTypes) =>
+      parts.find((part) => part.type === type)?.value ?? "";
 
     return {
-      dateStr: `${day} ${month} ${year}`,
-      timeStr: `${hours}:${minutes} WIB`
+      dateStr: `${getPart("day")} ${getPart("month")} ${getPart("year")}`,
+      timeStr: `${getPart("hour")}:${getPart("minute")} WIB`,
     };
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -36,83 +42,158 @@ function formatEstimatedFinish(isoString: string | null) {
 export default function MaintenanceCard({
   title,
   message,
-  estimatedFinish
+  estimatedFinish,
 }: MaintenanceCardProps) {
-  const est = formatEstimatedFinish(estimatedFinish);
-  // If the estimated finish date has already passed, treat it as no estimate
-  // (avoid showing negative/stale countdowns or past timestamps)
   const isEstPast = estimatedFinish
     ? new Date(estimatedFinish).getTime() <= Date.now()
     : false;
 
+  const est = !isEstPast
+    ? formatEstimatedFinish(estimatedFinish)
+    : null;
+
   return (
     <div
-      className="w-full max-w-md rounded-2xl p-8 shadow-sm text-center space-y-6"
+      className="min-h-dvh flex items-center justify-center px-6 py-12"
       style={{
-        backgroundColor: "var(--color-surface)",
-        border: "1px solid var(--color-border-light)",
+        backgroundColor: "var(--color-neutral)",
       }}
     >
-      {/* Icon & Logo */}
-      <div className="space-y-4">
-        <div className="flex justify-center items-center gap-2">
+      <main className="w-full max-w-md text-center">
+        {/* Brand + maintenance status */}
+        <header className="mb-9">
+          {/* Brand */}
           <div
-            style={{ backgroundColor: "var(--color-brand-tertiary)", borderRadius: 8 }}
-            className="w-8 h-8 flex items-center justify-center"
+            className="flex items-center justify-center gap-2"
+            style={{
+              marginBottom: "10px",
+            }}
           >
-            <Zap size={16} color="#fff" fill="#fff" />
-          </div>
-          <span style={{ color: "var(--color-brand-primary)", fontWeight: 800, fontSize: "1.2rem" }}>
-            Digitalin
-          </span>
-        </div>
+            <img
+              src="/favicon.svg"
+              alt=""
+              aria-hidden="true"
+              style={{
+                height: 28,
+                width: "auto",
+              }}
+            />
 
-        <div className="flex justify-center">
+            <span
+              style={{
+                color: "var(--color-brand-primary)",
+                fontWeight: 700,
+                fontSize: "1.1rem",
+                letterSpacing: "-0.02em",
+                lineHeight: 1,
+              }}
+            >
+              Digitalin
+            </span>
+          </div>
+
+          {/* Status */}
+          <p
+            className="inline-flex items-center justify-center gap-2"
+            style={{
+              color: "var(--color-brand-secondary)",
+              fontSize: "0.85rem",
+              fontWeight: 500,
+              lineHeight: 1.4,
+              margin: 0,
+            }}
+          >
+            <span
+              aria-hidden="true"
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: "999px",
+                backgroundColor: "var(--color-warning)",
+                flexShrink: 0,
+              }}
+            />
+
+            Maintenance sedang berlangsung
+          </p>
+        </header>
+
+        {/* Main message */}
+        <section>
+          <h1
+            style={{
+              margin: 0,
+              fontFamily: "var(--admin-font-sans)",
+              color: "var(--color-brand-primary)",
+              fontWeight: 650,
+              fontSize: "1.6rem",
+              letterSpacing: "-0.025em",
+              lineHeight: 1.3,
+              textTransform: "none",
+            }}
+          >
+            {title || "Website sedang maintenance"}
+          </h1>
+
+          <p
+            className="mx-auto"
+            style={{
+              color: "var(--color-brand-secondary)",
+              fontSize: "0.92rem",
+              lineHeight: 1.65,
+              maxWidth: "40ch",
+              marginTop: "12px",
+              marginBottom: 0,
+            }}
+          >
+            {message ||
+              "Kami sedang melakukan peningkatan sistem. Silakan kembali beberapa saat lagi."}
+          </p>
+        </section>
+
+        {/* Estimated completion */}
+        {est && (
           <div
-            className="w-16 h-16 rounded-full flex items-center justify-center animate-bounce"
-            style={{ backgroundColor: "var(--color-warning-bg)" }}
+            style={{
+              display: "inline-flex",
+              flexDirection: "column",
+              alignItems: "center",
+              marginTop: "32px",
+              padding: "12px 22px",
+              backgroundColor: "var(--color-surface)",
+              border: "1px solid var(--color-border-light)",
+              borderRadius: "var(--admin-radius-md)",
+            }}
           >
-            <Wrench size={32} style={{ color: "var(--color-warning)" }} />
+            <span
+              style={{
+                color: "var(--color-brand-secondary)",
+                fontFamily: "var(--admin-font-mono)",
+                fontSize: "0.67rem",
+                fontWeight: 500,
+                letterSpacing: "0.07em",
+                textTransform: "uppercase",
+                lineHeight: 1.4,
+              }}
+            >
+              Perkiraan selesai
+            </span>
+
+            <span
+              className="tabular-price"
+              style={{
+                color: "var(--color-brand-primary)",
+                fontSize: "0.9rem",
+                fontWeight: 600,
+                lineHeight: 1.4,
+                marginTop: "4px",
+              }}
+            >
+              {est.dateStr} · {est.timeStr}
+            </span>
           </div>
-        </div>
-      </div>
-
-      {/* Title & Description */}
-      <div className="space-y-2">
-        <h2 style={{ color: "var(--color-brand-primary)", fontWeight: 700, fontSize: "1.25rem" }}>
-          {title || "Website Sedang Maintenance"}
-        </h2>
-        <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.88rem", lineHeight: 1.5 }}>
-          {message || "Kami sedang melakukan peningkatan sistem untuk memberikan layanan yang lebih baik."}
-        </p>
-      </div>
-
-      {/* Estimated Finish Date */}
-      {est && !isEstPast && (
-        <div className="p-4 rounded-xl space-y-1" style={{ backgroundColor: "var(--color-neutral)" }}>
-          <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.78rem", fontWeight: 500 }}>
-            Estimasi Selesai
-          </p>
-          <p style={{ color: "var(--color-brand-primary)", fontWeight: 700, fontSize: "0.9rem" }}>
-            {est.dateStr}
-          </p>
-          <p style={{ color: "var(--color-brand-tertiary)", fontWeight: 600, fontSize: "0.82rem" }}>
-            {est.timeStr}
-          </p>
-        </div>
-      )}
-
-      {/* Fallback when estimated finish is stale / in the past */}
-      {est && isEstPast && (
-        <div className="p-4 rounded-xl space-y-1" style={{ backgroundColor: "var(--color-neutral)" }}>
-          <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.78rem", fontWeight: 500 }}>
-            Estimasi Selesai
-          </p>
-          <p style={{ color: "var(--color-brand-secondary)", fontWeight: 600, fontSize: "0.85rem" }}>
-            Maintenance masih berlangsung.
-          </p>
-        </div>
-      )}
+        )}
+      </main>
     </div>
   );
 }

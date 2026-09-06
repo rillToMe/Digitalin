@@ -1,12 +1,97 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { Eye, EyeOff, Zap, Loader2, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation } from "@tanstack/react-query";
 import { useAuthStore } from "../../../store/authStore";
-import { adminAuthService } from "../../../services/api";
+import api, { adminAuthService } from "../../../services/api";
 import type { AdminLoginPayload } from "../../../api/index";
 import { useRecaptcha, RecaptchaError } from "../../../hooks/useRecaptcha";
+import RecaptchaNotice from "../../../components/common/RecaptchaNotice";
+
+/* Endpoint health BE (Program.cs: /health, 200, dikecualikan dari maintenance
+   middleware). Origin diambil dari baseURL axios yang sama dengan app, jadi
+   tidak ada baca env kedua. Diping pakai fetch, bukan axios, supaya tidak
+   lewat interceptor ( Authorization header dsb.) — ping ini butuh respons
+   2xx: ping ke /api/v1/ yang tak punya route membuat browser mencatat 404
+   merah di console walau statusnya dianggap online. */
+const HEALTH_URL = new URL(api.defaults.baseURL!).origin + "/health";
+
+const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? "dev";
+
+/* "Login terakhir" dibaca sekali saat mount, ditulis lagi saat login sukses —
+   cara paling murah mendeteksi akses yang tidak dikenal di perangkat ini. */
+const LAST_LOGIN_KEY = "digitalin.admin.lastLogin";
+
+const lastLoginFormat = new Intl.DateTimeFormat("id-ID", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+const clockFormat = new Intl.DateTimeFormat("id-ID", {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+});
+
+const TZ_LABEL =
+  Intl.DateTimeFormat().resolvedOptions().timeZone.split("/").pop()?.replace(/_/g, " ") ?? "—";
+
+type ServerStatus = { state: "checking" | "online" | "offline"; ms: number | null };
+
+/* Ping HTTP sungguhan ke BE: respons 2xx dari /health berarti online,
+   kegagalan jaringan berarti offline. Latensi = round-trip yang benar-benar
+   terukur, di-refresh tiap 30 detik. */
+function useServerStatus(): ServerStatus {
+  const [status, setStatus] = useState<ServerStatus>({ state: "checking", ms: null });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const ping = async () => {
+      const t0 = performance.now();
+      try {
+        const res = await fetch(HEALTH_URL, {
+          method: "GET",
+          cache: "no-store",
+          signal: AbortSignal.timeout(5000),
+        });
+        if (!cancelled) {
+          setStatus(
+            res.ok
+              ? { state: "online", ms: Math.round(performance.now() - t0) }
+              : { state: "offline", ms: null },
+          );
+        }
+      } catch {
+        if (!cancelled) setStatus({ state: "offline", ms: null });
+      }
+    };
+
+    void ping();
+    const id = setInterval(() => void ping(), 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, []);
+
+  return status;
+}
+
+function Clock() {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  return <time dateTime={now.toISOString()}>{clockFormat.format(now)}</time>;
+}
 
 export default function AdminLoginPage() {
   const navigate = useNavigate();
@@ -14,6 +99,12 @@ export default function AdminLoginPage() {
   const { executeRecaptcha } = useRecaptcha();
   const [form, setForm] = useState({ username: "", password: "" });
   const [showPass, setShowPass] = useState(false);
+  const server = useServerStatus();
+  const [lastLogin] = useState(() => {
+    const raw = localStorage.getItem(LAST_LOGIN_KEY);
+    const date = raw ? new Date(raw) : null;
+    return date && !Number.isNaN(date.getTime()) ? date : null;
+  });
 
   const loginMutation = useMutation({
     /* captcha dijalankan DI DALAM mutationFn supaya isPending sudah true sejak
@@ -25,6 +116,7 @@ export default function AdminLoginPage() {
       return adminAuthService.login({ ...payload, captchaToken });
     },
     onSuccess: (res) => {
+      localStorage.setItem(LAST_LOGIN_KEY, new Date().toISOString());
       setAdminToken(res.token);
       toast.success("Login admin berhasil!");
       navigate("/admin/dashboard");
@@ -51,67 +143,104 @@ export default function AdminLoginPage() {
 
   const loading = loginMutation.isPending;
 
-  return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: "var(--color-brand-primary,#0F1419)" }}>
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-4">
-            <div style={{ backgroundColor: "var(--color-brand-tertiary,#2C5EF5)", borderRadius: 10 }} className="w-10 h-10 flex items-center justify-center">
-              <Zap size={20} color="#fff" fill="#fff" />
-            </div>
-            <span style={{ color: "#fff", fontWeight: 800, fontSize: "1.3rem" }}>Digitalin</span>
-          </div>
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <ShieldCheck size={16} style={{ color: "rgba(255,255,255,0.5)" }} />
-            <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: "0.1em" }}>Admin Panel</span>
-          </div>
-          <h2 style={{ color: "#fff", fontWeight: 700, fontSize: "1.3rem" }}>Masuk ke Dashboard</h2>
-        </div>
+  const statusText =
+    server.state === "online"
+      ? `API online${server.ms !== null ? ` · ${server.ms} ms` : ""}`
+      : server.state === "checking"
+        ? "Menghubungkan…"
+        : "API tidak terjangkau";
 
-        <div className="rounded-2xl p-7" style={{ backgroundColor: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 6 }}>Username</label>
-              <input
-                value={form.username}
-                onChange={(e) => setForm({ ...form, username: e.target.value })}
-                placeholder="admin"
-                className="w-full px-4 py-3 rounded-xl outline-none"
-                style={{ backgroundColor: "rgba(255,255,255,0.08)", border: "1.5px solid rgba(255,255,255,0.12)", color: "#fff", fontSize: "0.9rem" }}
-                onFocus={(e) => { e.target.style.borderColor = "var(--color-brand-tertiary,#2C5EF5)"; }}
-                onBlur={(e) => { e.target.style.borderColor = "rgba(255,255,255,0.12)"; }}
-              />
-            </div>
-            <div>
-              <label style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 6 }}>Password</label>
-              <div className="relative">
-                <input
-                  type={showPass ? "text" : "password"}
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  placeholder="••••••••"
-                  className="w-full px-4 py-3 pr-12 rounded-xl outline-none"
-                  style={{ backgroundColor: "rgba(255,255,255,0.08)", border: "1.5px solid rgba(255,255,255,0.12)", color: "#fff", fontSize: "0.9rem" }}
-                  onFocus={(e) => { e.target.style.borderColor = "var(--color-brand-tertiary,#2C5EF5)"; }}
-                  onBlur={(e) => { e.target.style.borderColor = "rgba(255,255,255,0.12)"; }}
-                />
-                <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "rgba(255,255,255,0.5)" }}>
-                  {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3.5 rounded-xl flex items-center justify-center gap-2 mt-2"
-              style={{ backgroundColor: "var(--color-brand-tertiary,#2C5EF5)", color: "#fff", fontWeight: 600, fontSize: "0.95rem", opacity: loading ? 0.7 : 1 }}
-            >
-              {loading && <Loader2 size={16} className="animate-spin" />}
-              {loading ? "Masuk..." : "Masuk"}
-            </button>
-          </form>
+  return (
+    <div className="admin-login">
+      <header className="admin-login-bar">
+        <div className="admin-login-brand">
+          <img src="/favicon.svg" alt="Digitalin" />
+          <span className="admin-login-brand-name">Digitalin</span>
+          <span className="admin-login-brand-role">Admin</span>
         </div>
-      </div>
+        <p className="admin-login-status" role="status">
+          <span className={`admin-login-dot admin-login-dot--${server.state}`} aria-hidden="true" />
+          {statusText}
+        </p>
+      </header>
+
+      <main className="admin-login-main">
+        <div className="admin-login-inner">
+          <h1 className="admin-login-title">Masuk ke dashboard</h1>
+          <p className="admin-login-sub">
+            Kelola pesanan top-up, voucher, dan konten Digitalin dari satu tempat.
+          </p>
+
+          <div className="admin-login-panel">
+            <form onSubmit={handleSubmit}>
+              <div className="admin-login-row">
+                <label className="admin-login-field" htmlFor="username">Username</label>
+                <input
+                  id="username"
+                  className="admin-login-input"
+                  value={form.username}
+                  onChange={(e) => setForm({ ...form, username: e.target.value })}
+                  placeholder="admin"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  autoFocus
+                  disabled={loading}
+                />
+              </div>
+
+              <div className="admin-login-row">
+                <label className="admin-login-field" htmlFor="password">Password</label>
+                <div className="admin-login-passwrap">
+                  <input
+                    id="password"
+                    className="admin-login-input admin-login-input--pass"
+                    type={showPass ? "text" : "password"}
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    placeholder="••••••••"
+                    autoComplete="current-password"
+                    disabled={loading}
+                  />
+                  <button
+                    type="button"
+                    className="admin-login-toggle"
+                    onClick={() => setShowPass(!showPass)}
+                    aria-label={showPass ? "Sembunyikan password" : "Tampilkan password"}
+                    tabIndex={-1}
+                  >
+                    {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              <button type="submit" className="admin-login-submit" disabled={loading}>
+                {loading && <Loader2 size={16} className="animate-spin" />}
+                {loading ? "Memeriksa…" : "Masuk"}
+              </button>
+
+              <p className="admin-login-help">
+                Akun terkunci atau lupa password? Hubungi super admin untuk reset.
+              </p>
+            </form>
+          </div>
+
+          <p className="admin-login-lastlogin">
+            {lastLogin
+              ? `Login terakhir · ${lastLoginFormat.format(lastLogin)}`
+              : "Belum ada riwayat login di perangkat ini"}
+          </p>
+
+          <RecaptchaNotice />
+        </div>
+      </main>
+
+      <footer className="admin-login-foot">
+        <span>v{APP_VERSION}</span>
+        <span className="admin-login-foot-meta">
+          {TZ_LABEL} · <Clock />
+        </span>
+      </footer>
     </div>
   );
 }

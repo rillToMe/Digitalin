@@ -9,6 +9,7 @@ import { CustomerLayout } from "./layouts/CustomerLayout";
 import { useAuthStore } from "./store/authStore";
 import { useThemeStore } from "./store/themeStore";
 import PageLoader from "./components/common/PageLoader";
+import MaintenanceGate from "./components/common/MaintenanceGate";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,15 +25,14 @@ const queryClient = new QueryClient({
 // Customer Pages
 const HomePage = lazy(() => import("./modules/customer/pages/HomePage"));
 const GameDetailPage = lazy(() => import("./modules/customer/pages/GameDetailPage"));
-const LoginPage = lazy(() => import("./modules/customer/pages/LoginPage"));
-const RegisterPage = lazy(() => import("./modules/customer/pages/RegisterPage"));
+const AuthPage = lazy(() => import("./modules/customer/pages/AuthPage"));
 const ForgotPasswordPage = lazy(() => import("./modules/customer/pages/ForgotPasswordPage"));
 const MaintenancePage = lazy(() => import("./modules/customer/pages/MaintenancePage"));
 const ProfilePage = lazy(() => import("./modules/customer/pages/ProfilePage"));
 const HistoryPage = lazy(() => import("./modules/customer/pages/HistoryPage"));
 const FaqPage = lazy(() => import("./modules/customer/pages/FaqPage"));
 const ContactPage = lazy(() => import("./modules/customer/pages/ContactPage"));
-const VouchersPage = lazy(() => import("./modules/customer/pages/VouchersPage"));
+// const VouchersPage = lazy(() => import("./modules/customer/pages/VouchersPage"));
 
 //Admin Pages
 const AdminLoginPage = lazy(() => import("./modules/admin/pages/AdminLoginPage"));
@@ -182,77 +182,82 @@ export default function App() {
 
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          {/* Customer */}
-          <Route
-            path="/"
-            element={
-              <CustomerRoute>
-                <HomePage />
-              </CustomerRoute>
-            }
-          />
+          {/* Customer — semua dibungkus MaintenanceGate (guard global):
+              saat maintenance aktif, user dialihkan ke /maintenance dari
+              route mana pun, termasuk deep link dan refresh. /maintenance
+              dan /admin/* sengaja di luar guard. */}
+          <Route element={<MaintenanceGate />}>
+            <Route
+              path="/"
+              element={
+                <CustomerRoute>
+                  <HomePage />
+                </CustomerRoute>
+              }
+            />
 
-          <Route
-            path="/game/:slug"
-            element={
-              <CustomerRoute>
-                <GameDetailPage />
-              </CustomerRoute>
-            }
-          />
+            <Route
+              path="/game/:slug"
+              element={
+                <CustomerRoute>
+                  <GameDetailPage />
+                </CustomerRoute>
+              }
+            />
 
-          <Route path="/login" element={<LoginPage />} />
+            <Route path="/login" element={<AuthPage />} />
 
-          <Route path="/register" element={<RegisterPage />} />
+            <Route path="/register" element={<AuthPage />} />
 
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
+            <Route
+              path="/profile"
+              element={
+                <ProtectedCustomerRoute>
+                  <ProfilePage />
+                </ProtectedCustomerRoute>
+              }
+            />
+
+            <Route
+              path="/history"
+              element={
+                <ProtectedCustomerRoute>
+                  <HistoryPage />
+                </ProtectedCustomerRoute>
+              }
+            />
+
+            <Route
+              path="/faq"
+              element={
+                <CustomerRoute>
+                  <FaqPage />
+                </CustomerRoute>
+              }
+            />
+
+            <Route
+              path="/contact"
+              element={
+                <CustomerRoute>
+                  <ContactPage />
+                </CustomerRoute>
+              }
+            />
+
+            {/* <Route
+              path="/vouchers"
+              element={
+                <CustomerRoute>
+                  <VouchersPage />
+                </CustomerRoute>
+              }
+            /> */}
+          </Route>
 
           <Route path="/maintenance" element={<MaintenancePage />} />
-
-          <Route
-            path="/profile"
-            element={
-              <ProtectedCustomerRoute>
-                <ProfilePage />
-              </ProtectedCustomerRoute>
-            }
-          />
-
-          <Route
-            path="/history"
-            element={
-              <ProtectedCustomerRoute>
-                <HistoryPage />
-              </ProtectedCustomerRoute>
-            }
-          />
-
-          <Route
-            path="/faq"
-            element={
-              <CustomerRoute>
-                <FaqPage />
-              </CustomerRoute>
-            }
-          />
-
-          <Route
-            path="/contact"
-            element={
-              <CustomerRoute>
-                <ContactPage />
-              </CustomerRoute>
-            }
-          />
-
-          <Route
-            path="/vouchers"
-            element={
-              <CustomerRoute>
-                <VouchersPage />
-              </CustomerRoute>
-            }
-          />
 
           {/* Admin */}
 

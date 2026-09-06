@@ -2,6 +2,17 @@ import axios from "axios";
 import { toast } from "sonner";
 import { useAuthStore } from "../store/authStore";
 import { useMaintenanceStore } from "../store/maintenanceStore";
+
+/* Flag internal untuk request yang TIDAK boleh memicu hard redirect 503 di
+   interceptor (dipakai probe MaintenanceGate, yang mengarahkan sendiri via
+   <Navigate> SPA supaya tidak dobel redirect + full reload). Store tetap
+   diisi interceptor — payload title/message dipakai MaintenancePage. */
+declare module "axios" {
+  export interface AxiosRequestConfig {
+    skipMaintenanceRedirect?: boolean;
+  }
+}
+
 import type {
   AuthTokenResponse,
   LoginPayload,
@@ -124,8 +135,11 @@ api.interceptors.response.use(
         if (!isAdminRequest) {
           const { setMaintenance } = useMaintenanceStore.getState();
           setMaintenance(true, data.title, data.message, data.estimatedFinish);
-          
-          if (!window.location.pathname.includes("/maintenance")) {
+
+          if (
+            !error.config?.skipMaintenanceRedirect &&
+            !window.location.pathname.includes("/maintenance")
+          ) {
             window.location.href = "/maintenance";
           }
         }

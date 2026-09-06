@@ -48,6 +48,15 @@
   animation: slide-down-in 150ms ease-out both;
 }
 
+/* Sembunyikan scrollbar halaman auth; konten tetap bisa discroll. */
+.auth-hide-scrollbar {
+  scrollbar-width: none;
+}
+
+.auth-hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Collapse buka/tutup. Trik grid 0fr→1fr adalah satu-satunya cara
    menganimasikan "height: auto" tanpa JS. Elemen tetap mounted supaya
    penutupannya ikut beranimasi; visibility menyembunyikannya dari

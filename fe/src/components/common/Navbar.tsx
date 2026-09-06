@@ -19,7 +19,7 @@ import ThemeToggle from "./ThemeToggle";
 
 const navLinks = [
   { to: "/", label: "Beranda" },
-  { to: "/vouchers", label: "Voucher" },
+  // { to: "/vouchers", label: "Voucher" },
   { to: "/history", label: "Cek Transaksi" },
 ];
 

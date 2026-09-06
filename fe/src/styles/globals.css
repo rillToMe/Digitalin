@@ -434,6 +434,46 @@ h1, h2, h3, h4 {
 }
 
 /* ==========================================================================
+   reCAPTCHA v3 — badge & disclosure
+
+   Script v3 menyuntikkan badge melayang kanan-bawah (fixed) di halaman yang
+   memuat hook useRecaptcha (AuthPage, AdminLoginPage). Badge menghalangi
+   form/footer saat scroll dan menutupi konten di layar kecil.
+
+   Disembunyikan dengan visibility:hidden — cara yang dipersilakan Google di
+   FAQ reCAPTCHA — SYARATNYA teks disclosure tetap tampil di alur user
+   (komponen RecaptchaNotice). visibility, bukan display:none, supaya
+   elemen tetap di-render dan tidak dianggap dicabut. */
+.grecaptcha-badge {
+  visibility: hidden;
+}
+
+.recaptcha-notice {
+  margin: 12px auto 0;
+  max-width: 44ch;
+  font-size: 0.72rem;
+  line-height: 1.6;
+  text-align: center;
+  color: var(--color-brand-secondary);
+}
+
+.recaptcha-notice a {
+  color: var(--color-brand-tertiary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.recaptcha-notice a:hover {
+  color: var(--color-brand-tertiary-hover);
+}
+
+.recaptcha-notice :focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--admin-radius-sm);
+}
+
+/* ==========================================================================
    Site footer — komponennya (components/common/Footer.tsx) hanya memegang
    struktur dan layout; semua warna, border, dan ukuran teks ada di sini.
    Sengaja di luar @layer: warna link tidak boleh lewat style inline karena

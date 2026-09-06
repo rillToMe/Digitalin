@@ -694,3 +694,320 @@
   }
 }
 
+/* --- Auth / login -------------------------------------------------------- */
+
+/* Login admin = konsol sebelum masuk konsol: frame yang sama dengan shell
+   (canvas terang, border sebagai struktur, aksen kobalt hanya untuk aksi),
+   supaya transisi login → dashboard terasa mulus. Semua warna dari token,
+   jadi tema gelap admin ikut otomatis. */
+
+.admin-login {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  font-family: var(--admin-font-sans);
+  color: var(--color-brand-primary);
+  background-color: var(--color-neutral);
+}
+
+.admin-login :focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--admin-radius-sm);
+}
+
+/* Top bar — 65px, tinggi yang sama dengan topbar shell. Kiri: brand block
+   ala sidebar. Kanan: status koneksi hasil ping sungguhan (AdminLoginPage). */
+.admin-login-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 65px;
+  padding: 10px 24px;
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.admin-login-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.admin-login-brand img {
+  height: 20px;
+  width: auto;
+  flex-shrink: 0;
+}
+
+.admin-login-brand-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.admin-login-brand-role {
+  padding-left: 10px;
+  border-left: 1px solid var(--color-border-light);
+  font-family: var(--admin-font-mono);
+  font-size: 0.65rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-brand-secondary);
+  white-space: nowrap;
+}
+
+/* role="status" dipasang di JSX supaya perubahan state terbaca screen
+   reader. Teks status ikut warna teks, bukan warna dot — kontras aman. */
+.admin-login-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--admin-font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--color-brand-secondary);
+  white-space: nowrap;
+}
+
+.admin-login-dot {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background-color: var(--color-warning);
+}
+
+.admin-login-dot--online {
+  background-color: var(--color-success);
+  animation: admin-login-pulse 2.4s ease-in-out infinite;
+}
+
+.admin-login-dot--offline {
+  background-color: var(--color-danger);
+}
+
+@keyframes admin-login-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--color-success-bg);
+  }
+  50% {
+    box-shadow: 0 0 0 4px var(--color-success-bg);
+  }
+}
+
+/* Panel tengah */
+.admin-login-main {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  padding: 32px 16px;
+}
+
+.admin-login-inner {
+  width: 100%;
+  max-width: 400px;
+}
+
+/* Override gaya h1 global (Barlow Condensed uppercase): heading login admin
+   pakai Geist sentence-case — bahasa konsol, bukan bahasa marketing. */
+.admin-login-title {
+  margin: 0;
+  font-family: var(--admin-font-sans);
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-transform: none;
+}
+
+.admin-login-sub {
+  margin: 6px 0 24px;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--color-brand-secondary);
+}
+
+/* Rail kobalt 3px di kiri panel — bahasa yang sama dengan marker item aktif
+   sidebar (admin-nav-item--active::before). */
+.admin-login-panel {
+  padding: 24px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-light);
+  border-left: 3px solid var(--color-brand-tertiary);
+  border-radius: var(--admin-radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.admin-login-row {
+  margin-bottom: 16px;
+}
+
+.admin-login-field {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.admin-login-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1.5px solid var(--color-border-input);
+  border-radius: var(--admin-radius-sm);
+  background-color: var(--color-surface);
+  color: var(--color-brand-primary);
+  font-family: inherit;
+  font-size: 0.9rem;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.admin-login-input::placeholder {
+  color: var(--color-brand-secondary);
+  opacity: 0.65;
+}
+
+.admin-login-input:hover {
+  border-color: var(--color-border-default);
+}
+
+/* Fokus input pakai ring lembut ala hud-checkout-field; outline global
+   di-nonaktifkan untuk input saja supaya tidak dobel indikator. */
+.admin-login-input:focus-visible {
+  outline: none;
+  border-color: var(--color-brand-tertiary);
+  box-shadow: 0 0 0 3px var(--color-accent-tint);
+}
+
+.admin-login-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.admin-login-passwrap {
+  position: relative;
+}
+
+.admin-login-input--pass {
+  padding-right: 46px;
+}
+
+.admin-login-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: var(--admin-radius-sm);
+  background-color: transparent;
+  color: var(--color-brand-secondary);
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.admin-login-toggle:hover {
+  background-color: var(--color-hover-surface);
+  color: var(--color-brand-primary);
+}
+
+.admin-login-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 46px;
+  border: 0;
+  border-radius: var(--admin-radius-md);
+  background-color: var(--color-brand-tertiary);
+  color: var(--color-on-primary);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+.admin-login-submit:hover:not(:disabled) {
+  background-color: var(--color-brand-tertiary-hover);
+}
+
+.admin-login-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Pembatas = informasi: baris di bawah form adalah panduan, bukan bagian
+   dari form. */
+.admin-login-help {
+  margin: 18px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border-lighter);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--color-brand-secondary);
+}
+
+.admin-login-lastlogin {
+  margin: 14px 0 0;
+  font-family: var(--admin-font-mono);
+  font-size: 0.72rem;
+  color: var(--color-brand-secondary);
+}
+
+/* Bottom strip: versi build kiri, zona waktu + jam kanan. */
+.admin-login-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding: 14px 24px;
+  background-color: var(--color-surface);
+  border-top: 1px solid var(--color-border-light);
+  font-family: var(--admin-font-mono);
+  font-size: 0.72rem;
+  color: var(--color-brand-secondary);
+}
+
+.admin-login-foot-meta {
+  margin-left: auto;
+}
+
+@media (max-width: 480px) {
+  .admin-login-bar,
+  .admin-login-foot {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .admin-login-main {
+    padding: 24px 16px;
+  }
+
+  .admin-login-title {
+    font-size: 1.25rem;
+  }
+
+  .admin-login-panel {
+    padding: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-login-dot,
+  .admin-login-input,
+  .admin-login-toggle,
+  .admin-login-submit {
+    transition: none;
+    animation: none;
+  }
+}
+
