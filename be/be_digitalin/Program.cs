@@ -1,7 +1,8 @@
+using be_digitalin.Application.Ports;
 using be_digitalin.Data;
 using be_digitalin.Config;
 using be_digitalin.Constants;
-using be_digitalin.Workers;
+using be_digitalin.Infrastructure.Workers;
 using be_digitalin.Providers;
 using be_digitalin.Middleware;
 using be_digitalin.Infrastructure.OpenApi;
@@ -16,6 +17,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.OpenApi;
 using be_digitalin.Services.Admin;
@@ -42,37 +44,53 @@ builder.Services.AddDbContext<DigitalinDbContext>(options =>
 builder.Services.AddDbContextFactory<DigitalinDbContext>(options =>
     options.UseMySql(connectionString, serverVersion), ServiceLifetime.Scoped);
 
-builder.Services.Configure<DigiflazzSettings>(builder.Configuration.GetSection("Digiflazz"));
+// IApplicationDbContext — pragmatic persistence port (Fase 3 Clean Architecture).
+// Resolusi dipetakan ke instance yang sama dengan registrasi AddDbContext (satu instance per scope).
+builder.Services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<DigitalinDbContext>());
 
-builder.Services.Configure<MidtransSettings>(builder.Configuration.GetSection("Midtrans"));
+// ── Settings inti: fail-fast saat startup ──
+// Jwt/Digiflazz/Midtrans adalah jalur uang & auth — config kosong harus
+// mematikan aplikasi saat boot, bukan meledak jadi 500 di request pertama.
+builder.Services.AddOptions<DigiflazzSettings>()
+    .BindConfiguration("Digiflazz")
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services.AddOptions<MidtransSettings>()
+    .BindConfiguration("Midtrans")
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 
 builder.Services.Configure<CloudflareR2Settings>(builder.Configuration.GetSection("CloudflareR2"));
-builder.Services.AddScoped<CloudflareR2Provider>();
+builder.Services.AddScoped<ICloudflareR2Provider, CloudflareR2Provider>();
 
 builder.Services.Configure<GoogleAuthSettings>(builder.Configuration.GetSection("GoogleAuth"));
-builder.Services.AddScoped<GoogleProvider>();
+builder.Services.AddScoped<IGoogleProvider, GoogleProvider>();
 builder.Services.AddScoped<IGoogleAuthService, GoogleAuthService>();
 builder.Services.Configure<RecaptchaSettings>(builder.Configuration.GetSection("Recaptcha"));
 builder.Services.AddScoped<IAdminAuthService, AdminAuthService>();
 
 // ── External HTTP clients: explicit timeout, jangan andalkan default 100s ──
 // Digiflazz 60s (price-list besar; topup tetap di-cap 30s oleh CTS caller).
-builder.Services.AddHttpClient<DigiflazzProvider>(client =>
+builder.Services.AddHttpClient<IDigiflazzProvider, DigiflazzProvider>(client =>
     client.Timeout = TimeSpan.FromSeconds(60));
 // Midtrans 20s (Snap creation sinkron di checkout path).
-builder.Services.AddHttpClient<MidtransProvider>(client =>
+builder.Services.AddHttpClient<IMidtransProvider, MidtransProvider>(client =>
     client.Timeout = TimeSpan.FromSeconds(20));
 // Telegram auxiliary: cepat gagal, tidak boleh menahan request.
-builder.Services.AddHttpClient<TelegramProvider>(client =>
+builder.Services.AddHttpClient<ITelegramProvider, TelegramProvider>(client =>
     client.Timeout = TimeSpan.FromSeconds(10));
 // reCAPTCHA verify singkat.
-builder.Services.AddHttpClient<RecaptchaProvider>(client =>
+builder.Services.AddHttpClient<IRecaptchaProvider, RecaptchaProvider>(client =>
     client.Timeout = TimeSpan.FromSeconds(10));
 
 // Worker
-//di komen dulu supaya tidak langsung membuat limit rate digiflazz aktif setiap kali development
-// builder.Services.AddHostedService<DigiflazzSyncWorker>();   
-builder.Services.AddHostedService<be_digitalin.Workers.OrderSweepWorker>();
+// DigiflazzSyncWorker: default OFF — aktifkan dengan EnableDigiflazzSync=true
+// (env/config). Sync price-list periodik membakar limit rate Digiflazz saat
+// development restart-restart; produksi menyalakannya lewat env var.
+if (builder.Configuration.GetValue("EnableDigiflazzSync", false))
+    builder.Services.AddHostedService<be_digitalin.Infrastructure.Workers.DigiflazzSyncWorker>();
+builder.Services.AddHostedService<be_digitalin.Infrastructure.Workers.OrderSweepWorker>();
 
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
@@ -84,15 +102,15 @@ builder.Services.AddScoped<ICheckoutService, CheckoutService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
-builder.Services.AddScoped<IAppSettingsService, AppSettingsService>();
+builder.Services.AddScoped<IAppSettingsService, be_digitalin.Infrastructure.Settings.AppSettingsService>();
 builder.Services.AddScoped<IRecaptchaService, RecaptchaService>();
 builder.Services.AddScoped<IAdminManagementService, AdminManagementService>();
-builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<ITokenService, be_digitalin.Infrastructure.Security.TokenService>();
 
 // EmailSettings
 builder.Services.Configure<be_digitalin.Config.EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 
-builder.Services.AddSingleton<be_digitalin.Providers.EmailProvider>(); 
+builder.Services.AddSingleton<IEmailProvider, be_digitalin.Providers.EmailProvider>(); 
 
 // AKTIVKAN MEMORY CACHE (AppSettingsService — bukan untuk OTP registrasi)
 builder.Services.AddMemoryCache();
@@ -116,7 +134,10 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
     }));
 builder.Services.AddSingleton<IRedisService, RedisService>();
 
-builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
+builder.Services.AddOptions<JwtSettings>()
+    .BindConfiguration("Jwt")
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -155,6 +176,16 @@ builder.Services.AddAuthorization(options =>
     });
 });
 
+// ── Forwarded Headers: baca IP klien asli dari reverse proxy ──
+// Tanpa ini semua request di belakang proxy terlihat datang dari IP proxy →
+// rate limiter per-IP menjadi SATU bucket global (lockout seluruh situs).
+// Default hanya memercayai proxy loopback (nginx/container same-host, pola
+// deployment saat ini); proxy eksternal → tambahkan IP-nya ke KnownProxies.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+});
+
 // Rate Limiting
 builder.Services.AddRateLimiter(options =>
 {
@@ -190,6 +221,13 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy("AdminLoginPolicy", context =>
         RateLimitPartition.GetFixedWindowLimiter(
             PartitionByIp(context), _ => IpFixedWindow(5, 5)));
+
+    // Checkout (POST /orders — anonymous): 10 / 5 menit / IP. Tiap call
+    // menulis order, mereservasi kuota voucher, dan memanggil Midtrans;
+    // tanpa limit, spam = biaya API + pembakaran kuota voucher.
+    options.AddPolicy("OrderPolicy", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            PartitionByIp(context), _ => IpFixedWindow(10, 5)));
 
     // Custom rejection response: 429 Too Many Requests (semua policy).
     options.OnRejected = (context, cancellationToken) =>
@@ -295,6 +333,10 @@ app.Use(async (context, next) =>
 });
 
 
+// Forwarded Headers HARUS sebelum RateLimiter supaya partisi per-IP
+// memakai IP klien asli (X-Forwarded-For), bukan IP proxy.
+app.UseForwardedHeaders();
+
 // Rate Limiter must be placed BEFORE Authentication/Authorization
 app.UseRateLimiter();
 
@@ -314,10 +356,14 @@ app.MapControllers();
 
 // Endpoint ping-db untuk testing
 app.MapGet("/ping-db", async (DigitalinDbContext db) => {
-    return await db.Database.CanConnectAsync() 
-        ? Results.Ok("Koneksi Database via EF Core Sukses! ") 
+    return await db.Database.CanConnectAsync()
+        ? Results.Ok("Koneksi Database via EF Core Sukses! ")
         : Results.Problem("Gagal terhubung.");
 });
+
+// Health / readiness probe — whitelist MaintenanceMiddleware. Liveness ringan:
+// 200 tanpa cek dependensi (DB down tidak boleh mematikan probe container).
+app.MapGet("/health", () => Results.Ok(new { status = "Healthy" }));
 
 // ── Seed default Maintenance AppSettings (idempotent — only inserts if missing) ──
 await using (var seedScope = app.Services.CreateAsyncScope())
@@ -343,7 +389,7 @@ await using (var seedScope = app.Services.CreateAsyncScope())
     // Seed default SUPER_ADMIN (idempotent — only inserts if no admins exist) 
     if (!await db.Admins.AnyAsync())
     {
-        db.Admins.Add(new be_digitalin.Models.Admin
+        db.Admins.Add(new be_digitalin.Domain.Entities.Admin
         {
             Username     = "superadmin",
             PasswordHash = BCrypt.Net.BCrypt.HashPassword("ChangeMe123!", workFactor: 11),

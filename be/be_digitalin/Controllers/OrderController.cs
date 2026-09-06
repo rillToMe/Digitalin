@@ -5,6 +5,7 @@ using be_digitalin.Services.Customer;
 using be_digitalin.Services.Orders;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace be_digitalin.Controllers;
 
@@ -36,8 +37,9 @@ public class OrderController : ControllerBase
         _loggerFactory = loggerFactory;
     }
 
-    // POST /api/v1/orders — buat pesanan (optional-auth)
+    // POST /api/v1/orders — buat pesanan (optional-auth, rate-limited per IP)
     [HttpPost]
+    [EnableRateLimiting("OrderPolicy")]
     public async Task<IActionResult> PlaceOrder([FromBody] CreateOrderRequest req)
     {
         var logger = _loggerFactory.CreateLogger("PlaceOrder");
@@ -54,13 +56,18 @@ public class OrderController : ControllerBase
             var result = await _orderService.PlaceOrderAsync(req, customerId);
             return Ok(result);
         }
+        catch (InvalidOperationException ex)
+        {
+            // Pelanggaran aturan bisnis → 400 dengan pesan kontrak.
+            logger.LogWarning(ex, "[PlaceOrder] Request ditolak aturan bisnis.");
+            return BadRequest(new MessageResponse(ex.Message));
+        }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "[PlaceOrder] Failed for request.");
-            var message = ex is InvalidOperationException || ex.Message.Length < 100
-                ? ex.Message
-                : "Terjadi kesalahan saat memproses pesanan Anda.";
-            return BadRequest(new MessageResponse(message));
+            // Kegagalan non-bisnis (DB, provider) → 500 generik. Pesan internal
+            // tidak boleh bocor ke klien.
+            logger.LogError(ex, "[PlaceOrder] Unexpected error.");
+            return Problem("Terjadi kesalahan saat memproses pesanan Anda.");
         }
     }
 
@@ -89,9 +96,10 @@ public class OrderController : ControllerBase
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
         if (userIdClaim == null) return Unauthorized();
 
-        // Set nilai default pagination
-        int currentPage = page ?? 1;
-        int currentLimit = limit ?? 20;
+        // Set nilai default pagination + clamp (page < 1 atau limit di luar
+        // 1..100 → default aman; Skip negatif = error EF, limit raksasa = OOM).
+        int currentPage = Math.Max(page ?? 1, 1);
+        int currentLimit = Math.Clamp(limit ?? 20, 1, 100);
 
         var history = await _customerService.GetCustomerHistoryAsync(
             int.Parse(userIdClaim.Value), currentPage, currentLimit);

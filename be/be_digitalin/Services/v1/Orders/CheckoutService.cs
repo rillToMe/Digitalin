@@ -1,4 +1,4 @@
-using be_digitalin.Data;
+using be_digitalin.Application.Ports;
 using be_digitalin.DTOs;
 using Microsoft.EntityFrameworkCore;
 using be_digitalin.Services.Commerce;
@@ -7,10 +7,10 @@ namespace be_digitalin.Services.Orders;
 
 public class CheckoutService : ICheckoutService
 {
-    private readonly DigitalinDbContext _db;
+    private readonly IApplicationDbContext _db;
     private readonly IVoucherService _voucherService;
 
-    public CheckoutService(DigitalinDbContext db, IVoucherService voucherService)
+    public CheckoutService(IApplicationDbContext db, IVoucherService voucherService)
     {
         _db = db;
         _voucherService = voucherService;

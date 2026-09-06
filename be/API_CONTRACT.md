@@ -209,6 +209,39 @@ interface RegisterResponse {
 
 ---
 
+### GET /api/v1/auth/check-email
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `GET` |
+| Path | `/api/v1/auth/check-email` |
+| Description | Check apakah email sudah terdaftar (dipakai form register & lupa password) |
+| Auth | None (Public) |
+
+#### REQUEST PAYLOAD
+
+| Field Name | Data Type | Required/Optional | Description & Constraints |
+|------------|-----------|-------------------|---------------------------|
+| `email` | `string` (query) | Required | Email yang dicek |
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK — email tersedia
+interface CheckEmailResponse {
+  message: string; // "Email tersedia."
+}
+```
+
+#### BUSINESS RULES & EDGE CASES
+
+- Error 400 `email` kosong: `{ message: "Email tidak boleh kosong." }`
+- Error 400 email sudah terdaftar: `{ message: "Email sudah terdaftar. Silakan login." }`
+
+---
+
 ### POST /api/v1/auth/local/login
 
 #### ENDPOINT SUMMARY
@@ -1100,6 +1133,7 @@ interface CheckoutPreviewResponse {
 | Description | Create a new top-up order with optional voucher |
 | Auth | Optional (JWT accepted but not required) |
 | Headers | `Authorization: Bearer <token>` (optional) |
+| Rate Limit | 10 requests per 5 minutes per IP |
 
 #### REQUEST PAYLOAD
 
@@ -1116,7 +1150,7 @@ interface CheckoutPreviewResponse {
 // 200 OK
 interface CreateOrderResponse {
   id: number;
-  orderNo: string; // Format: "INV-{yyyyMMdd}-{4 random uppercase chars}"
+  orderNo: string; // Format: "INV-{yyyyMMdd}-{10 random uppercase hex chars}", globally unique (DB-enforced)
   playerId: string; // targetId + zoneId (concatenated, NO separator)
   status: string; // Initially "PENDING"
   productName: string;
@@ -1147,7 +1181,12 @@ interface CreateOrderResponse {
 - `finalPrice = price - discountAmount` (must be > 0, else Error 400: `"Harga akhir setelah diskon tidak boleh nol atau negatif."`)
 - Concurrent quota race condition → `"Kuota voucher ini sudah habis (persaingan bersamaan)."`
 - Error 400: `"Produk tidak ditemukan!"` — invalid productId
-- OrderNo format: `"INV-{yyyyMMdd}-{4 random uppercase chars}"`
+- **Profit snapshot**: `profitAmount = finalPrice − costPrice` where `costPrice = price − customMargin` — a voucher discount reduces profit, not cost basis (can go negative if discount > margin)
+- Error 429: `"Terlalu banyak permintaan. Coba lagi nanti."` — rate limit exceeded (10 per 5 min per IP)
+- Error 500: unexpected server/provider failure — generic message, no internal details leaked (business-rule rejections remain 400 `{message}`)
+- OrderNo format: `"INV-{yyyyMMdd}-{10 random uppercase hex chars}"` (e.g. `"INV-20260614-A3F91B7C2D"`) — uniqueness enforced by a DB unique index
+- **Snap creation failure compensation**: if the Midtrans Snap transaction cannot be created after the order is committed, the order is immediately set to `EXPIRED`, the reserved voucher quota is released, and the client receives Error 400
+- **Unpaid PENDING sweep**: the background sweep (runs every 2 minutes) marks `PENDING` orders older than the Midtrans expiry setting (default 30 min, see Section — Midtrans Expiry) + 5 min buffer as `EXPIRED` and releases their reserved voucher quota — a safety net for cases where the Midtrans Expire webhook never arrives
 
 ---
 
@@ -1167,8 +1206,8 @@ interface CreateOrderResponse {
 
 | Field Name | Data Type | Required/Optional | Description & Constraints |
 |------------|-----------|-------------------|---------------------------|
-| `page` | `integer` | Optional | Default = 1 |
-| `limit` | `integer` | Optional | Default = 20 |
+| `page` | `integer` | Optional | Default = 1, values < 1 are clamped to 1 |
+| `limit` | `integer` | Optional | Items per page, default = 20, clamped to 1..100 |
 
 #### RESPONSE PAYLOAD
 
@@ -1222,8 +1261,8 @@ interface OrderResponse {
 
 | Field Name | Data Type | Required/Optional | Description & Constraints |
 |------------|-----------|-------------------|---------------------------|
-| `page` | `integer` | Optional | Default = 1 |
-| `limit` | `integer` | Optional | Default = 20 |
+| `page` | `integer` | Optional | Default = 1, values < 1 are clamped to 1 |
+| `limit` | `integer` | Optional | Items per page, default = 20, clamped to 1..100 |
 
 #### RESPONSE PAYLOAD
 
@@ -1260,7 +1299,7 @@ interface AdminOrdersResponse {
 
 | Field Name | Data Type | Required/Optional | Description & Constraints |
 |------------|-----------|-------------------|---------------------------|
-| `orderNo` (path) | `string` | Required | Order number (e.g. `"INV-20260614-ABC1"`) |
+| `orderNo` (path) | `string` | Required | Order number (e.g. `"INV-20260614-A3F91B7C2D"`) |
 
 _No request body._
 
@@ -1366,6 +1405,44 @@ interface BannerItem {
 
 - Only returns banners where `isActive == true`
 - Ordered by `createdAt` descending (newest first)
+
+---
+
+### GET /api/v1/admin/banners
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `GET` |
+| Path | `/api/v1/admin/banners` |
+| Description | List semua banner (aktif & non-aktif) untuk panel admin |
+| Auth | Admin JWT Required (`ADMIN`/`SUPER_ADMIN`) |
+| Headers | `Authorization: Bearer <token>` |
+
+#### REQUEST PAYLOAD
+
+_No request body or query parameters._
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK
+type AdminBannersResponse = BannerItem[];
+
+interface BannerItem {
+  id: number;
+  title: string;
+  imageUrl: string;
+  isActive: boolean; // Bisa false — admin melihat semua status
+  createdAt: string; // ISO datetime
+}
+```
+
+#### BUSINESS RULES & EDGE CASES
+
+- Berbeda dari `GET /api/v1/banners`: tidak memfilter `isActive` (admin butuh melihat banner non-aktif)
+- Error 401 tanpa token admin
 
 ---
 
@@ -1507,7 +1584,7 @@ _No request body or query parameters._
 // 200 OK
 interface DashboardStatsResponse {
   totalRevenueToday: number; // Sum of prices for COMPLETED orders today
-  totalProfitToday: number; // Sum of customMargin for COMPLETED orders today
+  totalProfitToday: number; // Sum of profitAmount (finalPrice − costPrice) for COMPLETED orders today
   totalOrdersToday: number; // All orders created today
   successOrdersToday: number; // COMPLETED orders today
   pendingOrdersToday: number; // PENDING orders today
@@ -2861,7 +2938,17 @@ GET /api/v1/admin/vouchers/1/usage?page=1&limit=10
 interface MidtransWebhookResponse {
   message: "Notification received";
 }
+
+// 401 Unauthorized — invalid signature_key (request rejected, Midtrans should not retry)
+// 500 — internal processing error (Midtrans may retry)
 ```
+
+#### BUSINESS RULES & EDGE CASES
+
+- `signature_key` is validated before any DB access; an invalid signature returns **401** (previously 500)
+- Unknown `order_id` → 200 with no state change
+- Duplicate/late notifications for non-PENDING orders → 200, ignored
+- Amount guard: `gross_amount` must equal the integer part of the order's `totalPaid`, otherwise the notification is logged and ignored (status unchanged)
 
 ---
 
@@ -2902,6 +2989,39 @@ interface DigiflazzWebhookResponse {
 #### BUSINESS RULES & EDGE CASES
 
 - Error 401: Invalid `x-hub-signature`
+
+---
+
+## Ops Endpoints
+
+### GET /health
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `GET` |
+| Path | `/health` |
+| Description | Liveness probe for containers / uptime monitors |
+| Auth | None (Public) |
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK — always
+interface HealthResponse {
+  status: "Healthy";
+}
+```
+
+#### BUSINESS RULES & EDGE CASES
+
+- Whitelisted from Maintenance Mode (never returns 503)
+- Liveness only — no dependency checks (DB/Redis down must not kill the container probe; use `/ping-db` for DB connectivity)
+
+### GET /ping-db
+
+Dev-only DB connectivity check. Returns 200 with a success string when EF Core can connect, 500 `ProblemDetails` otherwise. Not part of the stable API surface.
 
 ---
 

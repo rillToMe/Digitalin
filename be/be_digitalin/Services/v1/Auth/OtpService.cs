@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
-using be_digitalin.Data;
-using be_digitalin.Models;
+using be_digitalin.Application.Ports;
+using be_digitalin.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace be_digitalin.Services.Auth;
@@ -9,9 +9,9 @@ public class OtpService : IOtpService
 {
     private static readonly TimeSpan DefaultTtl = TimeSpan.FromMinutes(5);
 
-    private readonly DigitalinDbContext _db;
+    private readonly IApplicationDbContext _db;
 
-    public OtpService(DigitalinDbContext db)
+    public OtpService(IApplicationDbContext db)
     {
         _db = db;
     }

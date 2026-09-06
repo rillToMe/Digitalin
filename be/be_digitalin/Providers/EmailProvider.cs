@@ -1,3 +1,4 @@
+using be_digitalin.Application.Ports;
 using be_digitalin.Config;
 using MailKit.Net.Smtp;
 using MailKit.Security;
@@ -6,7 +7,7 @@ using MimeKit;
 
 namespace be_digitalin.Providers;
 
-public class EmailProvider
+public class EmailProvider : IEmailProvider
 {
     private readonly EmailSettings _settings;
 

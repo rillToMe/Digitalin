@@ -1,14 +1,14 @@
-﻿using be_digitalin.Providers;
+﻿using be_digitalin.Application.Ports;
 
 namespace be_digitalin.Services.Security;
 
 public class RecaptchaService : IRecaptchaService
 {
-    private readonly RecaptchaProvider _recaptchaProvider;
+    private readonly IRecaptchaProvider _recaptchaProvider;
     private readonly ILogger<RecaptchaService> _logger;
 
     public RecaptchaService(
-        RecaptchaProvider recaptchaProvider,
+        IRecaptchaProvider recaptchaProvider,
         ILogger<RecaptchaService> logger)
     {
         _recaptchaProvider = recaptchaProvider;

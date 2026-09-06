@@ -1,5 +1,5 @@
 using be_digitalin.Constants;
-using be_digitalin.Models;
+using be_digitalin.Domain.Entities;
 using be_digitalin.Services.Content;
 using Microsoft.AspNetCore.Mvc;
 

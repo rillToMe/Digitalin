@@ -1,33 +1,36 @@
-using be_digitalin.Data;
+using be_digitalin.Application.Ports;
 using be_digitalin.DTOs;
-using be_digitalin.Models;
-using be_digitalin.Providers;
+using be_digitalin.Domain.Entities;
+
 using be_digitalin.Constants;
 using be_digitalin.Domain;
 using be_digitalin.Domain.Orders;
-using be_digitalin.Infrastructure.Serialization;
+using be_digitalin.Application.Serialization;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 using System.Transactions;
 using be_digitalin.Services.Commerce;
+using be_digitalin.Services.Settings;
 
 namespace be_digitalin.Services.Orders;
 
 public class OrderService : IOrderService
 {
-    private readonly DigitalinDbContext _db;
-    private readonly MidtransProvider _midtransProvider;
-    private readonly DigiflazzProvider _digiflazzProvider;
-    private readonly TelegramProvider _telegramProvider;
+    private readonly IApplicationDbContext _db;
+    private readonly IMidtransProvider _midtransProvider;
+    private readonly IDigiflazzProvider _digiflazzProvider;
+    private readonly ITelegramProvider _telegramProvider;
     private readonly IVoucherService _voucherService;
+    private readonly IAppSettingsService _appSettings;
     private readonly ILogger<OrderService> _logger;
 
     public OrderService(
-        DigitalinDbContext db,
-        MidtransProvider midtransProvider,
-        DigiflazzProvider digiflazzProvider,
-        TelegramProvider telegramProvider,
+        IApplicationDbContext db,
+        IMidtransProvider midtransProvider,
+        IDigiflazzProvider digiflazzProvider,
+        ITelegramProvider telegramProvider,
         IVoucherService voucherService,
+        IAppSettingsService appSettings,
         ILogger<OrderService> logger)
     {
         _db = db;
@@ -35,6 +38,7 @@ public class OrderService : IOrderService
         _digiflazzProvider = digiflazzProvider;
         _telegramProvider = telegramProvider;
         _voucherService = voucherService;
+        _appSettings = appSettings;
         _logger = logger;
     }
 
@@ -96,10 +100,18 @@ public class OrderService : IOrderService
             throw new InvalidOperationException("Harga akhir setelah diskon tidak boleh nol atau negatif.");
 
         // Hitung snapshot modal & profit
-        decimal profitAmount = Pricing.MarginOf(product.CustomMargin);
-        decimal costPrice = product.Price - profitAmount;
+        // Modal = harga jual − margin (basis supplier, tidak terpengaruh diskon).
+        // Profit dihitung dari harga AKHIR setelah diskon — voucher dipotong dari
+        // penerimaan penjual, bukan dari modal. Rumus lama (profit = margin)
+        // mengabaikan diskon sehingga dashboard membaca profit terlampau besar.
+        decimal costPrice = product.Price - Pricing.MarginOf(product.CustomMargin);
+        decimal profitAmount = finalPrice - costPrice;
 
-        string generatedOrderNo = $"INV-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..4].ToUpper()}";
+        // Suffix 10 hex char dari Guid (16^10 ≈ 10^12 kombinasi/hari) —
+        // ruang cukup luas untuk harian, dan unique index di DB menutup
+        // sisa risiko tabrakan (insert duplikat ditolak, bukan diam-diam
+        // salah sambung ke pembayaran order lain).
+        string generatedOrderNo = $"INV-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..10].ToUpper()}";
 
         var order = new TopupOrder
         {
@@ -141,10 +153,34 @@ public class OrderService : IOrderService
             await voucherTx.CommitAsync();
         }
 
-        var (token, redirectUrl) = await _midtransProvider.CreateSnapTransactionAsync(
-            order.OrderNo, finalPrice, product.Id.ToString(), product.Name, fullPlayerId);
+        // Snap token dibuat SETELAH order ter-commit. Kalau Midtrans gagal,
+        // order PENDING tanpa transaksi Snap akan yatim: Midtrans tidak pernah
+        // mengirim webhook untuk transaksi yang tidak tercipta, jadi tidak ada
+        // yang melepaskan kuota voucher. Kompensasi: tandai EXPIRED + lepas
+        // kuota, lalu lempar error ke client.
+        string? snapToken;
+        string? redirectUrl;
+        try
+        {
+            (snapToken, redirectUrl) = await _midtransProvider.CreateSnapTransactionAsync(
+                order.OrderNo, finalPrice, product.Id.ToString(), product.Name, fullPlayerId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "[ORDER] Midtrans Snap gagal untuk {OrderNo}. Order dikompensasi ke EXPIRED.",
+                order.OrderNo);
 
-        order.SnapToken = token;
+            if (TryTransition(order, AppConstants.OrderStatus.Expired) &&
+                await SafeSaveChangesAsync(order.OrderNo))
+            {
+                await ReleaseVoucherIfPresentAsync(order);
+            }
+
+            throw;
+        }
+
+        order.SnapToken = snapToken;
         order.RedirectUrl = redirectUrl;
         await _db.SaveChangesAsync();
 
@@ -197,7 +233,12 @@ public class OrderService : IOrderService
         return await GetOrdersAsync(null, page, limit, status); 
     }
 
-    public async Task HandleNotificationAsync(MidtransNotificationRequest notification)
+    /// <summary>
+    /// Terapkan notifikasi pembayaran Midtrans. Mengembalikan <c>false</c> HANYA
+    /// untuk signature tidak valid (controller memetakan ke 401); false ≠ error
+    /// internal — kegagalan pemrosesan tetap melempar exception.
+    /// </summary>
+    public async Task<bool> HandleNotificationAsync(MidtransNotificationRequest notification)
     {
         // memvalidasi signature midtrans
         if (!_midtransProvider.ValidateSignature(
@@ -206,21 +247,24 @@ public class OrderService : IOrderService
                 notification.gross_amount,
                 notification.signature_key))
         {
-            throw new Exception("Signature key tidak valid! Data dicurigai palsu.");
+            _logger.LogWarning(
+                "[WEBHOOK] Signature Midtrans tidak valid untuk Order {OrderNo}. Ditolak.",
+                notification.order_id);
+            return false;
         }
 
         // ambil pesanan — tanpa join Product (gunakan snapshot)
         var order = await _db.TopupOrders
             .FirstOrDefaultAsync(o => o.OrderNo == notification.order_id);
 
-        if (order == null) return;
+        if (order == null) return true;
 
         if (order.Status != AppConstants.OrderStatus.Pending)
         {
             _logger.LogWarning(
                 "[WEBHOOK] Duplicate/late webhook ignored for Order {OrderNo}. Current status: {Status}",
                 order.OrderNo, order.Status);
-            return;
+            return true;
         }
 
         // Route by Midtrans transaction_status 
@@ -229,7 +273,7 @@ public class OrderService : IOrderService
             order.Status = AppConstants.OrderStatus.Expired;
             if (await SafeSaveChangesAsync(order.OrderNo))
                 await ReleaseVoucherIfPresentAsync(order);
-            return;
+            return true;
         }
 
         if (notification.transaction_status == AppConstants.MidtransStatus.Cancel ||
@@ -238,17 +282,17 @@ public class OrderService : IOrderService
             order.Status = AppConstants.OrderStatus.Failed;
             if (await SafeSaveChangesAsync(order.OrderNo))
                 await ReleaseVoucherIfPresentAsync(order);
-            return;
+            return true;
         }
 
         // Successful payment - settlement / capture + fraud accept
         if (notification.transaction_status != AppConstants.MidtransStatus.Settlement &&
             notification.transaction_status != AppConstants.MidtransStatus.Capture)
         {
-            return; // Unrecognised status — do nothing
+            return true; // Unrecognised status — do nothing
         }
 
-        if (notification.fraud_status != AppConstants.MidtransFraud.Accept) return;
+        if (notification.fraud_status != AppConstants.MidtransFraud.Accept) return true;
 
         // ── Guard nominal: nominal yang dibayar wajib sama dengan yang ditagih ──
         // Signature valid hanya membuktikan payload asli dari Midtrans, bukan bahwa
@@ -266,7 +310,7 @@ public class OrderService : IOrderService
             _logger.LogWarning(
                 "[WEBHOOK] Nominal tidak cocok untuk Order {OrderNo}. Diharapkan {Expected}, diterima {Received}. Status tidak diubah.",
                 order.OrderNo, expectedAmount, notification.gross_amount);
-            return;
+            return true;
         }
 
         // ── Transaksi SANGAT singkat: hanya PENDING → PAID ──
@@ -287,7 +331,7 @@ public class OrderService : IOrderService
                 _logger.LogWarning(
                     "[WEBHOOK] Konflik konkurensi pada Pesanan {OrderNo}. Proses lain sudah menanganinya",
                     order.OrderNo);
-                return;
+                return true;
             }
         }
 
@@ -305,7 +349,7 @@ public class OrderService : IOrderService
                 cts.Token);
 
             // Digiflazz responded - advance to PROCESSING
-            if (!TryTransition(order, AppConstants.OrderStatus.Processing)) return;
+            if (!TryTransition(order, AppConstants.OrderStatus.Processing)) return true;
 
             // Instan SN
             if (!string.IsNullOrEmpty(sn))
@@ -323,7 +367,7 @@ public class OrderService : IOrderService
                 "[WEBHOOK] Digiflazz TIMEOUT saat memesan {OrderNo}. Pesanan tetap DIBAYAR, menunggu bot jalan.",
                 order.OrderNo);
 
-            if (!TryTransition(order, AppConstants.OrderStatus.NeedsAction)) return;
+            if (!TryTransition(order, AppConstants.OrderStatus.NeedsAction)) return true;
             if (await SafeSaveChangesAsync(order.OrderNo))
                 await SendStuckOrderAlertAsync(order, "Digiflazz API timeout (30s).");
         }
@@ -332,10 +376,12 @@ public class OrderService : IOrderService
             _logger.LogCritical(ex,
                 "[WEBHOOK] Digiflazz gagal memesan {OrderNo}", order.OrderNo);
 
-            if (!TryTransition(order, AppConstants.OrderStatus.NeedsAction)) return;
+            if (!TryTransition(order, AppConstants.OrderStatus.NeedsAction)) return true;
             if (await SafeSaveChangesAsync(order.OrderNo))
                 await SendStuckOrderAlertAsync(order, ex.Message);
         }
+
+        return true;
     }
 
     // ── Admin: retry pesanan yang nyangkut (NEEDS_ACTION) ─────────
@@ -553,10 +599,20 @@ public class OrderService : IOrderService
         // PAID = commit pembayaran sukses tapi fulfillment belum selesai
         // (crash/restart antara commit dan panggilan Digiflazz) — wajib di-resume,
         // kalau tidak order uang-masuk terlantar tanpa rekonsiliasi.
+        //
+        // PENDING = order ter-commit tapi tidak terbayar dalam jendela expiry
+        // Midtrans (+buffer). Transaksi Snap sudah hangus di sisi Midtrans — atau
+        // tidak pernah tercipta — dan webhook Expire tidak dijamin datang. Sweep
+        // menutup celah order PENDING yatim (termasuk kuota voucher yang
+        // terlanjur direservasi). Buffer memberi ruang bagi webhook Expire
+        // Midtrans agar tetap yang menangani kasus normal.
+        int midtransExpiryMinutes = await _appSettings.GetMidtransExpiryMinutesAsync();
+        var pendingCutoff = DateTime.UtcNow.AddMinutes(-(midtransExpiryMinutes + PendingSweepBufferMinutes));
         var stuckOrders = await _db.TopupOrders
             .Where(o =>
                 (o.Status == AppConstants.OrderStatus.Processing && o.OrderDate <= timeThreshold) ||
-                (o.Status == AppConstants.OrderStatus.Paid && o.ProcessedAt <= timeThreshold))
+                (o.Status == AppConstants.OrderStatus.Paid && o.ProcessedAt <= timeThreshold) ||
+                (o.Status == AppConstants.OrderStatus.Pending && o.OrderDate <= pendingCutoff))
             .ToListAsync(cancellationToken);
 
         if (stuckOrders.Count == 0) return; // tidak ada yang nyangkut
@@ -574,6 +630,21 @@ public class OrderService : IOrderService
                 if (order.Status == AppConstants.OrderStatus.Paid)
                 {
                     await ResumeFulfillmentAsync(order, cancellationToken);
+                    continue;
+                }
+
+                // PENDING: jendela pembayaran habis tanpa settlement —
+                // EXPIRED + lepas kuota voucher.
+                if (order.Status == AppConstants.OrderStatus.Pending)
+                {
+                    if (!TryTransition(order, AppConstants.OrderStatus.Expired)) continue;
+
+                    if (await SafeSaveChangesAsync(order.OrderNo))
+                        await ReleaseVoucherIfPresentAsync(order);
+
+                    _logger.LogInformation(
+                        "[SWEEP] Order {OrderNo} PENDING melewati expiry Midtrans ({Expiry}+{Buffer} menit) → EXPIRED.",
+                        order.OrderNo, midtransExpiryMinutes, PendingSweepBufferMinutes);
                     continue;
                 }
 
@@ -725,109 +796,20 @@ Silakan cek manual di dashboard Digiflazz. Jika pesanan tidak masuk, segera pros
                 $"Field input '{unknownKey}' tidak dikenali.");
         }
 
-        ValidateTargetValues(
+        OrderTargetRenderer.ValidateTargetValues(
             inputFields,
             targetValues);
 
-        return RenderTargetTemplate(
+        return OrderTargetRenderer.RenderTargetTemplate(
             metadata.TargetTemplate,
             inputFields,
             targetValues);
     }
     
-    internal static void ValidateTargetValues(
-        IReadOnlyList<GameInputField> inputFields,
-        Dictionary<string, string?> targetValues)
-    {
-        if (inputFields.Count == 0)
-        {
-            throw new InvalidOperationException(
-                "Game belum memiliki konfigurasi input.");
-        }
-
-        foreach (var field in inputFields)
-        {
-            targetValues.TryGetValue(
-                field.Key,
-                out var rawValue);
-
-            var value = rawValue?.Trim();
-
-            if (field.Required &&
-                string.IsNullOrWhiteSpace(value))
-            {
-                throw new InvalidOperationException(
-                    $"{field.Label} wajib diisi.");
-            }
-
-            if (string.IsNullOrWhiteSpace(value))
-                continue;
-            
-            if (field.Type == AppConstants.GameInputFieldTypes.Number &&
-                value.Any(character => !char.IsDigit(character)))
-            {
-                throw new InvalidOperationException(
-                    $"{field.Label} hanya boleh berisi angka.");
-            }
-
-            if (field.Type == AppConstants.GameInputFieldTypes.Select)
-            {
-                var isValidOption = field.Options.Any(option =>
-                    string.Equals(
-                        option,
-                        value,
-                        StringComparison.OrdinalIgnoreCase));
-
-                if (!isValidOption)
-                {
-                    throw new InvalidOperationException(
-                        $"Pilihan {field.Label} tidak valid.");
-                }
-            }
-        }
-    }
-    
-    internal static string RenderTargetTemplate(
-        string targetTemplate,
-        IReadOnlyList<GameInputField> inputFields,
-        Dictionary<string, string?> targetValues)
-    {
-        if (string.IsNullOrWhiteSpace(targetTemplate))
-        {
-            throw new InvalidOperationException(
-                "Template tujuan game belum dikonfigurasi.");
-        }
-
-        var result = targetTemplate;
-
-        foreach (var field in inputFields)
-        {
-            targetValues.TryGetValue(
-                field.Key,
-                out var rawValue);
-
-            var value = rawValue?.Trim() ?? string.Empty;
-
-            result = result.Replace(
-                $"{{{field.Key}}}",
-                value,
-                StringComparison.OrdinalIgnoreCase);
-        }
-
-        if (result.Contains('{') || result.Contains('}'))
-        {
-            throw new InvalidOperationException(
-                "Template tujuan game memiliki field yang tidak valid.");
-        }
-
-        if (string.IsNullOrWhiteSpace(result))
-        {
-            throw new InvalidOperationException(
-                "Data tujuan tidak valid.");
-        }
-
-        return result;
-    }
+    // Buffer ekstra (menit) setelah expiry Midtrans sebelum sweep menandai
+    // order PENDING sebagai EXPIRED — memberi jalan bagi webhook Expire
+    // Midtrans menangani kasus normal terlebih dahulu.
+    private const int PendingSweepBufferMinutes = 5;
 
     private async Task<bool> SafeSaveChangesAsync(string orderNo)
     {

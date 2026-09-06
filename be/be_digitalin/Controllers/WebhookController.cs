@@ -1,7 +1,7 @@
 using System.Text.Json;
+using be_digitalin.Application.Ports;
 using be_digitalin.Constants;
 using be_digitalin.DTOs;
-using be_digitalin.Providers;
 using be_digitalin.Services.Orders;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -21,12 +21,12 @@ namespace be_digitalin.Controllers;
 public class WebhookController : ControllerBase
 {
     private readonly IOrderService _orderService;
-    private readonly DigiflazzProvider _digiflazzProvider;
+    private readonly IDigiflazzProvider _digiflazzProvider;
     private readonly ILoggerFactory _loggerFactory;
 
     public WebhookController(
         IOrderService orderService,
-        DigiflazzProvider digiflazzProvider,
+        IDigiflazzProvider digiflazzProvider,
         ILoggerFactory loggerFactory)
     {
         _orderService = orderService;
@@ -38,9 +38,13 @@ public class WebhookController : ControllerBase
     [HttpPost("midtrans")]
     public async Task<IActionResult> Midtrans([FromBody] MidtransNotificationRequest req)
     {
+        // Signature invalid = 401 (bukan 500) supaya Midtrans menghentikan retry
+        // untuk payload palsu; kegagalan internal tetap 500 via Problem.
         try
         {
-            await _orderService.HandleNotificationAsync(req);
+            if (!await _orderService.HandleNotificationAsync(req))
+                return Unauthorized();
+
             return Ok(new MessageResponse("Notification received"));
         }
         catch (Exception)

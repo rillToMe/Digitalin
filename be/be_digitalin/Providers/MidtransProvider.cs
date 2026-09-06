@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using be_digitalin.Application.Ports;
 using be_digitalin.Config;
 using be_digitalin.Constants;
 using be_digitalin.Services.Settings;
@@ -9,7 +10,7 @@ using Microsoft.Extensions.Options;
 
 namespace be_digitalin.Providers;
 
-public class MidtransProvider
+public class MidtransProvider : IMidtransProvider
 {
     private readonly HttpClient _httpClient;
     private readonly MidtransSettings _settings;
@@ -27,8 +28,7 @@ public class MidtransProvider
         string orderNo, decimal grossAmount, string productId, string productName, string customerName,
         CancellationToken cancellationToken = default)
     {
-        var expiryValue = await _appSettings.GetAsync(AppConstants.SystemSettings.MidtransExpiry);
-        int expiryDuration = expiryValue != null ? int.Parse(expiryValue) : 30;
+        int expiryDuration = await _appSettings.GetMidtransExpiryMinutesAsync();
         
         var payload = new
         {

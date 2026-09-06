@@ -1,13 +1,15 @@
 namespace be_digitalin.DTOs;
 
+using System.Text.Json.Serialization;
+
 /// <summary>Respons token JWT — pengganti `new { token }`.</summary>
 public record TokenResponse(string Token);
 
 /// <summary>
-/// Profil customer. Field `CreatetAt` sengaja TYPO (bukan `CreatedAt`) —
-/// kontrak API_CONTRACT.md mengharuskan JSON `createtAt`.
+/// Profil customer. Properti C# bersih (`CreatedAt`), tapi nama JSON dipertahankan
+/// `createtAt` — kontrak API_CONTRACT.md (dan FE) sudah terlanjur memakai nama itu.
 /// </summary>
 public record ProfileResponse(
     string Email,
     string FullName,
-    DateTime CreatetAt);
+    [property: JsonPropertyName("createtAt")] DateTime CreatedAt);

@@ -1,6 +1,6 @@
 ﻿using be_digitalin.Config;
 using be_digitalin.Constants;
-using be_digitalin.Data;
+using be_digitalin.Application.Ports;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using be_digitalin.Services.Auth;
@@ -10,13 +10,13 @@ namespace be_digitalin.Services.Admin;
 
 public class AdminAuthService : IAdminAuthService
 {
-    private readonly DigitalinDbContext _db;
+    private readonly IApplicationDbContext _db;
     private readonly IRecaptchaService _recaptchaService;
     private readonly RecaptchaSettings _recaptchaSettings;
     private readonly ITokenService _tokenService;
 
     public AdminAuthService(
-        DigitalinDbContext db,
+        IApplicationDbContext db,
         IRecaptchaService recaptchaService,
         IOptions<RecaptchaSettings> recaptchaSettings,
         ITokenService tokenService)

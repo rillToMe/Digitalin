@@ -1,6 +1,7 @@
+using be_digitalin.Application.Validation;
 using be_digitalin.Constants;
 using be_digitalin.DTOs;
-using be_digitalin.Models;
+using be_digitalin.Domain.Entities;
 using be_digitalin.Services.Games;
 using be_digitalin.Services.Orders;
 using Microsoft.AspNetCore.Authorization;
@@ -88,7 +89,10 @@ public class AdminProductController : ControllerBase
 
         try
         {
-            var imageUrl = await _productService.UpdateProductIconAsync(id, file, cancellationToken);
+            var imageUrl = await _productService.UpdateProductIconAsync(
+                id,
+                new ImageFileData(file.FileName, file.ContentType, file.OpenReadStream()),
+                cancellationToken);
             if (imageUrl == null) return NotFound(new MessageResponse("Produk tidak ditemukan."));
 
             return Ok(new UploadImageResponse("Gambar item nominal berhasil diperbarui!", imageUrl));

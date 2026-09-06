@@ -1,19 +1,19 @@
-using be_digitalin.Data;
-using be_digitalin.Models;
-using be_digitalin.Providers;
+using be_digitalin.Application.Ports;
+using be_digitalin.Domain.Entities;
+
 using Microsoft.EntityFrameworkCore;
 
 namespace be_digitalin.Services.Auth;
 
 public class GoogleAuthService : IGoogleAuthService
 {
-    private readonly GoogleProvider _googleProvider;
-    private readonly DigitalinDbContext _db;
+    private readonly IGoogleProvider _googleProvider;
+    private readonly IApplicationDbContext _db;
     private readonly ITokenService _tokenService;
 
     public GoogleAuthService(
-        GoogleProvider googleProvider,
-        DigitalinDbContext db,
+        IGoogleProvider googleProvider,
+        IApplicationDbContext db,
         ITokenService tokenService)
     {
         _googleProvider = googleProvider;
@@ -36,7 +36,7 @@ public class GoogleAuthService : IGoogleAuthService
         if (customer == null)
         {
             // 3a. Customer doesn't exist — auto-register with Google info
-            customer = new Models.Customer
+            customer = new Domain.Entities.Customer
             {
                 Email = email,
                 FullName = string.IsNullOrWhiteSpace(displayName) ? email : displayName,
@@ -84,6 +84,6 @@ public class GoogleAuthService : IGoogleAuthService
         return new AuthResponse(token);
     }
 
-    private Task<Models.Customer?> FindCustomerByEmailAsync(string email) =>
+    private Task<Domain.Entities.Customer?> FindCustomerByEmailAsync(string email) =>
         _db.Customers.FirstOrDefaultAsync(c => c.Email == email);
 }

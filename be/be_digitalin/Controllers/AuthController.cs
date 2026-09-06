@@ -166,7 +166,7 @@ public class AuthController : ControllerBase
         return Ok(new ProfileResponse(
             customer.Email,
             customer.FullName,
-            customer.CreatetAt));
+            customer.CreatedAt));
     }
 
     // PUT /api/v1/auth/profile

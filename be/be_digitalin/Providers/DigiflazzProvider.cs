@@ -1,25 +1,28 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using be_digitalin.Application.Ports;
 using be_digitalin.Config;
 using be_digitalin.Constants;
 using Microsoft.Extensions.Options;
 
 namespace be_digitalin.Providers;
 
-public class DigiflazzProvider
+public class DigiflazzProvider : IDigiflazzProvider
 {
     private readonly HttpClient _httpClient;
     private readonly DigiflazzSettings _settings;
+    private readonly ILogger<DigiflazzProvider> _logger;
     
     private const string EndpointTransaction = "/v1/transaction";
     private const string EndpointPriceList = "/v1/price-list";
     private const string EndpointCheckBalance = "/v1/cek-saldo";
 
-    public DigiflazzProvider(HttpClient httpClient, IOptions<DigiflazzSettings> settings)
+    public DigiflazzProvider(HttpClient httpClient, IOptions<DigiflazzSettings> settings, ILogger<DigiflazzProvider> logger)
     {
         _httpClient = httpClient;
         _settings = settings.Value;
+        _logger = logger;
         
         if (_httpClient.BaseAddress == null && !string.IsNullOrEmpty(_settings.BaseUrl))
         {
@@ -50,7 +53,7 @@ public class DigiflazzProvider
         var response = await _httpClient.PostAsync(EndpointTransaction, content, cancellationToken);
         var responseString = await response.Content.ReadAsStringAsync(cancellationToken);
         
-        Console.WriteLine($"\n[DIGIFLAZZ RESPONSE - {refId}] : {responseString}");
+        _logger.LogInformation("[DIGIFLAZZ RESPONSE - {RefId}] : {Response}", refId, responseString);
         
         try
         {
@@ -64,7 +67,7 @@ public class DigiflazzProvider
                     statusElement.GetString() == "Gagal")
                 {
                     string errorMsg = msgElement.GetString() ?? "Alasan tidak diketahui";
-                    Console.WriteLine($"[DIGIFLAZZ ERROR] Transaksi Gagal! Pesan: {errorMsg}");
+                    _logger.LogWarning("[DIGIFLAZZ ERROR] Transaksi Gagal! Pesan: {ErrorMsg}", errorMsg);
                     
                     // Paksa sistem melempar error agar masuk ke blok 'catch'
                     throw new Exception(errorMsg); 
@@ -77,14 +80,14 @@ public class DigiflazzProvider
         }
         catch (Exception ex)
         { 
-            Console.WriteLine($"[DIGIFLAZZ PARSE ERROR] Gagal baca JSON: {ex.Message}"); 
+            _logger.LogWarning(ex, "[DIGIFLAZZ PARSE ERROR] Gagal baca JSON respons topup.");
             throw;
         }
         
         return null;
     }
 
-    public async Task<JsonElement.ArrayEnumerator> GetPriceListAsync(CancellationToken cancellationToken = default)
+    public async Task<List<DigiflazzPriceItem>> GetPriceListAsync(CancellationToken cancellationToken = default)
     {
         var payload = new {
             cmd = AppConstants.DigiflazzCommands.Prepaid,
@@ -96,41 +99,49 @@ public class DigiflazzProvider
 
         var response = await _httpClient.PostAsync(EndpointPriceList, content, cancellationToken);
         var responseString = await response.Content.ReadAsStringAsync(cancellationToken);
-        var jsonDoc = JsonDocument.Parse(responseString);
-        
+
+        // Parsing milik provider: JsonDocument di-dispose di sini dan caller
+        // menerima DTO yang berdiri sendiri — tidak ada JsonElement yang
+        // menempel pada dokumen yang sudah mati.
+        using var jsonDoc = JsonDocument.Parse(responseString);
         var dataElement = jsonDoc.RootElement.GetProperty(AppConstants.DigiflazzResponseKeys.Data);
 
         if (dataElement.ValueKind != JsonValueKind.Array)
         {
             throw new Exception($"[Digiflazz Error] API menolak request. Balasan: {responseString}");
         }
-        
-        var sampleGame = dataElement
-            .EnumerateArray()
-            .FirstOrDefault(item =>
-                item.TryGetProperty(
-                    AppConstants.DigiflazzResponseKeys.Category,
-                    out var category
-                ) &&
-                category.GetString() == AppConstants.Categories.Games
-            );
 
-        if (sampleGame.ValueKind != JsonValueKind.Undefined)
+        var items = new List<DigiflazzPriceItem>();
+
+        foreach (var item in dataElement.EnumerateArray())
         {
-            Console.WriteLine("\n========== DIGIFLAZZ SAMPLE GAME ==========");
-            Console.WriteLine(
-                JsonSerializer.Serialize(
-                    sampleGame,
-                    new JsonSerializerOptions
-                    {
-                        WriteIndented = true
-                    }
-                )
-            );
-            Console.WriteLine("============================================\n");
+            items.Add(new DigiflazzPriceItem(
+                Category: item.TryGetProperty(AppConstants.DigiflazzResponseKeys.Category, out var category)
+                    ? category.GetString()
+                    : null,
+                BuyerSkuCode: item.TryGetProperty(AppConstants.DigiflazzResponseKeys.BuyerSkuCode, out var sku)
+                    ? sku.GetString() ?? string.Empty
+                    : string.Empty,
+                ProductName: item.TryGetProperty(AppConstants.DigiflazzResponseKeys.ProductName, out var name)
+                    ? name.GetString() ?? string.Empty
+                    : string.Empty,
+                Price: item.TryGetProperty(AppConstants.DigiflazzResponseKeys.Price, out var price)
+                    && price.ValueKind == JsonValueKind.Number
+                    ? price.GetDecimal()
+                    : 0m,
+                Brand: item.TryGetProperty(AppConstants.DigiflazzResponseKeys.Brand, out var brand)
+                    ? brand.GetString() ?? string.Empty
+                    : string.Empty,
+                BuyerProductStatus: item.TryGetProperty(AppConstants.DigiflazzResponseKeys.BuyerProductStatus, out var buyerStatus)
+                    && buyerStatus.ValueKind == JsonValueKind.True,
+                SellerProductStatus: item.TryGetProperty(AppConstants.DigiflazzResponseKeys.SellerProductStatus, out var sellerStatus)
+                    && sellerStatus.ValueKind == JsonValueKind.True,
+                Desc: item.TryGetProperty(AppConstants.DigiflazzResponseKeys.Desc, out var desc)
+                    ? desc.GetString()
+                    : null));
         }
 
-        return dataElement.EnumerateArray();
+        return items;
     }
 
     /// <summary>

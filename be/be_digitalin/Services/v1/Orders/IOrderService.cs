@@ -25,7 +25,11 @@ public interface IOrderService
     Task<OrderResponse> PlaceOrderAsync(CreateOrderRequest request, int? customerId = null);
     Task<PagedResult<OrderResponse>> GetAllOrdersAsync(int page = 1, int limit = 20, string? status = null);
     Task<PagedResult<OrderResponse>> GetOrdersAsync(int? customerId = null, int page = 1, int limit = 20, string? status = null);
-    Task HandleNotificationAsync(MidtransNotificationRequest notification);
+    /// <summary>
+    /// Webhook Midtrans: validasi signature + terapkan status pembayaran.
+    /// Mengembalikan false HANYA untuk signature tidak valid (→ HTTP 401).
+    /// </summary>
+    Task<bool> HandleNotificationAsync(MidtransNotificationRequest notification);
 
     /// <summary>Admin: retry a stuck (NEEDS_ACTION) order against Digiflazz.</summary>
     Task<OrderActionResult> RetryOrderAsync(string orderNo);

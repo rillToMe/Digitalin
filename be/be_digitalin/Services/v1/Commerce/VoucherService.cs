@@ -1,61 +1,28 @@
-using be_digitalin.Data;
+using be_digitalin.Application.Ports;
+using be_digitalin.Domain.Commerce;
 using be_digitalin.DTOs.Requests;
 using be_digitalin.DTOs.Responses;
-using be_digitalin.Models;
+using be_digitalin.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace be_digitalin.Services.Commerce;
 
 public class VoucherService : IVoucherService
 {
-    private readonly DigitalinDbContext _db;
+    private readonly IApplicationDbContext _db;
 
-    public VoucherService(DigitalinDbContext db)
+    public VoucherService(IApplicationDbContext db)
     {
         _db = db;
     }
 
     // ── Helpers ──────────────────────────────────────────────────
 
-    private static string ComputeStatus(Voucher v)
-    {
-        if (!v.IsActive) return "Disabled";
-        if (v.ExpiredAt <= DateTime.UtcNow) return "Expired";
-        if (v.UsedCount >= v.UsageLimit) return "QuotaExceeded";
-        return "Active";
-    }
-
     private static AdminVoucherItem ToDto(Voucher v) => new(
         v.Id, v.Code, v.DiscountType, v.DiscountValue,
         v.MinimumTransaction, v.MaximumDiscount,
         v.UsageLimit, v.UsedCount, v.ExpiredAt,
-        v.IsActive, ComputeStatus(v), v.CreatedAt, v.UpdatedAt);
-
-    private static void ValidatePayload(string code, string discountType,
-        decimal discountValue, int usageLimit, DateTime expiredAt, int? existingUsedCount = null)
-    {
-        if (string.IsNullOrWhiteSpace(code) || code.Length < 3 || code.Length > 50)
-            throw new InvalidOperationException("Kode voucher harus antara 3 dan 50 karakter.");
-
-        if (discountType != "Percentage" && discountType != "FixedAmount")
-            throw new InvalidOperationException("Tipe diskon tidak valid. Pilih: Percentage atau FixedAmount.");
-
-        if (discountValue <= 0)
-            throw new InvalidOperationException("Nilai diskon harus lebih besar dari 0.");
-
-        if (discountType == "Percentage" && discountValue > 100)
-            throw new InvalidOperationException("Diskon persentase tidak boleh lebih dari 100%.");
-
-        if (expiredAt <= DateTime.UtcNow)
-            throw new InvalidOperationException("Tanggal kedaluwarsa harus di masa depan.");
-
-        if (usageLimit < 1)
-            throw new InvalidOperationException("Batas penggunaan harus minimal 1.");
-
-        if (existingUsedCount.HasValue && usageLimit < existingUsedCount.Value)
-            throw new InvalidOperationException(
-                $"Batas penggunaan tidak boleh kurang dari jumlah yang sudah digunakan ({existingUsedCount.Value}).");
-    }
+        v.IsActive, VoucherRules.ComputeStatus(v), v.CreatedAt, v.UpdatedAt);
 
     // ── GET /admin/vouchers ─────────────────────────────────────
 
@@ -132,7 +99,7 @@ public class VoucherService : IVoucherService
 
     public async Task<AdminVoucherItem> CreateVoucherAsync(CreateVoucherRequest request)
     {
-        ValidatePayload(request.Code, request.DiscountType, request.DiscountValue,
+        VoucherRules.ValidatePayload(request.Code, request.DiscountType, request.DiscountValue,
             request.UsageLimit, request.ExpiredAt);
 
         // Check uniqueness (case-insensitive)
@@ -169,7 +136,7 @@ public class VoucherService : IVoucherService
         var voucher = await _db.Vouchers.FindAsync(id);
         if (voucher == null) return null;
 
-        ValidatePayload(request.Code, request.DiscountType, request.DiscountValue,
+        VoucherRules.ValidatePayload(request.Code, request.DiscountType, request.DiscountValue,
             request.UsageLimit, request.ExpiredAt, voucher.UsedCount);
 
         // Check code uniqueness (excluding self)

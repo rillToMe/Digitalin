@@ -1,20 +1,24 @@
 ﻿using Amazon.S3;
 using Amazon.S3.Transfer;
 using Amazon.S3.Model;
+using be_digitalin.Application.Ports;
+using be_digitalin.Application.Validation;
 using be_digitalin.Config;
 using Microsoft.Extensions.Options;
 
 namespace be_digitalin.Providers; 
 
-public class CloudflareR2Provider 
+public class CloudflareR2Provider : ICloudflareR2Provider
 {
     private readonly IAmazonS3 _s3Client;
     private readonly string _bucketName;
     private readonly string _publicUrl;
+    private readonly ILogger<CloudflareR2Provider> _logger;
 
-    public CloudflareR2Provider(IOptions<CloudflareR2Settings> settings)
+    public CloudflareR2Provider(IOptions<CloudflareR2Settings> settings, ILogger<CloudflareR2Provider> logger)
     {
         var config = settings.Value;
+        _logger = logger;
 
         var s3Config = new AmazonS3Config 
         { 
@@ -27,12 +31,13 @@ public class CloudflareR2Provider
         _publicUrl = config.PublicUrl;
     }
 
-    public async Task<string> UploadFileAsync(IFormFile file, string folder, CancellationToken cancellationToken = default)
+    public async Task<string> UploadFileAsync(ImageFileData file, string folder, CancellationToken cancellationToken = default)
     {
         var fileName = $"{folder}/{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
 
         using var newStream = new MemoryStream();
-        await file.CopyToAsync(newStream, cancellationToken);
+        if (file.Content.CanSeek) file.Content.Position = 0;
+        await file.Content.CopyToAsync(newStream, cancellationToken);
 
         var uploadRequest = new TransferUtilityUploadRequest
         {
@@ -65,12 +70,12 @@ public class CloudflareR2Provider
             };
 
             await _s3Client.DeleteObjectAsync(deleteRequest, cancellationToken);
-            Console.WriteLine($"[R2] File {objectKey} berhasil dihapus dari cloud.");
+            _logger.LogInformation("[R2] File {ObjectKey} berhasil dihapus dari cloud.", objectKey);
             return true;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[R2 Error] Gagal menghapus file: {ex.Message}");
+            _logger.LogWarning(ex, "[R2] Gagal menghapus file {FileUrl}.", fileUrl);
             return false;
         }
     }

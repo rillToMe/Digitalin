@@ -1,7 +1,8 @@
+using be_digitalin.Application.Validation;
 using be_digitalin.Constants;
 using be_digitalin.DTOs;
 using be_digitalin.Services.Games;
-using be_digitalin.Services.Games.GameTemplates;
+using be_digitalin.Domain.Games.GameTemplates;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -178,7 +179,10 @@ public class AdminSystemController : ControllerBase
 
         try
         {
-            var imageUrl = await _productService.UpdateGameCoverAsync(id, file, cancellationToken);
+            var imageUrl = await _productService.UpdateGameCoverAsync(
+                id,
+                new ImageFileData(file.FileName, file.ContentType, file.OpenReadStream()),
+                cancellationToken);
             if (imageUrl == null) return NotFound(new MessageResponse("Metadata Game tidak ditemukan."));
 
             return Ok(new UploadImageResponse("Gambar cover game berhasil diperbarui!", imageUrl));

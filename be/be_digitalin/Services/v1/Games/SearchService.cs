@@ -1,15 +1,15 @@
-using be_digitalin.Data;
+using be_digitalin.Application.Ports;
 using be_digitalin.DTOs;
-using be_digitalin.Models;
+using be_digitalin.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace be_digitalin.Services.Games;
 
 public class SearchService : ISearchService
 {
-    private readonly DigitalinDbContext _db;
+    private readonly IApplicationDbContext _db;
 
-    public SearchService(DigitalinDbContext db)
+    public SearchService(IApplicationDbContext db)
     {
         _db = db;
     }

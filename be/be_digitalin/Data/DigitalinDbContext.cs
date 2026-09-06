@@ -1,9 +1,10 @@
-using be_digitalin.Models;
+using be_digitalin.Application.Ports;
+using be_digitalin.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace be_digitalin.Data;
 
-public class DigitalinDbContext : DbContext
+public class DigitalinDbContext : DbContext, IApplicationDbContext
 {
     public DigitalinDbContext(DbContextOptions<DigitalinDbContext> options) : base(options) { }
     
@@ -28,9 +29,12 @@ public class DigitalinDbContext : DbContext
 
         // Lookup OrderNo dipakai webhook Midtrans/Digiflazz, retry, refund,
         // dan sweep — jalur pembayaran yang paling sering mencari berdasarkan
-        // nomor order. Non-unique: model tidak menjamin ketiadaan duplikat.
+        // nomor order. Unique: OrderNo adalah kunci korespondensi pembayaran
+        // (order_id Midtrans, ref_id Digiflazz) — duplikat berarti pembayaran
+        // bisa salah dialirkan ke order lain.
         modelBuilder.Entity<TopupOrder>()
-            .HasIndex(o => o.OrderNo);
+            .HasIndex(o => o.OrderNo)
+            .IsUnique();
 
         // Panjang eksplisit agar kolom bisa di-index (indexed string tidak
         // boleh longtext di MariaDB).

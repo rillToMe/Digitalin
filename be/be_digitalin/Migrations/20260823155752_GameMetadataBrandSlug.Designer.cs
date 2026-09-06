@@ -25,7 +25,7 @@ namespace be_digitalin.Migrations
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
-            modelBuilder.Entity("be_digitalin.Models.Admin", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.Admin", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -62,7 +62,7 @@ namespace be_digitalin.Migrations
                     b.ToTable("Admins");
                 });
 
-            modelBuilder.Entity("be_digitalin.Models.AppSetting", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.AppSetting", b =>
                 {
                     b.Property<string>("Key")
                         .HasColumnType("varchar(255)");
@@ -76,7 +76,7 @@ namespace be_digitalin.Migrations
                     b.ToTable("AppSettings");
                 });
 
-            modelBuilder.Entity("be_digitalin.Models.Banner", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.Banner", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -103,7 +103,7 @@ namespace be_digitalin.Migrations
                     b.ToTable("Banners");
                 });
 
-            modelBuilder.Entity("be_digitalin.Models.Customer", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.Customer", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -138,7 +138,7 @@ namespace be_digitalin.Migrations
                     b.ToTable("Customers");
                 });
 
-            modelBuilder.Entity("be_digitalin.Models.CustomerOtp", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.CustomerOtp", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -171,7 +171,7 @@ namespace be_digitalin.Migrations
                     b.ToTable("CustomerOtps");
                 });
 
-            modelBuilder.Entity("be_digitalin.Models.GameMetadata", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.GameMetadata", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -219,7 +219,7 @@ namespace be_digitalin.Migrations
                     b.ToTable("GameMetadata");
                 });
 
-            modelBuilder.Entity("be_digitalin.Models.GameProduct", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.GameProduct", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -270,7 +270,7 @@ namespace be_digitalin.Migrations
                     b.ToTable("GameProducts");
                 });
 
-            modelBuilder.Entity("be_digitalin.Models.TopupOrder", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.TopupOrder", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -367,7 +367,7 @@ namespace be_digitalin.Migrations
                     b.ToTable("TopupOrders");
                 });
 
-            modelBuilder.Entity("be_digitalin.Models.Voucher", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.Voucher", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -421,9 +421,9 @@ namespace be_digitalin.Migrations
                     b.ToTable("Vouchers");
                 });
 
-            modelBuilder.Entity("be_digitalin.Models.CustomerOtp", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.CustomerOtp", b =>
                 {
-                    b.HasOne("be_digitalin.Models.Customer", "Customer")
+                    b.HasOne("be_digitalin.Domain.Entities.Customer", "Customer")
                         .WithMany()
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -432,13 +432,13 @@ namespace be_digitalin.Migrations
                     b.Navigation("Customer");
                 });
 
-            modelBuilder.Entity("be_digitalin.Models.TopupOrder", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.TopupOrder", b =>
                 {
-                    b.HasOne("be_digitalin.Models.Customer", "Customer")
+                    b.HasOne("be_digitalin.Domain.Entities.Customer", "Customer")
                         .WithMany("Orders")
                         .HasForeignKey("CustomerId");
 
-                    b.HasOne("be_digitalin.Models.GameProduct", "GameProduct")
+                    b.HasOne("be_digitalin.Domain.Entities.GameProduct", "GameProduct")
                         .WithMany("Orders")
                         .HasForeignKey("GameProductId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -449,12 +449,12 @@ namespace be_digitalin.Migrations
                     b.Navigation("GameProduct");
                 });
 
-            modelBuilder.Entity("be_digitalin.Models.Customer", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.Customer", b =>
                 {
                     b.Navigation("Orders");
                 });
 
-            modelBuilder.Entity("be_digitalin.Models.GameProduct", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.GameProduct", b =>
                 {
                     b.Navigation("Orders");
                 });

@@ -1,4 +1,4 @@
-using be_digitalin.Models;
+using be_digitalin.Domain.Entities;
 
 namespace be_digitalin.DTOs;
 

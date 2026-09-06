@@ -1,6 +1,7 @@
+using be_digitalin.Application.Validation;
 using be_digitalin.Constants;
 using be_digitalin.DTOs;
-using be_digitalin.Models;
+using be_digitalin.Domain.Entities;
 using be_digitalin.Services.Content;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -52,7 +53,10 @@ public class AdminBannerController : ControllerBase
 
         try
         {
-            var banner = await _bannerService.CreateBannerAsync(title, file, cancellationToken);
+            var banner = await _bannerService.CreateBannerAsync(
+                title,
+                new ImageFileData(file.FileName, file.ContentType, file.OpenReadStream()),
+                cancellationToken);
             return Created($"{AppConstants.Api.Prefix}/admin/banners/{banner.Id}", banner);
         }
         catch (InvalidOperationException ex)
