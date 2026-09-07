@@ -1,18 +1,18 @@
 using be_digitalin.Constants;
-using be_digitalin.Data;
-using be_digitalin.Models;
-using be_digitalin.Providers;
-using be_digitalin.Infrastructure.Storage;
+using be_digitalin.Application.Ports;
+using be_digitalin.Domain.Entities;
+
+using be_digitalin.Application.Validation;
 using Microsoft.EntityFrameworkCore;
 
 namespace be_digitalin.Services.Content;
 
 public class BannerService : IBannerService
 {
-    private readonly DigitalinDbContext _db;
-    private readonly CloudflareR2Provider _r2Provider; 
+    private readonly IApplicationDbContext _db;
+    private readonly ICloudflareR2Provider _r2Provider; 
 
-    public BannerService(DigitalinDbContext db, CloudflareR2Provider r2Provider)
+    public BannerService(IApplicationDbContext db, ICloudflareR2Provider r2Provider)
     {
         _db = db;
         _r2Provider = r2Provider;
@@ -30,7 +30,7 @@ public class BannerService : IBannerService
             .ToListAsync();
     }
     
-    public async Task<Banner> CreateBannerAsync(string title, IFormFile file, CancellationToken cancellationToken = default)
+    public async Task<Banner> CreateBannerAsync(string title, ImageFileData file, CancellationToken cancellationToken = default)
     {
         await ImageFileValidator.EnsureValidImageAsync(file, cancellationToken);
 

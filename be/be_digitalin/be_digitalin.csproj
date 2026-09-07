@@ -35,5 +35,9 @@
         <Folder Include="Data\Migrations\" />
     </ItemGroup>
 
+    <ItemGroup>
+        <InternalsVisibleTo Include="be_digitalin.Tests" />
+    </ItemGroup>
+
 
 </Project>

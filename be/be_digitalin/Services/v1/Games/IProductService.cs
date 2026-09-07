@@ -1,5 +1,6 @@
+using be_digitalin.Application.Validation;
 using be_digitalin.DTOs;
-using be_digitalin.Models;
+using be_digitalin.Domain.Entities;
 using be_digitalin.Services.Orders;
 
 namespace be_digitalin.Services.Games;
@@ -50,7 +51,7 @@ public interface IProductService
 
     Task<GameProduct> CreateProductAsync(GameProduct product);
 
-    Task<string?> UpdateProductIconAsync(int id, IFormFile file, CancellationToken cancellationToken = default);
+    Task<string?> UpdateProductIconAsync(int id, ImageFileData file, CancellationToken cancellationToken = default);
 
     Task<(int Added, int Updated, int Deactivated)>
         SyncCatalogFromDigiflazzAsync(CancellationToken cancellationToken = default);
@@ -83,6 +84,6 @@ public interface IProductService
     Task SetMidtransExpiryAsync(int expiryMinutes);
 
     /// <summary>Upload/replace gambar cover game (GameMetadata). Null jika metadata tidak ditemukan.</summary>
-    Task<string?> UpdateGameCoverAsync(int metadataId, IFormFile file, CancellationToken cancellationToken = default);
+    Task<string?> UpdateGameCoverAsync(int metadataId, ImageFileData file, CancellationToken cancellationToken = default);
 }
 

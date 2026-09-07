@@ -31,6 +31,10 @@ public static class AppConstants
     {
         public const string MidtransExpiry = "MIDRANS_EXPIRY";
 
+        /// <summary>Default durasi expiry Snap Midtrans (menit) — dipakai bila
+        /// setting belum di-set admin atau nilainya tidak terbaca.</summary>
+        public const int MidtransExpiryDefaultMinutes = 30;
+
         /// <summary>Registry kategori storefront (JSON array [{slug,name}], urutan = urutan tampil).</summary>
         public const string GameCategories = "GAME_CATEGORIES";
 

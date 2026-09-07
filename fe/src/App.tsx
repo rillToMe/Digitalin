@@ -9,6 +9,7 @@ import { CustomerLayout } from "./layouts/CustomerLayout";
 import { useAuthStore } from "./store/authStore";
 import { useThemeStore } from "./store/themeStore";
 import PageLoader from "./components/common/PageLoader";
+import MaintenanceGate from "./components/common/MaintenanceGate";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,15 +25,18 @@ const queryClient = new QueryClient({
 // Customer Pages
 const HomePage = lazy(() => import("./modules/customer/pages/HomePage"));
 const GameDetailPage = lazy(() => import("./modules/customer/pages/GameDetailPage"));
-const LoginPage = lazy(() => import("./modules/customer/pages/LoginPage"));
-const RegisterPage = lazy(() => import("./modules/customer/pages/RegisterPage"));
+const AuthPage = lazy(() => import("./modules/customer/pages/AuthPage"));
+const FacebookCallbackPage = lazy(() => import("./modules/customer/pages/FacebookCallbackPage"));
 const ForgotPasswordPage = lazy(() => import("./modules/customer/pages/ForgotPasswordPage"));
 const MaintenancePage = lazy(() => import("./modules/customer/pages/MaintenancePage"));
 const ProfilePage = lazy(() => import("./modules/customer/pages/ProfilePage"));
 const HistoryPage = lazy(() => import("./modules/customer/pages/HistoryPage"));
+const CheckTransactionPage = lazy(() => import("./modules/customer/pages/CheckTransactionPage"));
+const OrderStatusPage = lazy(() => import("./modules/customer/pages/OrderStatusPage"));
 const FaqPage = lazy(() => import("./modules/customer/pages/FaqPage"));
+const LeaderboardPage = lazy(() => import("./modules/customer/pages/LeaderboardPage"));
 const ContactPage = lazy(() => import("./modules/customer/pages/ContactPage"));
-const VouchersPage = lazy(() => import("./modules/customer/pages/VouchersPage"));
+// const VouchersPage = lazy(() => import("./modules/customer/pages/VouchersPage"));
 
 //Admin Pages
 const AdminLoginPage = lazy(() => import("./modules/admin/pages/AdminLoginPage"));
@@ -43,6 +47,7 @@ const MetadataPage = lazy(() => import("./modules/admin/pages/MetadataPage"));
 const CategoriesPage = lazy(() => import("./modules/admin/pages/CategoriesPage"));
 const PopularPage = lazy(() => import("./modules/admin/pages/PopularPage"));
 const AdminVouchersPage = lazy(() => import("./modules/admin/pages/VouchersPage"));
+const FaqsPage = lazy(() => import("./modules/admin/pages/FaqsPage"));
 const SettingsPage = lazy(() => import("./modules/admin/pages/SettingsPage"));
 const AdminManagementPage = lazy(() => import("./modules/admin/pages/AdminManagementPage"));
 
@@ -182,77 +187,114 @@ export default function App() {
 
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          {/* Customer */}
-          <Route
-            path="/"
-            element={
-              <CustomerRoute>
-                <HomePage />
-              </CustomerRoute>
-            }
-          />
+          {/* Customer — semua dibungkus MaintenanceGate (guard global):
+              saat maintenance aktif, user dialihkan ke /maintenance dari
+              route mana pun, termasuk deep link dan refresh. /maintenance
+              dan /admin/* sengaja di luar guard. */}
+          <Route element={<MaintenanceGate />}>
+            <Route
+              path="/"
+              element={
+                <CustomerRoute>
+                  <HomePage />
+                </CustomerRoute>
+              }
+            />
 
-          <Route
-            path="/game/:slug"
-            element={
-              <CustomerRoute>
-                <GameDetailPage />
-              </CustomerRoute>
-            }
-          />
+            <Route
+              path="/game/:slug"
+              element={
+                <CustomerRoute>
+                  <GameDetailPage />
+                </CustomerRoute>
+              }
+            />
 
-          <Route path="/login" element={<LoginPage />} />
+            <Route path="/login" element={<AuthPage />} />
 
-          <Route path="/register" element={<RegisterPage />} />
+          {/* Landing redirect OAuth Facebook dari backend (#token=/#error=). */}
+          <Route path="/auth/facebook/callback" element={<FacebookCallbackPage />} />
 
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/register" element={<AuthPage />} />
+
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
+            <Route
+              path="/profile"
+              element={
+                <ProtectedCustomerRoute>
+                  <ProfilePage />
+                </ProtectedCustomerRoute>
+              }
+            />
+
+            <Route
+              path="/history"
+              element={
+                <ProtectedCustomerRoute>
+                  <HistoryPage />
+                </ProtectedCustomerRoute>
+              }
+            />
+
+            {/* Cek Transaksi — publik (tanpa login), lihat status by invoice. */}
+            <Route
+              path="/cek-transaksi"
+              element={
+                <CustomerRoute>
+                  <CheckTransactionPage />
+                </CustomerRoute>
+              }
+            />
+
+            {/* Status pesanan — publik (token = nomor invoice), polling otomatis. */}
+            <Route
+              path="/order/status/:orderNo"
+              element={
+                <CustomerRoute>
+                  <OrderStatusPage />
+                </CustomerRoute>
+              }
+            />
+
+            <Route
+              path="/faq"
+              element={
+                <CustomerRoute>
+                  <FaqPage />
+                </CustomerRoute>
+              }
+            />
+
+            <Route
+              path="/leaderboard"
+              element={
+                <CustomerRoute>
+                  <LeaderboardPage />
+                </CustomerRoute>
+              }
+            />
+
+            <Route
+              path="/contact"
+              element={
+                <CustomerRoute>
+                  <ContactPage />
+                </CustomerRoute>
+              }
+            />
+
+            {/* <Route
+              path="/vouchers"
+              element={
+                <CustomerRoute>
+                  <VouchersPage />
+                </CustomerRoute>
+              }
+            /> */}
+          </Route>
 
           <Route path="/maintenance" element={<MaintenancePage />} />
-
-          <Route
-            path="/profile"
-            element={
-              <ProtectedCustomerRoute>
-                <ProfilePage />
-              </ProtectedCustomerRoute>
-            }
-          />
-
-          <Route
-            path="/history"
-            element={
-              <ProtectedCustomerRoute>
-                <HistoryPage />
-              </ProtectedCustomerRoute>
-            }
-          />
-
-          <Route
-            path="/faq"
-            element={
-              <CustomerRoute>
-                <FaqPage />
-              </CustomerRoute>
-            }
-          />
-
-          <Route
-            path="/contact"
-            element={
-              <CustomerRoute>
-                <ContactPage />
-              </CustomerRoute>
-            }
-          />
-
-          <Route
-            path="/vouchers"
-            element={
-              <CustomerRoute>
-                <VouchersPage />
-              </CustomerRoute>
-            }
-          />
 
           {/* Admin */}
 
@@ -319,6 +361,15 @@ export default function App() {
             element={
               <ProtectedAdminRoute>
                 <AdminVouchersPage />
+              </ProtectedAdminRoute>
+            }
+          />
+
+          <Route
+            path="/admin/faqs"
+            element={
+              <ProtectedAdminRoute>
+                <FaqsPage />
               </ProtectedAdminRoute>
             }
           />

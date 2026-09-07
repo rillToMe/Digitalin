@@ -41,3 +41,6 @@ public record VoucherUsageResponse(
     int CurrentPage,
     int TotalPages
 );
+
+/// <summary>Respons PATCH /admin/vouchers/{id}/status — pengganti `new { message, isActive }`.</summary>
+public record VoucherStatusResponse(string Message, bool IsActive);

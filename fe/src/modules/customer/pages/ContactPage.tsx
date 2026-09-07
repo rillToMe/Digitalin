@@ -1,5 +1,6 @@
 import { Mail, Send, MessageCircle, Clock } from "lucide-react";
 
+import BackButton from "../../../components/common/BackButton";
 import type { ContactItem } from "../../../api/index";
 
 const CONTACT_DATA: ContactItem[] = [
@@ -35,6 +36,7 @@ const CONTACT_DATA: ContactItem[] = [
 export default function ContactPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <BackButton />
       {/* Header */}
       <div className="text-center mb-10">
         <div className="flex justify-center mb-4">

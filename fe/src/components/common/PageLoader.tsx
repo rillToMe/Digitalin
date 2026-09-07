@@ -11,7 +11,7 @@ export default function PageLoader() {
       <div className="flex flex-col items-center gap-5">
         {/* Logo */}
         <img
-          src="/logo.png"
+          src="/favicon.svg"
           alt="Digitalin"
           className="h-16 w-16 object-contain select-none"
           draggable={false}

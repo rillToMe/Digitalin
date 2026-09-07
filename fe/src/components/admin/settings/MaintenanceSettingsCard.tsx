@@ -26,33 +26,38 @@ export function MaintenanceSettingsCard() {
 
   const isSubmitDisabled = isSavingMaint || isEstimatedInPast;
 
+  /* Status pakai token semantik: aktif = warning (amber, "perhatian"),
+     nonaktif = netral (bukan hijau — nonaktif bukan kondisi "sukses",
+     hijau menyiratkan mode maintenance "berjalan baik"). */
   const headerRightElement = (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-3 flex-wrap justify-end">
       <span
         className="px-2.5 py-1 rounded-full text-[0.72rem] font-bold"
         style={
           maintEnabled
             ? {
-              backgroundColor: "rgba(245,158,11,0.12)",
-              color: "var(--color-warning, #f59e0b)",
+              backgroundColor: "var(--color-warning-bg)",
+              color: "var(--color-warning)",
             }
             : {
-              backgroundColor: "rgba(16,185,129,0.1)",
-              color: "var(--color-success, #10b981)",
+              backgroundColor: "var(--color-neutral)",
+              color: "var(--color-brand-secondary)",
             }
         }
       >
-        {maintEnabled ? "AKTIF" : "NONAKTIF"}
+        Status: {maintEnabled ? "Aktif" : "Nonaktif"}
       </span>
 
+      {/* Master switch — satu-satunya kontrol yang menyalakan/mematikan
+          Maintenance Mode. Ukuran md + warna warning supaya dominan. */}
       <SettingToggle
         checked={maintEnabled}
         onChange={handleToggleMaintenance}
         disabled={maintLoading}
         isLoading={isSavingMaint}
-        activeColor="var(--color-warning, #f59e0b)"
+        activeColor="var(--color-warning)"
         size="md"
-        title={maintEnabled ? "Nonaktifkan Maintenance" : "Aktifkan Maintenance"}
+        title={maintEnabled ? "Nonaktifkan Maintenance Mode" : "Aktifkan Maintenance Mode"}
       />
     </div>
   );
@@ -102,6 +107,14 @@ export function MaintenanceSettingsCard() {
         </div>
       )}
 
+      {/* Cermin banner warning: saat nonaktif, satu baris netral yang
+          menyatakan efek aktualnya — hierarchy OFF → website normal. */}
+      {!maintEnabled && (
+        <p className="mb-4" style={{ color: "var(--color-brand-secondary)", fontSize: "0.8rem" }}>
+          Maintenance Mode <strong>nonaktif</strong> - website beroperasi normal.
+        </p>
+      )}
+
       {maintError ? (
         <div
           className="p-5 rounded-xl text-center space-y-3"
@@ -145,6 +158,26 @@ export function MaintenanceSettingsCard() {
         </div>
       ) : (
         <form onSubmit={handleSaveMaintenance} className="space-y-4">
+          {/* Label grup ala HUD (hud-section-label): memisahkan "status/master
+              switch" di atas dari "konfigurasi" di bawah. */}
+          <div
+            className="flex items-center gap-3"
+            style={{
+              color: "var(--color-brand-secondary)",
+              fontFamily: "var(--admin-font-mono)",
+              fontSize: "0.68rem",
+              fontWeight: 600,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+            }}
+          >
+            Konfigurasi
+            <span
+              aria-hidden="true"
+              style={{ height: 1, flex: 1, backgroundColor: "var(--color-border-light)" }}
+            />
+          </div>
+
           <div>
             <label
               style={{
@@ -259,7 +292,16 @@ export function MaintenanceSettingsCard() {
             )}
           </div>
 
-          <div className="flex items-center gap-3">
+          {/* Opsi sekunder, bukan master switch: dibungkus kotak netral +
+              toggle sm berwarna brand (bukan warning) supaya bobot visualnya
+              jelas di bawah master switch di header. */}
+          <div
+            className="flex items-center gap-3 p-3.5 rounded-xl"
+            style={{
+              backgroundColor: "var(--color-neutral)",
+              border: "1px solid var(--color-border-light)",
+            }}
+          >
             <SettingToggle
               checked={maintAllowAdmin}
               onChange={() => setMaintAllowAdmin(!maintAllowAdmin)}
@@ -273,7 +315,7 @@ export function MaintenanceSettingsCard() {
                   fontWeight: 500,
                 }}
               >
-                Admin tetap dapat mengakses website
+                Izinkan admin melewati maintenance
               </span>
               <p
                 style={{
@@ -282,7 +324,7 @@ export function MaintenanceSettingsCard() {
                   marginTop: 2,
                 }}
               >
-                Jika aktif, maintenance mode tidak berlaku untuk request dari admin.
+                Admin tetap dapat mengakses website saat maintenance aktif.
               </p>
             </div>
           </div>

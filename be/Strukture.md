@@ -1,43 +1,75 @@
-﻿```text
-be_digitalin/
-├── 📁 Data/           (Tempat untuk koneksi database & Migrasi)
-├── 📁 Models/         (Tempat untuk struktur tabel database)
-├── 📁 DTOs/           (Tempat untuk format data Request/Response)
-├── 📁 Services/       (Tempat untuk logika bisnis)
-├── 📁 Endpoints/      (Tempat untuk mengatur rute/URL API)
-├── appsettings.json
-├── Program.cs
-└── ...
-
+```text
+be_digitalin/                          # Satu project .NET (Controller-Based + Clean Architecture)
+├── Controllers/                       # API layer — 15 controller, thin (hanya orkestrasi)
+├── Middleware/                        # MaintenanceMiddleware (API)
+├── Program.cs                         # Composition root (DI wiring)
+│
+├── Application/                       # Layer Application (kontrak + helper use-case)
+│   ├── Ports/                         # Interface: 7 provider eksternal, IApplicationDbContext,
+│   │                                  #           IRedisService, RedisCacheKeys
+│   ├── Serialization/                 # GameInputSchemaSerializer (helper teknis JSON)
+│   └── Validation/                    # ImageFileData (kontrak file) + ImageFileValidator
+│
+├── Services/                          # Application use-case (Fat Services, diakses lewat interface)
+│   └── v1/                            # Admin, Auth, Commerce, Content, Customer, Games,
+│                                      # Orders, Security, Settings — hanya interface + impl service
+│
+├── Domain/                            # Layer Domain — murni, tanpa IO/EF/provider
+│   ├── Entities/                      # Entity POCO (dulu Models/)
+│   ├── Orders/                        # OrderStateTransition, OrderTargetRenderer
+│   ├── Commerce/                      # VoucherRules
+│   ├── Games/GameTemplates/           # GameTemplate*, GameTemplateFactory
+│   └── Pricing.cs, Slug.cs            # Seeds domain
+│
+├── Infrastructure/                    # Layer Infrastructure (implementasi teknis)
+│   ├── Redis/                         # RedisService (impl IRedisService)
+│   ├── Security/                      # TokenService (JWT)
+│   ├── Settings/                      # AppSettingsService (DB + memory cache)
+│   ├── Workers/                       # OrderSweepWorker, DigiflazzSyncWorker
+│   └── OpenApi/                       # Konfigurasi OpenAPI/Swagger
+│
+├── Data/                              # DigitalinDbContext (impl IApplicationDbContext) + Migrations
+├── Providers/                         # Adapter eksternal — implement Ports:
+│                                      #   Digiflazz, Midtrans, Telegram, CloudflareR2,
+│                                      #   Email, Google, Recaptcha
+├── DTOs/                              # Requests/ + Responses/ (kontrak API, murni)
+├── Config/                            # Settings POCO (appsettings binding)
+├── Constants/                         # Shared kernel (AppConstants, OtpPurpose) — lintas layer
+├── http/, Icons/                      # Test script HTTP & aset lokal
+└── appsettings.json, Program.cs
 ```
 
-### Rincian Fungsi Tiap Folder:
+### Rincian Fungsi Tiap Folder
 
-**1. `Models/` (atau `Entities/`)**
-Hanya berisi *class* C# murni yang mencerminkan tabel di dalam PostgreSQL.
+**1. `Controllers/` (API)**
+15 controller endpoint, semuanya thin: hanya memetakan request → service interface → response HTTP.
+Tidak boleh berisi business logic. Satu-satunya tempat `IFormFile` boleh muncul (di-map ke `ImageFileData`).
 
-* **Isi file nanti:** `GameProduct.cs`, `TopupOrder.cs`, `User.cs`.
-* *Aturan:* File di sini tidak boleh berisi logika perhitungan, murni hanya struktur properti (ID, Nama, Harga, dll).
+**2. `Application/Ports/` (kontrak Application)**
+Interface yang dipakai service untuk mengakses infrastruktur: `IDigiflazzProvider`, `IMidtransProvider`,
+`ITelegramProvider`, `ICloudflareR2Provider`, `IEmailProvider`, `IGoogleProvider`, `IRecaptchaProvider`,
+`IRedisService`, dan `IApplicationDbContext` (pragmatic persistence port). Provider & DbContext
+mengimplementasikan port ini — Application tidak boleh menyentuh class concrete/Infrastructure.
 
-**2. `Data/**`
-Pusat kontrol *database* dan tempat bernaungnya Entity Framework Core.
+**3. `Services/` (Application use-case — Fat Services / Thin Controllers)**
+"Otak" backend: semua logika use-case ada di sini. Service hanya bergantung pada Ports, Domain, dan DTOs.
 
-* **Isi file nanti:** `DigitalinDbContext.cs`.
-* *Catatan:* Saat Anda menjalankan perintah migrasi nanti, EF Core secara otomatis akan membuat sub-folder `Migrations/` di dalam folder ini.
+**4. `Domain/` (murni, tanpa dependency)**
+Business rule + entity murni. Tidak boleh `using` API/ASP.NET, EF Core, Redis, atau provider.
+`Constants/` (AppConstants) boleh dipakai sebagai shared kernel.
 
-**3. `DTOs/` (Data Transfer Objects)**
-Sangat krusial untuk keamanan. DTO adalah bentuk data yang dikirim oleh *user* (Front-end) atau dikembalikan oleh API Anda. Kita tidak boleh mengirimkan struktur tabel *database* asli ke klien.
+**5. `Infrastructure/` + `Data/` + `Providers/` (implementasi teknis)**
+Detail teknis: EF Core DbContext + migrasi, Redis, JWT, hosted service, dan adapter provider eksternal.
+Semua diakses Application lewat port di `Application/Ports/`.
 
-* **Isi file nanti:** `CreateOrderRequest.cs`, `TopupResponse.cs`.
+**6. `DTOs/`**
+Kontrak request/response API. Murni data, tanpa EF/provider.
 
-**4. `Services/**`
-Ini adalah "otak" dari *backend* Anda. Semua proses logika perhitungan ditaruh di sini agar API Anda tetap bersih.
-
-* **Isi file nanti:** `OrderService.cs` (berisi logika: cek stok $\rightarrow$ potong saldo $\rightarrow$ simpan ke DB), `PaymentService.cs` (berisi logika pembuatan *invoice* tagihan).
-
-**5. `Endpoints/**`
-Karena Anda menggunakan Minimal API, jika semua *route* (`app.MapGet`, `app.MapPost`) ditaruh di `Program.cs`, filenya akan memanjang hingga ribuan baris. Folder ini digunakan untuk memecah *route* tersebut.
-
-* **Isi file nanti:** `OrderEndpoints.cs`, `ProductEndpoints.cs`.
-
----
+### Aturan Dependency (target)
+```text
+API → Application → Domain
+Infrastructure → Application/Domain
+Domain → (hanya BCL + Constants + Domain itu sendiri)
+```
+Verifikasi perubahan besar: `dotnet build` 0/0 → parity `docs/regression/route_parity.py` (62 = 62)
+→ smoke `docs/regression/smoke.sh` → `dotnet ef migrations has-pending-model-changes`.

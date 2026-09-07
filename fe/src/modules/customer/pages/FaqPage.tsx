@@ -1,24 +1,47 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Search, HelpCircle, MessageCircle } from "lucide-react";
 import { Link } from "react-router";
+import { useQuery } from "@tanstack/react-query";
 import FaqAccordion from "../../../components/common/FaqAccordion";
-import { FAQ_CATEGORIES, searchFaqs } from "../../../data/faqs";
-import type { FaqCategory } from "../../../data/faqs";
+import BackButton from "../../../components/common/BackButton";
+import { faqService } from "../../../services/api";
 
-type TabKey = "Semua" | FaqCategory;
-const TABS: TabKey[] = ["Semua", ...FAQ_CATEGORIES];
+/* Filter/search dijalankan server-side (GET /faqs?category=&search=);
+   kategori juga dari API — FE tidak lagi hardcode daftarnya. */
+const DEBOUNCE_MS = 300;
 
 export default function FaqPage() {
-  const [activeTab, setActiveTab] = useState<TabKey>("Semua");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<string>("Semua");
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  const filteredFaqs = useMemo(
-    () => searchFaqs({ category: activeTab, query: searchQuery }),
-    [activeTab, searchQuery]
-  );
+  // Debounce search (pola yang sama dengan useSearchGames / VouchersPage)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const { data: categories } = useQuery({
+    queryKey: ["faq-categories"],
+    queryFn: faqService.getCategories,
+  });
+
+  const category = activeTab === "Semua" ? undefined : activeTab;
+
+  const { data: faqs, isLoading, isError } = useQuery({
+    queryKey: ["faqs", category, debouncedSearch],
+    queryFn: () =>
+      faqService.getAll({
+        category,
+        search: debouncedSearch.trim() || undefined,
+      }),
+  });
+
+  const tabs = ["Semua", ...(categories ?? [])];
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <BackButton />
       {/* Header */}
       <div className="text-center mb-8">
         <div className="flex justify-center mb-4">
@@ -50,8 +73,8 @@ export default function FaqPage() {
           <Search size={16} style={{ color: "var(--color-brand-secondary, #4A5568)", flexShrink: 0 }} />
           <input
             type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari pertanyaan..."
             aria-label="Cari FAQ"
             className="flex-1 outline-none bg-transparent"
@@ -60,10 +83,10 @@ export default function FaqPage() {
         </div>
       </div>
 
-      {/* Category Tabs */}
+      {/* Category Tabs — kategori dari API */}
       <div className="mb-8 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
         <div className="flex gap-2 pb-1">
-          {TABS.map((tab) => {
+          {tabs.map((tab) => {
             const isActive = activeTab === tab;
             return (
               <button
@@ -92,8 +115,21 @@ export default function FaqPage() {
         style={{ backgroundColor: "var(--color-surface, #fff)", border: "1px solid rgba(0,0,0,0.07)" }}
       >
         <div className="px-5">
-          {filteredFaqs.length > 0 ? (
-            <FaqAccordion items={filteredFaqs} />
+          {isLoading ? (
+            <div className="py-10 space-y-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-6 rounded-lg animate-pulse" style={{ backgroundColor: "var(--color-neutral, #F1F3F5)" }} />
+              ))}
+            </div>
+          ) : isError ? (
+            <div className="py-12 text-center">
+              <HelpCircle size={32} style={{ color: "var(--color-brand-secondary, #4A5568)", opacity: 0.4, margin: "0 auto 12px" }} />
+              <p style={{ color: "var(--color-brand-secondary, #4A5568)", fontSize: "0.9rem" }}>
+                Gagal memuat FAQ. Coba muat ulang halaman.
+              </p>
+            </div>
+          ) : (faqs?.length ?? 0) > 0 ? (
+            <FaqAccordion items={faqs!} />
           ) : (
             <div className="py-12 text-center">
               <HelpCircle size={32} style={{ color: "var(--color-brand-secondary, #4A5568)", opacity: 0.4, margin: "0 auto 12px" }} />

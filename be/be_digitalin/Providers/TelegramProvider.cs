@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using System.Text.Json;
+using be_digitalin.Application.Ports;
 
 namespace be_digitalin.Providers;
 
@@ -9,17 +10,19 @@ public class TelegramSettings
     public string ChatId { get; set; } = string.Empty;
 }
 
-public class TelegramProvider
+public class TelegramProvider : ITelegramProvider
 {
     private readonly HttpClient _httpClient;
     private readonly string _botToken;
     private readonly string _chatId;
+    private readonly ILogger<TelegramProvider> _logger;
 
-    public TelegramProvider(HttpClient httpClient, IConfiguration config)
+    public TelegramProvider(HttpClient httpClient, IConfiguration config, ILogger<TelegramProvider> logger)
     {
         _httpClient = httpClient;
         _botToken = config["TelegramSettings:BotToken"] ?? "";
         _chatId = config["TelegramSettings:ChatId"] ?? "";
+        _logger = logger;
     }
 
     public async Task SendNotificationAsync(string message, CancellationToken cancellationToken = default)
@@ -43,7 +46,7 @@ public class TelegramProvider
         catch (Exception ex)
         {
             // buat log kalau gagal kirim pesan di tele
-            Console.WriteLine($"[TELEGRAM ERROR] Gagal mengirim pesan: {ex.Message}");
+            _logger.LogWarning(ex, "[TELEGRAM] Gagal mengirim pesan notifikasi.");
         }
     }
 }

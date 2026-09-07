@@ -7,6 +7,7 @@ import {
   Flame,
   Image as ImageIcon,
   Ticket,
+  CircleHelp,
   ShieldCheck,
   Settings,
   LogOut,
@@ -44,6 +45,7 @@ const NAV_GROUPS: AdminNavGroup[] = [
       { label: "Game Populer", path: "/admin/popular", icon: Flame },
       { label: "Banners", path: "/admin/banners", icon: ImageIcon },
       { label: "Vouchers", path: "/admin/vouchers", icon: Ticket },
+      { label: "FAQ", path: "/admin/faqs", icon: CircleHelp },
     ],
   },
   {

@@ -1,11 +1,11 @@
 ﻿using System.Text.Json;
-using System.Text.Json.Serialization;
+using be_digitalin.Application.Ports;
 using be_digitalin.Config;
 using Microsoft.Extensions.Options;
 
 namespace be_digitalin.Providers;
 
-public class RecaptchaProvider
+public class RecaptchaProvider : IRecaptchaProvider
 {
     private readonly HttpClient _httpClient;
     private readonly RecaptchaSettings _settings;
@@ -70,25 +70,4 @@ public class RecaptchaProvider
 
         return result;
     }
-}
-
-public class RecaptchaVerifyResponse
-{
-    [JsonPropertyName("success")]
-    public bool Success { get; set; }
-
-    [JsonPropertyName("score")]
-    public double Score { get; set; }
-
-    [JsonPropertyName("action")]
-    public string Action { get; set; } = string.Empty;
-
-    [JsonPropertyName("challenge_ts")]
-    public DateTime? ChallengeTimestamp { get; set; }
-
-    [JsonPropertyName("hostname")]
-    public string Hostname { get; set; } = string.Empty;
-
-    [JsonPropertyName("error-codes")]
-    public string[] ErrorCodes { get; set; } = [];
 }

@@ -1,15 +1,14 @@
-using be_digitalin.Data;
+using be_digitalin.Application.Ports;
 using be_digitalin.DTOs;
-using be_digitalin.Models;
+using be_digitalin.Domain.Entities;
 using be_digitalin.Constants;
 using be_digitalin.Domain;
-using be_digitalin.Providers;
-using be_digitalin.Infrastructure.Serialization;
+
+using be_digitalin.Application.Serialization;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
-using be_digitalin.Infrastructure.Redis;
-using be_digitalin.Infrastructure.Storage;
-using be_digitalin.Services.Games.GameTemplates;
+using be_digitalin.Application.Validation;
+using be_digitalin.Domain.Games.GameTemplates;
 using be_digitalin.Services.Orders;
 using be_digitalin.Services.Settings;
 
@@ -17,9 +16,9 @@ namespace be_digitalin.Services.Games;
 
 public class ProductService : IProductService
 {
-    private readonly DigitalinDbContext _db;
-    private readonly CloudflareR2Provider _r2Provider;
-    private readonly DigiflazzProvider _digiflazzProvider;
+    private readonly IApplicationDbContext _db;
+    private readonly ICloudflareR2Provider _r2Provider;
+    private readonly IDigiflazzProvider _digiflazzProvider;
     private readonly IAppSettingsService _appSettings;
     private readonly ILogger<ProductService> _logger;
     private readonly IRedisService _redis;
@@ -35,9 +34,9 @@ public class ProductService : IProductService
         TimeSpan.FromMinutes(minutes).Add(TimeSpan.FromSeconds(Random.Shared.Next(0, 31)));
 
     public ProductService(
-        DigitalinDbContext db,
-        CloudflareR2Provider r2Provider,
-        DigiflazzProvider digiflazzProvider,
+        IApplicationDbContext db,
+        ICloudflareR2Provider r2Provider,
+        IDigiflazzProvider digiflazzProvider,
         IAppSettingsService appSettings,
         ILogger<ProductService> logger,
         IRedisService redis)
@@ -157,28 +156,15 @@ public class ProductService : IProductService
 
         foreach (var item in dataArray)
         {
-            var category = item
-                .GetProperty(AppConstants.DigiflazzResponseKeys.Category)
-                .GetString();
+            var category = item.Category;
 
             if (category != AppConstants.Categories.Games)
                 continue;
 
-            var sku = item
-                .GetProperty(AppConstants.DigiflazzResponseKeys.BuyerSkuCode)
-                .GetString() ?? string.Empty;
-
-            var name = item
-                .GetProperty(AppConstants.DigiflazzResponseKeys.ProductName)
-                .GetString() ?? string.Empty;
-
-            var modalPrice = item
-                .GetProperty(AppConstants.DigiflazzResponseKeys.Price)
-                .GetDecimal();
-
-            var brand = item
-                .GetProperty(AppConstants.DigiflazzResponseKeys.Brand)
-                .GetString() ?? string.Empty;
+            var sku = item.BuyerSkuCode;
+            var name = item.ProductName;
+            var modalPrice = item.Price;
+            var brand = item.Brand;
 
             if (string.IsNullOrWhiteSpace(sku))
                 continue;
@@ -194,9 +180,7 @@ public class ProductService : IProductService
             // menyalakannya. Salah satu false = katalog kita ikut mematikannya,
             // supaya order tidak lolos checkout lalu ditolak Digiflazz setelah
             // pembayaran masuk.
-            var isSellable =
-                item.GetProperty(AppConstants.DigiflazzResponseKeys.BuyerProductStatus).GetBoolean() &&
-                item.GetProperty(AppConstants.DigiflazzResponseKeys.SellerProductStatus).GetBoolean();
+            var isSellable = item.BuyerProductStatus && item.SellerProductStatus;
 
             activeDigiflazzSkus.Add(sku);
 
@@ -226,10 +210,7 @@ public class ProductService : IProductService
             // Instruksi supplier disimpan sekali di level brand. Seluruh SKU satu
             // game memakai desc yang sama, jadi SKU terakhir yang menang — tidak
             // ada salinan per GameProduct.
-            var supplierNote = item
-                .TryGetProperty(AppConstants.DigiflazzResponseKeys.Desc, out var descProperty)
-                    ? descProperty.GetString()
-                    : null;
+            var supplierNote = item.Desc;
 
             if (!string.IsNullOrWhiteSpace(supplierNote) && metadata.SupplierNote != supplierNote)
                 metadata.SupplierNote = supplierNote;
@@ -853,7 +834,7 @@ public class ProductService : IProductService
         return product;
     }
 
-    public async Task<string?> UpdateProductIconAsync(int productId, IFormFile file, CancellationToken cancellationToken = default)
+    public async Task<string?> UpdateProductIconAsync(int productId, ImageFileData file, CancellationToken cancellationToken = default)
     {
         var product = await _db.GameProducts.FindAsync(productId);
         if (product == null) return null;
@@ -989,7 +970,7 @@ public class ProductService : IProductService
         }
     }
 
-    public async Task<string?> UpdateGameCoverAsync(int metadataId, IFormFile file, CancellationToken cancellationToken = default)
+    public async Task<string?> UpdateGameCoverAsync(int metadataId, ImageFileData file, CancellationToken cancellationToken = default)
     {
         await ImageFileValidator.EnsureValidImageAsync(file, cancellationToken);
 

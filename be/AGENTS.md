@@ -5,14 +5,23 @@ ROLE & GENERAL PRINCIPLES:
 - Adhere to CLEAN CODE (SOLID, DRY, KISS).
 - Single Source of Truth (SSOT): No overlapping systems or duplicate logic.
 
-BACKEND ARCHITECTURE (.NET Core Minimal API):
-- Use Minimal API structure, NOT traditional Controllers.
-- Keep endpoint mappings clean and thin.
-- Centralize all business logic inside Service files (Fat Services / Thin Endpoints).
+BACKEND ARCHITECTURE (.NET Core, Controller-Based + Clean Architecture):
+- Controller-Based API (15 controllers di Controllers/), BUKAN Minimal API/Endpoints.
+- Thin Controller: hanya orkestrasi request (klaim, mapping HTTP).
+- Centralize business logic di Service files (Fat Services / Thin Controllers).
+- Dependency direction WAJIB: API → Application → Domain; Infrastructure → Application/Domain.
+  Application hanya bergantung pada Ports (Application/Ports), Domain, dan DTOs.
+  Domain TIDAK boleh bergantung pada API/ASP.NET, EF Core, Redis, atau provider eksternal.
+- Provider/adapters eksternal (Providers/, Data/, Redis, Workers) harus diakses service
+  lewat interface port (be_digitalin.Application.Ports), bukan class concrete.
+- Jangan pindahkan folder/namespace tanpa alasan dependency — normalisasi terakhir.
 
 DATA ACCESS & PERSISTENCE (EF Core):
 - Use Entity Framework Core for all database operations.
 - NEVER hardcode raw SQL queries; rely strictly on EF Core LINQ / Lambda.
+- Service mengakses DB via IApplicationDbContext (port), bukan DigitalinDbContext concrete.
+- Perubahan besar: jalankan gate regresi docs/regression (parity 62/62 + smoke) + cek
+  `dotnet ef migrations has-pending-model-changes` sebelum dianggap selesai.
 
 PRIORITAS
 1. RULES.txt

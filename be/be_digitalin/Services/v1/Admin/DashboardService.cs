@@ -1,20 +1,22 @@
-using be_digitalin.Data;
+using be_digitalin.Application.Ports;
 using be_digitalin.DTOs;
 using be_digitalin.Constants;
-using be_digitalin.Providers;
+
 using Microsoft.EntityFrameworkCore;
 namespace be_digitalin.Services.Admin;
 
 public class DashboardService : IDashboardService
 {
-    private readonly DigitalinDbContext _db;
-    private readonly DigiflazzProvider _digiflazz;
+    private readonly IApplicationDbContext _db;
+    private readonly IDigiflazzProvider _digiflazz;
+    private readonly ILogger<DashboardService> _logger;
     private static readonly TimeZoneInfo Wib = TimeZoneInfo.FindSystemTimeZoneById("Asia/Jakarta");
 
-    public DashboardService(DigitalinDbContext db, DigiflazzProvider digiflazz)
+    public DashboardService(IApplicationDbContext db, IDigiflazzProvider digiflazz, ILogger<DashboardService> logger)
     {
         _db = db;
         _digiflazz = digiflazz;
+        _logger = logger;
     }
 
     // ── GET /admin/dashboard/stats ──────────────────────────────
@@ -176,7 +178,7 @@ public class DashboardService : IDashboardService
             // Saldo diambil live dari pihak ketiga: kalau Digiflazz down, timeout,
             // atau menolak signature, kartu saldo saja yang gagal — sisa dashboard
             // tetap harus tampil, jadi error-nya tidak boleh dilempar jadi 500.
-            Console.WriteLine($"[DASHBOARD BALANCE ERROR] {ex.Message}");
+            _logger.LogError(ex, "[DASHBOARD BALANCE] Gagal mengambil saldo Digiflazz.");
             return (null, $"Gagal mengambil saldo dari Digiflazz: {ex.Message}");
         }
     }

@@ -22,7 +22,7 @@ namespace be_digitalin.Migrations
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
-            modelBuilder.Entity("be_digitalin.Models.Admin", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.Admin", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -59,7 +59,7 @@ namespace be_digitalin.Migrations
                     b.ToTable("Admins");
                 });
 
-            modelBuilder.Entity("be_digitalin.Models.AppSetting", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.AppSetting", b =>
                 {
                     b.Property<string>("Key")
                         .HasColumnType("varchar(255)");
@@ -73,7 +73,7 @@ namespace be_digitalin.Migrations
                     b.ToTable("AppSettings");
                 });
 
-            modelBuilder.Entity("be_digitalin.Models.Banner", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.Banner", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -100,7 +100,7 @@ namespace be_digitalin.Migrations
                     b.ToTable("Banners");
                 });
 
-            modelBuilder.Entity("be_digitalin.Models.Customer", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.Customer", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -112,7 +112,10 @@ namespace be_digitalin.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<DateTime>("CreatetAt")
+                    b.Property<string>("AvatarUrl")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Email")
@@ -139,7 +142,7 @@ namespace be_digitalin.Migrations
                     b.ToTable("Customers");
                 });
 
-            modelBuilder.Entity("be_digitalin.Models.CustomerOtp", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.CustomerOtp", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -172,7 +175,207 @@ namespace be_digitalin.Migrations
                     b.ToTable("CustomerOtps");
                 });
 
-            modelBuilder.Entity("be_digitalin.Models.GameMetadata", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.ExternalLogin", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("ProviderUserId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("Provider", "ProviderUserId")
+                        .IsUnique();
+
+                    b.ToTable("ExternalLogins");
+                });
+
+            modelBuilder.Entity("be_digitalin.Domain.Entities.Faq", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Answer")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("Featured")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Question")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Faqs");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Answer = "Pilih game yang ingin di-top up, masukkan Player ID, pilih nominal, lalu lakukan pembayaran. Proses otomatis setelah pembayaran berhasil.",
+                            Category = "Top Up",
+                            Featured = true,
+                            Question = "Bagaimana cara melakukan top up game?"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Answer = "Proses top up umumnya instan (1-5 menit) setelah pembayaran terkonfirmasi. Beberapa produk mungkin membutuhkan waktu hingga 15 menit.",
+                            Category = "Top Up",
+                            Featured = true,
+                            Question = "Berapa lama proses top up?"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Answer = "Tidak wajib. Anda bisa melakukan top up sebagai guest. Namun, dengan akun Anda bisa melihat riwayat transaksi.",
+                            Category = "Top Up",
+                            Featured = false,
+                            Question = "Apakah perlu membuat akun untuk top up?"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Answer = "Jika sudah dibayar, top up tidak dapat dibatalkan. Pastikan Player ID benar sebelum melakukan pembayaran.",
+                            Category = "Top Up",
+                            Featured = true,
+                            Question = "Player ID salah, bisa dibatalkan?"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Answer = "Kami mendukung berbagai metode pembayaran melalui Midtrans: GoPay, OVO, ShopeePay, transfer bank, kartu kredit, dan convenience store.",
+                            Category = "Pembayaran",
+                            Featured = true,
+                            Question = "Metode pembayaran apa saja yang didukung?"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            Answer = "Ya. Seluruh transaksi diproses melalui Midtrans yang sudah terenkripsi dan tersertifikasi PCI DSS.",
+                            Category = "Pembayaran",
+                            Featured = false,
+                            Question = "Apakah pembayaran aman?"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            Answer = "Jika pembayaran gagal, Anda bisa mencoba kembali. Tidak ada biaya yang dikenakan untuk transaksi yang gagal.",
+                            Category = "Pembayaran",
+                            Featured = false,
+                            Question = "Bagaimana jika pembayaran gagal?"
+                        },
+                        new
+                        {
+                            Id = 8,
+                            Answer = "Klik tombol 'Daftar' di navbar, masukkan email dan password, lalu verifikasi dengan kode OTP yang dikirim ke email Anda.",
+                            Category = "Akun",
+                            Featured = false,
+                            Question = "Bagaimana cara mendaftar?"
+                        },
+                        new
+                        {
+                            Id = 9,
+                            Answer = "Ya. Kami mendukung login menggunakan akun Google untuk kemudahan akses.",
+                            Category = "Akun",
+                            Featured = false,
+                            Question = "Apakah bisa login dengan Google?"
+                        },
+                        new
+                        {
+                            Id = 10,
+                            Answer = "Masuk ke halaman Profile, lalu pilih opsi ubah password. Masukkan password baru dan simpan.",
+                            Category = "Akun",
+                            Featured = false,
+                            Question = "Bagaimana cara mengubah password?"
+                        },
+                        new
+                        {
+                            Id = 11,
+                            Answer = "Masuk ke halaman Riwayat Order (jika memiliki akun) untuk melihat status seluruh transaksi Anda.",
+                            Category = "Transaksi",
+                            Featured = true,
+                            Question = "Bagaimana cara melihat riwayat transaksi?"
+                        },
+                        new
+                        {
+                            Id = 12,
+                            Answer = "Tunggu 5-15 menit. Jika masih belum masuk, hubungi kami melalui halaman Kontak dengan menyertakan nomor invoice.",
+                            Category = "Transaksi",
+                            Featured = true,
+                            Question = "Diamond belum masuk setelah pembayaran berhasil?"
+                        },
+                        new
+                        {
+                            Id = 13,
+                            Answer = "Status PENDING berarti pembayaran belum terkonfirmasi. Selesaikan pembayaran Anda agar pesanan diproses.",
+                            Category = "Transaksi",
+                            Featured = false,
+                            Question = "Apa arti status PENDING pada pesanan?"
+                        },
+                        new
+                        {
+                            Id = 14,
+                            Answer = "Masukkan kode voucher pada kolom yang tersedia saat melakukan checkout. Diskon akan otomatis diterapkan.",
+                            Category = "Voucher",
+                            Featured = false,
+                            Question = "Bagaimana cara menggunakan kode voucher?"
+                        },
+                        new
+                        {
+                            Id = 15,
+                            Answer = "Pastikan kode voucher masih aktif, belum kedaluwarsa, dan memenuhi minimum transaksi. Jika masih bermasalah, hubungi support.",
+                            Category = "Voucher",
+                            Featured = false,
+                            Question = "Voucher tidak bisa digunakan?"
+                        },
+                        new
+                        {
+                            Id = 16,
+                            Answer = "Ya. Digitalin menggunakan enkripsi SSL, pembayaran diproses via Midtrans (PCI DSS certified), dan data Anda dilindungi.",
+                            Category = "Lainnya",
+                            Featured = false,
+                            Question = "Apakah Digitalin aman?"
+                        },
+                        new
+                        {
+                            Id = 17,
+                            Answer = "Refund hanya dapat dilakukan jika pesanan gagal diproses oleh sistem. Hubungi tim support kami untuk pengajuan refund.",
+                            Category = "Lainnya",
+                            Featured = false,
+                            Question = "Apakah bisa refund?"
+                        });
+                });
+
+            modelBuilder.Entity("be_digitalin.Domain.Entities.GameMetadata", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -220,7 +423,7 @@ namespace be_digitalin.Migrations
                     b.ToTable("GameMetadata");
                 });
 
-            modelBuilder.Entity("be_digitalin.Models.GameProduct", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.GameProduct", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -275,7 +478,7 @@ namespace be_digitalin.Migrations
                     b.ToTable("GameProducts");
                 });
 
-            modelBuilder.Entity("be_digitalin.Models.TopupOrder", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.TopupOrder", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -371,14 +574,15 @@ namespace be_digitalin.Migrations
 
                     b.HasIndex("GameProductId");
 
-                    b.HasIndex("OrderNo");
+                    b.HasIndex("OrderNo")
+                        .IsUnique();
 
                     b.HasIndex("Status", "OrderDate");
 
                     b.ToTable("TopupOrders");
                 });
 
-            modelBuilder.Entity("be_digitalin.Models.Voucher", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.Voucher", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -432,9 +636,9 @@ namespace be_digitalin.Migrations
                     b.ToTable("Vouchers");
                 });
 
-            modelBuilder.Entity("be_digitalin.Models.CustomerOtp", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.CustomerOtp", b =>
                 {
-                    b.HasOne("be_digitalin.Models.Customer", "Customer")
+                    b.HasOne("be_digitalin.Domain.Entities.Customer", "Customer")
                         .WithMany()
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -443,13 +647,24 @@ namespace be_digitalin.Migrations
                     b.Navigation("Customer");
                 });
 
-            modelBuilder.Entity("be_digitalin.Models.TopupOrder", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.ExternalLogin", b =>
                 {
-                    b.HasOne("be_digitalin.Models.Customer", "Customer")
+                    b.HasOne("be_digitalin.Domain.Entities.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("be_digitalin.Domain.Entities.TopupOrder", b =>
+                {
+                    b.HasOne("be_digitalin.Domain.Entities.Customer", "Customer")
                         .WithMany("Orders")
                         .HasForeignKey("CustomerId");
 
-                    b.HasOne("be_digitalin.Models.GameProduct", "GameProduct")
+                    b.HasOne("be_digitalin.Domain.Entities.GameProduct", "GameProduct")
                         .WithMany("Orders")
                         .HasForeignKey("GameProductId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -460,12 +675,12 @@ namespace be_digitalin.Migrations
                     b.Navigation("GameProduct");
                 });
 
-            modelBuilder.Entity("be_digitalin.Models.Customer", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.Customer", b =>
                 {
                     b.Navigation("Orders");
                 });
 
-            modelBuilder.Entity("be_digitalin.Models.GameProduct", b =>
+            modelBuilder.Entity("be_digitalin.Domain.Entities.GameProduct", b =>
                 {
                     b.Navigation("Orders");
                 });

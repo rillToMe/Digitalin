@@ -8,6 +8,7 @@ import { paySnap, preloadSnap, SnapError } from "../../../services/midtransSnap"
 import { useCheckoutStore } from "../../../store/checkoutStore";
 import type { CreateOrderPayload, CheckoutPreviewResponse } from "../../../api/index";
 import VoucherCard from "../../../components/common/VoucherCard";
+import BackButton from "../../../components/common/BackButton";
 import {
   Dialog,
   DialogContent,
@@ -56,6 +57,8 @@ export default function GameDetailPage() {
   const [isPaying, setIsPaying] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [successMessage, setSuccessMessage] = useState<{ title: string; description: string } | null>(null);
+  // Invoice order terakhir — dipakai dialog sukses untuk link halaman status.
+  const [lastOrderNo, setLastOrderNo] = useState<string | null>(null);
   const [discountInfo, setDiscountInfo] = useState<{ discountAmount: number; finalPrice: number; price: number } | null>(null);
   const [previewResult, setPreviewResult] = useState<CheckoutPreviewResponse | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -154,6 +157,7 @@ export default function GameDetailPage() {
                 "Pesanan Anda sedang diproses. Anda dapat melihat status transaksi pada halaman Riwayat Order kapan saja.",
             });
             setShowSuccessDialog(true);
+            setLastOrderNo(res.orderNo);
             // Reset checkout form so user can make another purchase immediately
             setSelectedProduct(null);
             setVoucherCode(null);
@@ -168,6 +172,7 @@ export default function GameDetailPage() {
                 "Pembayaran Anda sedang diproses. Silakan selesaikan pembayaran Anda. Status transaksi dapat dilihat di halaman Riwayat Order.",
             });
             setShowSuccessDialog(true);
+            setLastOrderNo(res.orderNo);
           },
           onError: () => {
             setIsPaying(false);
@@ -193,9 +198,10 @@ export default function GameDetailPage() {
         setSuccessMessage({
           title: "Pesanan Berhasil Dibuat",
           description:
-            "Pesanan Anda sedang diproses. Anda dapat melihat status transaksi pada halaman Riwayat Order kapan saja.",
+            "Pesanan Anda sedang diproses. Anda dapat melihat status transaksi pada halaman Status Pesanan kapan saja.",
         });
         setShowSuccessDialog(true);
+        setLastOrderNo(res.orderNo);
       }
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {
@@ -223,9 +229,12 @@ export default function GameDetailPage() {
 
   if (isError || !brand) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-16 text-center">
-        <AlertCircle size={40} style={{ color: "var(--color-brand-secondary)", margin: "0 auto 12px" }} />
-        <p style={{ color: "var(--color-brand-secondary)" }}>Game tidak ditemukan</p>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <BackButton />
+        <div className="py-16 text-center">
+          <AlertCircle size={40} style={{ color: "var(--color-brand-secondary)", margin: "0 auto 12px" }} />
+          <p style={{ color: "var(--color-brand-secondary)" }}>Game tidak ditemukan</p>
+        </div>
       </div>
     );
   }
@@ -275,6 +284,8 @@ export default function GameDetailPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <BackButton />
+
       {/* Header game: artwork-nya sendiri jadi latar (di-blur + scrim solid)
           dengan poster potret di depannya. Halaman ini jadi terbaca sebagai
           halaman game, bukan formulir — dan warna jenuhnya tetap hanya datang
@@ -611,12 +622,13 @@ export default function GameDetailPage() {
             </DialogClose>
             <Button
               className="w-full sm:flex-1"
+              disabled={!lastOrderNo}
               onClick={() => {
                 setShowSuccessDialog(false);
-                navigate("/history");
+                if (lastOrderNo) navigate(`/order/status/${lastOrderNo}`);
               }}
             >
-              Lihat Riwayat
+              Lihat Status Pesanan
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -624,3 +636,4 @@ export default function GameDetailPage() {
     </div>
   );
 }
+

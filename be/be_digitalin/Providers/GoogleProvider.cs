@@ -1,10 +1,11 @@
+using be_digitalin.Application.Ports;
 using be_digitalin.Config;
 using Google.Apis.Auth;
 using Microsoft.Extensions.Options;
 
 namespace be_digitalin.Providers;
 
-public class GoogleProvider
+public class GoogleProvider : IGoogleProvider
 {
     private readonly GoogleAuthSettings _settings;
 

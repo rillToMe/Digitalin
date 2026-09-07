@@ -1,10 +1,9 @@
 ﻿using be_digitalin.Config;
-using be_digitalin.Data;
+using be_digitalin.Application.Ports;
 using be_digitalin.DTOs;
-using be_digitalin.Infrastructure.Redis;
-using be_digitalin.Models;
+using be_digitalin.Domain.Entities;
 using be_digitalin.Constants;
-using be_digitalin.Providers;
+
 using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -16,21 +15,21 @@ namespace be_digitalin.Services.Customer;
 
 public class CustomerService : ICustomerService
 {
-    private readonly DigitalinDbContext _db;
+    private readonly IApplicationDbContext _db;
     private readonly ITokenService _tokenService;
     private readonly IOrderService _orderService;
     private readonly IRecaptchaService _recaptchaService;
     private readonly RecaptchaSettings _recaptchaSettings;
-    private readonly EmailProvider _emailProvider;
+    private readonly IEmailProvider _emailProvider;
     private readonly IRedisService _redis;
 
     public CustomerService(
-        DigitalinDbContext db,
+        IApplicationDbContext db,
         ITokenService tokenService,
         IOrderService orderService,
         IRecaptchaService recaptchaService,
         IOptions<RecaptchaSettings> recaptchaSettings,
-        EmailProvider emailProvider,
+        IEmailProvider emailProvider,
         IRedisService redis)
     {
         _db = db;
@@ -67,7 +66,7 @@ public class CustomerService : ICustomerService
             return null;
         }
 
-        var customer = new Models.Customer
+        var customer = new Domain.Entities.Customer
         {
             Email = email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
@@ -75,7 +74,18 @@ public class CustomerService : ICustomerService
         };
 
         _db.Customers.Add(customer);
-        await _db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            // Kalah race melawan registrasi paralel dengan email sama:
+            // unique index IX_Customers_Email menolak insert kedua. Perlakuan
+            // sama dengan OTP salah / email sudah ada → null (400 kontrak),
+            // bukan 500. (Pola yang sama dengan GoogleAuthService.)
+            return null;
+        }
 
         await _redis.DeleteAsync(OtpKey(email));
 
@@ -158,7 +168,10 @@ public class CustomerService : ICustomerService
                 u => u.Email == email,
                 cancellationToken);
 
+        // Akun Google-only tidak punya password hash — coba login lokal = gagal
+        // kredensial (null → 401), bukan exception BCrypt pada hash kosong.
         if (customer == null ||
+            string.IsNullOrEmpty(customer.PasswordHash) ||
             !BCrypt.Net.BCrypt.Verify(password, customer.PasswordHash))
         {
             return null;
@@ -173,7 +186,7 @@ public class CustomerService : ICustomerService
         return await _db.Customers.AnyAsync(u => u.Email == email);
     }
     
-    public async Task<Models.Customer?> GetProfileAsync(int id)
+    public async Task<Domain.Entities.Customer?> GetProfileAsync(int id)
     {
         // Read-only: profile tidak dimodifikasi setelah retrieval
         // (update lewat UpdateProfileAsync yang FindAsync terpisah).

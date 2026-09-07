@@ -1,20 +1,20 @@
 using be_digitalin.Constants;
-using be_digitalin.Data;
-using be_digitalin.Providers;
+using be_digitalin.Application.Ports;
+
 using Microsoft.EntityFrameworkCore;
 
 namespace be_digitalin.Services.Auth;
 
 public class PasswordResetService : IPasswordResetService
 {
-    private readonly DigitalinDbContext _db;
+    private readonly IApplicationDbContext _db;
     private readonly IOtpService _otpService;
-    private readonly EmailProvider _emailProvider;
+    private readonly IEmailProvider _emailProvider;
 
     public PasswordResetService(
-        DigitalinDbContext db,
+        IApplicationDbContext db,
         IOtpService otpService,
-        EmailProvider emailProvider)
+        IEmailProvider emailProvider)
     {
         _db            = db;
         _otpService    = otpService;

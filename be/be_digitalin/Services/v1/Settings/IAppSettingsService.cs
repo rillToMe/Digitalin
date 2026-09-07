@@ -18,6 +18,14 @@ public interface IAppSettingsService
     /// </summary>
     Task SetAsync(string key, string value);
 
+    /// <summary>
+    /// Durasi expiry Snap Midtrans (menit) dari AppSettings. Nilai rusak, kosong,
+    /// atau <= 0 jatuh kembali ke default
+    /// <c>AppConstants.SystemSettings.MidtransExpiryDefaultMinutes</c> — satu
+    /// SSOT untuk MidtransProvider (pembuatan Snap) dan OrderSweep (cutoff PENDING).
+    /// </summary>
+    Task<int> GetMidtransExpiryMinutesAsync();
+
     // ── Maintenance helpers ──────────────────────────────────────────────────
 
     /// <summary>Returns true when MAINTENANCE_MODE == "true" (case-insensitive).</summary>

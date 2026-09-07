@@ -1,7 +1,7 @@
 using be_digitalin.Constants;
-using be_digitalin.Data;
+using be_digitalin.Application.Ports;
 using be_digitalin.DTOs;
-using be_digitalin.Models;
+using be_digitalin.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace be_digitalin.Services.Admin;
@@ -15,9 +15,9 @@ public class AdminManagementService : IAdminManagementService
         AppConstants.Roles.SuperAdmin,
     ];
 
-    private readonly DigitalinDbContext _db;
+    private readonly IApplicationDbContext _db;
 
-    public AdminManagementService(DigitalinDbContext db)
+    public AdminManagementService(IApplicationDbContext db)
     {
         _db = db;
     }
@@ -51,7 +51,7 @@ public class AdminManagementService : IAdminManagementService
         if (exists)
             return new AdminActionResult(AdminActionOutcome.BadRequest, "Username sudah digunakan.");
 
-        var admin = new Models.Admin
+        var admin = new Domain.Entities.Admin
         {
             Username     = request.Username,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password, workFactor: 11),

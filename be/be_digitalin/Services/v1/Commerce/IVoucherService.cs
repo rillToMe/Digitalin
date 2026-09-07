@@ -1,6 +1,6 @@
 using be_digitalin.DTOs.Requests;
 using be_digitalin.DTOs.Responses;
-using be_digitalin.Models;
+using be_digitalin.Domain.Entities;
 
 namespace be_digitalin.Services.Commerce;
 
