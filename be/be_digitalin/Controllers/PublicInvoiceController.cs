@@ -27,9 +27,10 @@ public class PublicInvoiceController : ControllerBase
         _invoiceLookupService = invoiceLookupService;
     }
 
-    // GET /api/v1/invoices/{orderNo} — publik, rate-limited per IP (OrderPolicy)
+    // GET /api/v1/invoices/{orderNo} — publik, rate-limited per IP
+    // (InvoiceLookupPolicy: read-only, budget cukup untuk polling FE).
     [HttpGet("{orderNo}")]
-    [EnableRateLimiting("OrderPolicy")]
+    [EnableRateLimiting("InvoiceLookupPolicy")]
     public async Task<ActionResult<PublicInvoiceResponse>> GetInvoice(
         string orderNo,
         CancellationToken cancellationToken)

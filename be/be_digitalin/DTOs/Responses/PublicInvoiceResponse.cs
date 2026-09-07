@@ -24,4 +24,12 @@ public record PublicInvoiceResponse(
     DateTime? ExpiresAt,
     /// <summary>True bila pemanggil terotentikasi sebagai pemilik order ini
     /// (optional-auth; FE menampilkan catatan "tersimpan di riwayat akun").</summary>
-    bool BelongsToAccount);
+    bool BelongsToAccount,
+    /// <summary>
+    /// Token pembayaran Snap Midtrans — HANYA diisi saat status PENDING, agar
+    /// halaman status bisa melanjutkan pembayaran (termasuk guest). Level
+    /// kepercayaan sama dengan POST /orders (guest checkout menerima token
+    /// ini juga): terikat order+nominal spesifik, bukan kredensial akun.
+    /// Null untuk semua status lain.
+    /// </summary>
+    string? SnapToken = null);

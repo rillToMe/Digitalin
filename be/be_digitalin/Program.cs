@@ -231,6 +231,13 @@ builder.Services.AddRateLimiter(options =>
         RateLimitPartition.GetFixedWindowLimiter(
             PartitionByIp(context), _ => IpFixedWindow(10, 5)));
 
+
+    // Invoice lookup (GET /invoices/{orderNo} - read-only, anonymous):
+    // 100 / 5 menit / IP. Cukup untuk polling halaman status (~12/menit)
+    // sambil tetap menutup enumerasi nomor invoice (40-bit CSPRNG).
+    options.AddPolicy("InvoiceLookupPolicy", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            PartitionByIp(context), _ => IpFixedWindow(100, 5)));
     // Admin login: 5 / 5 menit / IP.
     options.AddPolicy("AdminLoginPolicy", context =>
         RateLimitPartition.GetFixedWindowLimiter(

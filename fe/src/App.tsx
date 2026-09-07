@@ -32,6 +32,7 @@ const MaintenancePage = lazy(() => import("./modules/customer/pages/MaintenanceP
 const ProfilePage = lazy(() => import("./modules/customer/pages/ProfilePage"));
 const HistoryPage = lazy(() => import("./modules/customer/pages/HistoryPage"));
 const CheckTransactionPage = lazy(() => import("./modules/customer/pages/CheckTransactionPage"));
+const OrderStatusPage = lazy(() => import("./modules/customer/pages/OrderStatusPage"));
 const FaqPage = lazy(() => import("./modules/customer/pages/FaqPage"));
 const LeaderboardPage = lazy(() => import("./modules/customer/pages/LeaderboardPage"));
 const ContactPage = lazy(() => import("./modules/customer/pages/ContactPage"));
@@ -242,6 +243,16 @@ export default function App() {
               element={
                 <CustomerRoute>
                   <CheckTransactionPage />
+                </CustomerRoute>
+              }
+            />
+
+            {/* Status pesanan — publik (token = nomor invoice), polling otomatis. */}
+            <Route
+              path="/order/status/:orderNo"
+              element={
+                <CustomerRoute>
+                  <OrderStatusPage />
                 </CustomerRoute>
               }
             />

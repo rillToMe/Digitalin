@@ -178,6 +178,36 @@ public class InvoiceLookupServiceTests
         Assert.Null(result!.ExpiresAt);
     }
 
+    [Fact]
+    public async Task GetPublicInvoiceAsync_Pending_ExposesSnapTokenForPayment()
+    {
+        await using var db = CreateDb();
+        db.TopupOrders.Add(NewOrder(status: AppConstants.OrderStatus.Pending));
+        await db.SaveChangesAsync();
+
+        var result = await CreateService(db).GetPublicInvoiceAsync("INV-20260906-ABCDEF1234");
+
+        // Token pembayaran (bukan kredensial) hanya untuk PENDING — agar
+        // halaman status bisa melanjutkan pembayaran (level kepercayaan
+        // sama dengan POST /orders yang guest juga menerima snap token).
+        Assert.Equal("snap-secret-token", result!.SnapToken);
+    }
+
+    [Theory]
+    [InlineData(AppConstants.OrderStatus.Paid)]
+    [InlineData(AppConstants.OrderStatus.Completed)]
+    [InlineData(AppConstants.OrderStatus.Expired)]
+    public async Task GetPublicInvoiceAsync_NotPending_NoSnapToken(string status)
+    {
+        await using var db = CreateDb();
+        db.TopupOrders.Add(NewOrder(status: status));
+        await db.SaveChangesAsync();
+
+        var result = await CreateService(db).GetPublicInvoiceAsync("INV-20260906-ABCDEF1234");
+
+        Assert.Null(result!.SnapToken);
+    }
+
     // ── Kepemilikan (optional-auth) ──
 
     [Fact]
@@ -211,10 +241,11 @@ public class InvoiceLookupServiceTests
     // ── Privasi: bentuk DTO hanya field aman ──
 
     [Fact]
-    public async Task GetPublicInvoiceAsync_ResponseContainsNoSensitiveFields()
+    public async Task GetPublicInvoiceAsync_CompletedOrder_ResponseContainsNoSensitiveFields()
     {
         await using var db = CreateDb();
-        db.TopupOrders.Add(NewOrder(customerId: 7));
+        // Status terminal: tanpa snapToken — tidak ada rahasia order yang boleh bocor.
+        db.TopupOrders.Add(NewOrder(status: AppConstants.OrderStatus.Completed, customerId: 7));
         await db.SaveChangesAsync();
 
         var result = await CreateService(db).GetPublicInvoiceAsync("INV-20260906-ABCDEF1234", currentCustomerId: 7);
@@ -225,13 +256,30 @@ public class InvoiceLookupServiceTests
             .OrderBy(n => n)
             .ToList();
         Assert.Equal(
-            new[] { "Amount", "BelongsToAccount", "CreatedAt", "ExpiresAt", "ImageUrl", "InvoiceNumber", "PaymentStatus", "ProductName", "Status" },
+            new[] { "Amount", "BelongsToAccount", "CreatedAt", "ExpiresAt", "ImageUrl", "InvoiceNumber", "PaymentStatus", "ProductName", "SnapToken", "Status" },
             props);
 
         // Serialize penuh — rahasia order tidak boleh bocor.
         var serialized = System.Text.Json.JsonSerializer.Serialize(result);
         Assert.DoesNotContain("player-secret", serialized);
         Assert.DoesNotContain("snap-secret-token", serialized);
+        Assert.DoesNotContain("SN-RAHASIA", serialized);
+        Assert.DoesNotContain("CustomerId", serialized);
+        Assert.DoesNotContain("RedirectUrl", serialized);
+    }
+
+    [Fact]
+    public async Task GetPublicInvoiceAsync_Pending_StillHidesNonPaymentSecrets()
+    {
+        await using var db = CreateDb();
+        db.TopupOrders.Add(NewOrder(status: AppConstants.OrderStatus.Pending, customerId: 7));
+        await db.SaveChangesAsync();
+
+        var result = await CreateService(db).GetPublicInvoiceAsync("INV-20260906-ABCDEF1234", currentCustomerId: 7);
+
+        var serialized = System.Text.Json.JsonSerializer.Serialize(result);
+        Assert.Equal("snap-secret-token", result!.SnapToken); // token bayar memang sengaja
+        Assert.DoesNotContain("player-secret", serialized);
         Assert.DoesNotContain("SN-RAHASIA", serialized);
         Assert.DoesNotContain("CustomerId", serialized);
         Assert.DoesNotContain("RedirectUrl", serialized);

@@ -57,6 +57,8 @@ export default function GameDetailPage() {
   const [isPaying, setIsPaying] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [successMessage, setSuccessMessage] = useState<{ title: string; description: string } | null>(null);
+  // Invoice order terakhir — dipakai dialog sukses untuk link halaman status.
+  const [lastOrderNo, setLastOrderNo] = useState<string | null>(null);
   const [discountInfo, setDiscountInfo] = useState<{ discountAmount: number; finalPrice: number; price: number } | null>(null);
   const [previewResult, setPreviewResult] = useState<CheckoutPreviewResponse | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -155,6 +157,7 @@ export default function GameDetailPage() {
                 "Pesanan Anda sedang diproses. Anda dapat melihat status transaksi pada halaman Riwayat Order kapan saja.",
             });
             setShowSuccessDialog(true);
+            setLastOrderNo(res.orderNo);
             // Reset checkout form so user can make another purchase immediately
             setSelectedProduct(null);
             setVoucherCode(null);
@@ -169,6 +172,7 @@ export default function GameDetailPage() {
                 "Pembayaran Anda sedang diproses. Silakan selesaikan pembayaran Anda. Status transaksi dapat dilihat di halaman Riwayat Order.",
             });
             setShowSuccessDialog(true);
+            setLastOrderNo(res.orderNo);
           },
           onError: () => {
             setIsPaying(false);
@@ -194,9 +198,10 @@ export default function GameDetailPage() {
         setSuccessMessage({
           title: "Pesanan Berhasil Dibuat",
           description:
-            "Pesanan Anda sedang diproses. Anda dapat melihat status transaksi pada halaman Riwayat Order kapan saja.",
+            "Pesanan Anda sedang diproses. Anda dapat melihat status transaksi pada halaman Status Pesanan kapan saja.",
         });
         setShowSuccessDialog(true);
+        setLastOrderNo(res.orderNo);
       }
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {
@@ -617,12 +622,13 @@ export default function GameDetailPage() {
             </DialogClose>
             <Button
               className="w-full sm:flex-1"
+              disabled={!lastOrderNo}
               onClick={() => {
                 setShowSuccessDialog(false);
-                navigate("/history");
+                if (lastOrderNo) navigate(`/order/status/${lastOrderNo}`);
               }}
             >
-              Lihat Riwayat
+              Lihat Status Pesanan
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -630,3 +636,4 @@ export default function GameDetailPage() {
     </div>
   );
 }
+

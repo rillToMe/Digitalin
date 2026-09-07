@@ -59,7 +59,9 @@ public class InvoiceLookupService : IInvoiceLookupService
             MapPaymentStatus(order.Status),
             order.OrderDate,
             expiresAt,
-            currentCustomerId is not null && order.CustomerId == currentCustomerId);
+            currentCustomerId is not null && order.CustomerId == currentCustomerId,
+            // Aksi bayar hanya releven saat masih menunggu pembayaran.
+            order.Status == AppConstants.OrderStatus.Pending ? order.SnapToken : null);
     }
 
     /// <summary>

@@ -3188,7 +3188,7 @@ interface LeaderboardEntry {
 | Path | `/api/v1/invoices/{orderNo}` |
 | Description | Lookup satu transaksi berdasarkan nomor invoice (`INV-yyyyMMdd-XXXXXXXXXX`) untuk tampilan publik. Tidak memerlukan login. |
 | Auth | None (Public) — **optional-auth**: JWT customer yang valid (bila ada) mengisi flag `belongsToAccount` |
-| Rate limit | `OrderPolicy` (10 / 5 menit / IP) |
+| Rate limit | `InvoiceLookupPolicy` (100 / 5 menit / IP) — cukup untuk polling halaman status (~12 req/menit) |
 
 #### REQUEST PAYLOAD
 
@@ -3210,6 +3210,7 @@ interface PublicInvoiceResponse {
   createdAt: string;          // ISO datetime UTC
   expiresAt: string | null;   // batas bayar Midtrans — HANYA saat status PENDING
   belongsToAccount: boolean;  // true bila JWT valid dan order milik customer tsb
+  snapToken: string | null;   // token pembayaran Snap — HANYA saat PENDING (aksi "Bayar Sekarang" di halaman status)
 }
 ```
 
@@ -3217,8 +3218,9 @@ interface PublicInvoiceResponse {
 
 - **paymentStatus mapping**: PENDING → UNPAID; PAID/PROCESSING/COMPLETED/NEEDS_ACTION → PAID; EXPIRED/FAILED → FAILED; REFUNDED → REFUNDED.
 - **expiresAt**: `OrderDate + MidtransExpiryMinutes` (AppSettings — SSOT yang sama dengan Snap & sweep); null untuk status non-PENDING.
+- **snapToken**: hanya untuk PENDING (aksi lanjut bayar di halaman Status Pesanan, guest termasuk). Level kepercayaan sama dengan `POST /orders` (guest checkout juga menerima token ini): terikat order+nominal spesifik, bukan kredensial akun. Null untuk semua status lain.
 - **Identitas publik**: nomor invoice = `OrderNo` — id publik order yang sudah ada (juga order_id Midtrans): 10 karakter hex dari CSPRNG (`Guid.NewGuid()`), non-sekuensial, bukan Id DB. Rate limit per IP menutup enumerasi. **Id DB internal tidak bisa dipakai** mencari order.
-- **Privasi**: hanya field di atas — tidak ada PlayerId, SnapToken, RedirectUrl, Sn (serial number produk), CustomerId, atau field admin. Entity EF tidak pernah diserialisasi langsung.
+- **Privasi**: hanya field di atas — tidak ada PlayerId, RedirectUrl, Sn (serial number produk), CustomerId, atau field admin. Entity EF tidak pernah diserialisasi langsung. (snapToken PENDING = token pembayaran, lihat aturan di atas.)
 - `belongsToAccount`: guest (tanpa JWT) → selalu false; pemilik → true; customer lain → false. Flag ini tidak membatasi akses dan tidak membocorkan identitas pemilik.
 - Guest order (`CustomerId` null) tetap bisa dicek publik — alur guest checkout tidak berubah.
 - Error 400: `orderNo` kosong → `{ message: "Masukkan nomor invoice." }`

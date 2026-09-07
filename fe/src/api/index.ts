@@ -131,6 +131,8 @@ export interface PublicInvoiceResponse {
   expiresAt: string | null;
   /** True bila invoice ini milik akun yang sedang login (optional-auth). */
   belongsToAccount: boolean;
+  /** Token pembayaran Snap Midtrans — hanya saat PENDING; null selainnya. */
+  snapToken: string | null;
 }
 
 export interface CreateFaqPayload {
