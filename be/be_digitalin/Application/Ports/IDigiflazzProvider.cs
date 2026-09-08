@@ -15,6 +15,12 @@ public interface IDigiflazzProvider
         string refId,
         CancellationToken cancellationToken = default);
 
+    Task<(bool IsValid, string? Username, string Message)> CheckUsernameAsync(
+        string buyerSkuCode,
+        string customerNo,
+        string refId,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Price-list prepaid (kategori apa adanya — filter Games di caller).</summary>
     Task<List<DigiflazzPriceItem>> GetPriceListAsync(CancellationToken cancellationToken = default);
 

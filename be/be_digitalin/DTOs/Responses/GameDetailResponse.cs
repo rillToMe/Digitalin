@@ -7,8 +7,11 @@ public record GameDetailResponse(
     string GameCode,
     string? ImageUrl,
     IReadOnlyList<GameInputField> InputFields,
+    bool CanCheckUsername,
     IReadOnlyList<GameProductItemResponse> Products
 );
+
+public record UsernameCheckResponse(bool IsValid, string? Username, string Message);
 
 public record GameProductItemResponse(
     int Id,

@@ -64,6 +64,11 @@ public interface IProductService
     
     Task<GameDetailResponse?> 
         GetGameDetailAsync(string brandSlug);
+
+    Task<UsernameCheckResponse> CheckUsernameAsync(
+        string brandSlug,
+        Dictionary<string, string?> targetValues,
+        CancellationToken cancellationToken = default);
     
 
     Task<GameMetadataResponse?>

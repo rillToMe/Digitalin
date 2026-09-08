@@ -33,6 +33,11 @@ export function PresetTemplatePicker({
     });
   };
 
+  const selectedPreset = templates.find((template) =>
+    template.targetTemplate === form.targetTemplate &&
+    JSON.stringify(template.inputFields) === JSON.stringify(form.inputFields)
+  );
+
   const handleSelect = (
     event: React.ChangeEvent<HTMLSelectElement>
   ) => {
@@ -40,8 +45,6 @@ export function PresetTemplatePicker({
       (item) => item.type === event.target.value
     );
     if (template) applyTemplate(template);
-    // Reset select back to placeholder so the same preset can be re-applied.
-    event.target.value = "";
   };
 
   return (
@@ -64,20 +67,21 @@ export function PresetTemplatePicker({
 
       <select
         id="preset-template"
-        defaultValue=""
+        value={selectedPreset?.type ?? "custom"}
         onChange={handleSelect}
         disabled={isLoading}
         className="w-full px-3 py-2.5 rounded-xl outline-none"
         style={{
           border: "1px solid var(--color-border-lighter)",
+          backgroundColor: "var(--color-surface)",
           color: "var(--color-brand-primary)",
         }}
       >
-        <option value="" disabled>
-          {isLoading ? "Memuat preset..." : "Pilih preset untuk isi otomatis"}
+        <option value="custom" disabled style={{ backgroundColor: "var(--color-surface)", color: "var(--color-brand-primary)" }}>
+          {isLoading ? "Memuat preset..." : "Custom"}
         </option>
         {templates.map((template) => (
-          <option key={template.type} value={template.type}>
+          <option key={template.type} value={template.type} style={{ backgroundColor: "var(--color-surface)", color: "var(--color-brand-primary)" }}>
             {template.displayName}
           </option>
         ))}

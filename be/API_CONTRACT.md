@@ -887,8 +887,9 @@ interface GameCategoryItem {
 interface BrandDetailResponse {
   brand: string;
   gameCode: string;
-  inputType: "USER_ID_ONLY" | "USER_ID_AND_ZONE_ID";
+  inputFields: GameInputField[];
   imageUrl: string | null;
+  canCheckUsername: boolean;
   products: ProductItem[];
 }
 
@@ -909,6 +910,44 @@ interface ProductItem {
 - Error 404: Brand slug not found
 - Products ordered by `price` ascending
 - `price` is the final selling price (includes margin)
+- Product selected as `usernameCheckProductId` is omitted from `products`; it is only used by the username-check endpoint.
+
+---
+
+### POST /api/v1/games/{brandSlug}/check-username
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `POST` |
+| Path | `/api/v1/games/{brandSlug}/check-username` |
+| Description | Validate game account through admin-selected Digiflazz SKU |
+| Auth | None (Public) |
+
+#### REQUEST PAYLOAD
+
+```typescript
+type UsernameCheckRequest = Record<string, string>;
+```
+
+Keys and values must follow `inputFields` from game detail. Backend validates fields then renders saved `targetTemplate` into Digiflazz `customer_no`.
+
+#### RESPONSE PAYLOAD
+
+```typescript
+interface UsernameCheckResponse {
+  isValid: boolean;
+  username: string | null;
+  message: string;
+}
+```
+
+#### BUSINESS RULES & EDGE CASES
+
+- Available only when `canCheckUsername` is `true`.
+- The configured product must be active and belong to same game brand; otherwise `400`.
+- A validation SKU is never included in purchasable game products.
 
 ---
 
@@ -1223,6 +1262,9 @@ interface CheckoutPreviewResponse {
 | `targetId` | `string` | Required | Player's User ID |
 | `zoneId` | `string \| null` | **CONDITIONAL** | **REQUIRED if product's `inputType` == `"USER_ID_AND_ZONE_ID"`**. Zone/Server ID |
 | `voucherCode` | `string \| null` | Optional | Discount voucher code (case-insensitive) |
+| `paymentMethod` | `string` | **Required** | Midtrans Core API payment method: `"qris"`, `"gopay"`, `"shopeepay"`, `"bank_transfer"`, or `"cstore"` (case-insensitive). All transactions are created via Core API. DANA/LinkAja/OVO are not Midtrans channels — customers pay from those apps via QRIS |
+| `paymentBank` | `string \| null` | **CONDITIONAL** | **REQUIRED if `paymentMethod` == `"bank_transfer"`**: VA bank — `"bca"`, `"bni"`, `"bri"`, `"cimb"`, `"permata"`, `"mandiri"`, `"bsi"`. `"mandiri"` maps internally to Midtrans `echannel` (Mandiri Bill Payment) — the response returns `paymentType: "echannel"` with `billerCode`/`billKey` instructions instead of a VA number. `"bsi"` is seeded disabled (payable only via the BYOND by BSI app — not interbank). Rejected if set for other methods |
+| `paymentStore` | `string \| null` | **CONDITIONAL** | **REQUIRED if `paymentMethod` == `"cstore"`**: store — `"indomaret"` or `"alfamart"`. Response returns `paymentType: "cstore"` with `store`/`paymentCode` instructions. Rejected if set for other methods |
 
 #### RESPONSE PAYLOAD
 
@@ -1235,13 +1277,31 @@ interface CreateOrderResponse {
   status: string; // Initially "PENDING"
   productName: string;
   price: number; // Original price (before discount)
-  snapToken: string | null; // Midtrans Snap token for payment popup
-  redirectUrl: string | null; // Midtrans redirect URL
   orderDate: string; // ISO datetime
   sn: string | null; // Serial number (null until COMPLETED)
   imageUrl: string | null;
   discountAmount: number; // 0 if no voucher
   finalPrice: number; // price - discountAmount
+  paymentType: string | null; // Midtrans payment_type ("qris"|"gopay"|"bank_transfer")
+  paymentInstructions: OrderPaymentInstructions | null; // payment instructions for the chosen method
+}
+
+// Core API payment instructions
+interface OrderPaymentInstructions {
+  qrString: string | null;   // QRIS payload — render as QR code
+  actions: OrderPaymentAction[]; // e.g. generate-qr-code URL, deeplink-redirect (GoPay)
+  vaBank: string | null;     // VA bank ("bca"|"bni"|"bri"|"cimb"|"permata"; permata normalized here)
+  vaNumber: string | null;   // Virtual Account number to transfer to
+  billerCode: string | null; // Mandiri Bill (echannel): company code (e.g. "70012")
+  billKey: string | null;    // Mandiri Bill (echannel): payment code to pay at ATM/Livin'
+  store: string | null;      // cstore: chosen store ("indomaret" | "alfamart")
+  paymentCode: string | null; // cstore: payment code to show at the cashier
+  merchantId: string | null; // cstore: Midtrans merchant id (required by the Indomaret sandbox simulator & some cashier flows)
+}
+
+interface OrderPaymentAction {
+  name: string; // e.g. "generate-qr-code", "deeplink-redirect"
+  url: string;
 }
 ```
 
@@ -1265,7 +1325,17 @@ interface CreateOrderResponse {
 - Error 429: `"Terlalu banyak permintaan. Coba lagi nanti."` — rate limit exceeded (10 per 5 min per IP)
 - Error 500: unexpected server/provider failure — generic message, no internal details leaked (business-rule rejections remain 400 `{message}`)
 - OrderNo format: `"INV-{yyyyMMdd}-{10 random uppercase hex chars}"` (e.g. `"INV-20260614-A3F91B7C2D"`) — uniqueness enforced by a DB unique index
-- **Snap creation failure compensation**: if the Midtrans Snap transaction cannot be created after the order is committed, the order is immediately set to `EXPIRED`, the reserved voucher quota is released, and the client receives Error 400
+- **Payment method validation** (runs BEFORE any DB access, order preserved):
+  1. `paymentMethod` missing/empty → `"Metode pembayaran wajib dipilih: qris, gopay, atau bank_transfer."`
+  2. `paymentMethod` not one of `qris`/`gopay`/`shopeepay`/`bank_transfer`/`cstore` (case-insensitive) → `"Metode pembayaran tidak didukung. Gunakan: qris, gopay, atau bank_transfer."`
+  3. `paymentMethod` == `bank_transfer` without `paymentBank` → `"Pembayaran bank_transfer wajib memilih bank VA (bca/bni/bri/cimb/permata/mandiri/bsi)."`
+  4. `paymentBank` not in the VA bank whitelist → `"Bank VA tidak didukung: {bank}. Pilih bca/bni/bri/cimb/permata/mandiri/bsi."`
+  5. `paymentBank` set while `paymentMethod` != `bank_transfer` → `"paymentBank hanya berlaku untuk paymentMethod bank_transfer."`
+  6. `paymentMethod` == `cstore` without `paymentStore` → `"Pembayaran cstore wajib memilih toko (indomaret/alfamart)."`
+  7. `paymentStore` not in the store whitelist → `"Toko tidak didukung: {store}. Pilih indomaret/alfamart."`
+  8. `paymentStore` set while `paymentMethod` != `cstore` → `"paymentStore hanya berlaku untuk paymentMethod cstore."`
+- **Core API charge**: the transaction is created via Midtrans Core API `POST /v2/charge` for the chosen `payment_type`; payment instructions (QR string / VA number / deeplink) are persisted on the order and returned. Payment amount is ALWAYS server-side (DB product price − voucher discount); the client never sends an amount.
+- **Midtrans transaction creation failure compensation**: if the Core API charge cannot be created after the order is committed, the order is immediately set to `EXPIRED`, the reserved voucher quota is released, and the client receives Error 500 with a generic message
 - **Unpaid PENDING sweep**: the background sweep (runs every 2 minutes) marks `PENDING` orders older than the Midtrans expiry setting (default 30 min, see Section — Midtrans Expiry) + 5 min buffer as `EXPIRED` and releases their reserved voucher quota — a safety net for cases where the Midtrans Expire webhook never arrives
 
 ---
@@ -1307,13 +1377,13 @@ interface OrderResponse {
   status: string;
   productName: string;
   price: number;
-  snapToken: string | null;
-  redirectUrl: string | null;
   orderDate: string;
   sn: string | null;
   imageUrl: string | null;
   discountAmount: number;
   finalPrice: number;
+  paymentType: string | null; // Midtrans payment_type ("qris"|"gopay"|"bank_transfer"); null on pre-migration orders
+  paymentInstructions: OrderPaymentInstructions | null; // payment instructions; null on pre-migration orders
 }
 ```
 
@@ -2143,10 +2213,11 @@ interface GameMetadataItem {
   id: number;
   brand: string;
   brandSlug: string; // persisted URL slug (kebab-case); use as-is, never re-derive from brand
-  inputType: "USER_ID_ONLY" | "USER_ID_AND_ZONE_ID";
-  serverList: string | null;
+  inputFields: GameInputField[];
+  targetTemplate: string;
   imageUrl: string | null;
   categories: string[]; // storefront category slugs (kebab-case); empty = uncategorized
+  usernameCheckProductId: number | null;
 }
 ```
 
@@ -2173,9 +2244,10 @@ interface GameMetadataItem {
 | Field Name | Data Type | Required/Optional | Description & Constraints |
 |------------|-----------|-------------------|---------------------------|
 | `id` (path) | `integer` | Required | GameMetadata ID |
-| `inputType` | `string` | Required | `"USER_ID_ONLY"` or `"USER_ID_AND_ZONE_ID"` |
-| `serverList` | `string \| null` | Optional | Comma-separated server list or null |
+| `inputFields` | `GameInputField[]` | Required | Form fields used for order and account check |
+| `targetTemplate` | `string` | Required | Digiflazz `customer_no` template |
 | `categories` | `string[]` | Optional | Storefront categories (e.g. `["mobile"]`, `["PC Game", "mobile"]`) — a game may belong to several. Each entry is normalized server-side to a kebab-case slug (lowercase, every non-alphanumeric run → hyphen, so `"E-Money"` → `"e-money"` and `"Konsol, Game"` → `"konsol-game"`); blanks and duplicates are dropped, admin order is kept. Omitted or empty array → uncategorized |
+| `usernameCheckProductId` | `integer \| null` | Required | Active product from same game brand used only to validate account name; `null` disables check |
 
 #### RESPONSE PAYLOAD
 
@@ -3210,22 +3282,145 @@ interface PublicInvoiceResponse {
   createdAt: string;          // ISO datetime UTC
   expiresAt: string | null;   // batas bayar Midtrans — HANYA saat status PENDING
   belongsToAccount: boolean;  // true bila JWT valid dan order milik customer tsb
-  snapToken: string | null;   // token pembayaran Snap — HANYA saat PENDING (aksi "Bayar Sekarang" di halaman status)
+  paymentType: string | null; // payment_type Core API ("qris"|"gopay"|"bank_transfer") — HANYA saat PENDING; null selainnya
+  paymentInstructions: OrderPaymentInstructions | null; // instruksi bayar Core API — HANYA saat PENDING (bentuk sama seperti respons POST /orders)
 }
 ```
 
 #### BUSINESS RULES & EDGE CASES
 
 - **paymentStatus mapping**: PENDING → UNPAID; PAID/PROCESSING/COMPLETED/NEEDS_ACTION → PAID; EXPIRED/FAILED → FAILED; REFUNDED → REFUNDED.
-- **expiresAt**: `OrderDate + MidtransExpiryMinutes` (AppSettings — SSOT yang sama dengan Snap & sweep); null untuk status non-PENDING.
-- **snapToken**: hanya untuk PENDING (aksi lanjut bayar di halaman Status Pesanan, guest termasuk). Level kepercayaan sama dengan `POST /orders` (guest checkout juga menerima token ini): terikat order+nominal spesifik, bukan kredensial akun. Null untuk semua status lain.
+- **expiresAt**: `OrderDate + MidtransExpiryMinutes` (AppSettings — SSOT yang sama dengan charge & sweep); null untuk status non-PENDING.
+- **paymentType / paymentInstructions**: hanya untuk PENDING dan hanya untuk order Core API (order pra-migrasi tanpa kolom Core API mendapat null). Level kepercayaan sama dengan `POST /orders` — instruksi bayar terikat order+nominal spesifik (QR string / nomor VA / deeplink), bukan kredensial akun. Null untuk semua status lain.
 - **Identitas publik**: nomor invoice = `OrderNo` — id publik order yang sudah ada (juga order_id Midtrans): 10 karakter hex dari CSPRNG (`Guid.NewGuid()`), non-sekuensial, bukan Id DB. Rate limit per IP menutup enumerasi. **Id DB internal tidak bisa dipakai** mencari order.
-- **Privasi**: hanya field di atas — tidak ada PlayerId, RedirectUrl, Sn (serial number produk), CustomerId, atau field admin. Entity EF tidak pernah diserialisasi langsung. (snapToken PENDING = token pembayaran, lihat aturan di atas.)
+- **Privasi**: hanya field di atas — tidak ada PlayerId, Sn (serial number produk), CustomerId, atau field admin. Entity EF tidak pernah diserialisasi langsung. (paymentInstructions PENDING = instruksi bayar, lihat aturan di atas.)
 - `belongsToAccount`: guest (tanpa JWT) → selalu false; pemilik → true; customer lain → false. Flag ini tidak membatasi akses dan tidak membocorkan identitas pemilik.
 - Guest order (`CustomerId` null) tetap bisa dicek publik — alur guest checkout tidak berubah.
 - Error 400: `orderNo` kosong → `{ message: "Masukkan nomor invoice." }`
 - Error 404: invoice tidak ditemukan → `{ message: "Invoice tidak ditemukan." }` (pesan sama untuk tidak-ada — tidak membocorkan keberadaan order).
 - Error 429: rate limit (pesan standar OrderPolicy).
+
+---
+
+## 13. Metode Pembayaran (Checkout Config)
+
+> SSOT tampilan checkout: ikon, nama tampilan, urutan, dan status aktif metode/bank VA. Kemampuan provider (metode yang bisa diproses Core API) tetap di-whitelist backend — menonaktifkan lewat endpoint admin hanya menyembunyikan dari checkout + menolak order dengan metode itu.
+
+### GET /api/v1/payment-methods
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `GET` |
+| Path | `/api/v1/payment-methods` |
+| Description | Metode pembayaran aktif untuk checkout (kartu metode + bank VA), urut `sortOrder` |
+| Auth | None (Public) |
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK
+type PaymentMethodsResponse = PaymentMethodResponse[];
+
+interface PaymentMethodResponse {
+  code: string;          // "qris" | "gopay" | "bank_transfer" (payment_type Core API)
+  name: string;          // display name
+  description: string | null;
+  iconUrl: string | null;  // URL publik ikon (Cloudflare R2); null = FE render monogram
+  banks: PaymentBankResponse[]; // hanya terisi relevan untuk bank_transfer; hanya bank aktif, urut sortOrder
+}
+
+interface PaymentBankResponse {
+  code: string;          // "bca" | "bni" | "bri" | "cimb" | "permata" (kode bank VA Midtrans)
+  name: string;
+  iconUrl: string | null;
+}
+```
+
+#### BUSINESS RULES & EDGE CASES
+
+- Hanya metode/bank `enabled` yang dikembalikan; urutan mengikuti `sortOrder` (bukan logika FE).
+- Respons publik TIDAK memuat `enabled`/`sortOrder` (field admin).
+- Seed: QRIS, GoPay, ShopeePay, Transfer Bank, Toko Retail/cstore (aktif) + bank BCA/BNI/BRI/CIMB Niaga/Permata/Mandiri (aktif — Mandiri via kanal echannel; BSI nonaktif: VA asli via bank_transfer, hanya payable via app BYOND by BSI) + toko Indomaret/Alfamart (aktif, sub-kanal cstore), serta DANA/LinkAja/OVO (nonaktif — bukan kanal Midtrans; baris katalog untuk ekspansi provider, ordernya ditolak validasi awal).
+- **expiresAt cstore**: order cstore berlaku 24 jam (Midtrans mengabaikan expiry custom di kanal ini — `OrderExpiryPolicy`); metode lain mengikuti konfigurasi expiry.
+- Order dengan metode/bank yang dinonaktifkan tetap ditolak backend (`POST /orders`): `"Metode pembayaran sedang tidak tersedia."` / `"Bank VA sedang tidak tersedia."`.
+
+### GET /api/v1/admin/payment-methods
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `GET` |
+| Path | `/api/v1/admin/payment-methods` |
+| Description | Semua metode + bank (termasuk nonaktif) untuk admin |
+| Auth | Admin JWT Required |
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK
+type AdminPaymentMethodsResponse = AdminPaymentMethodResponse[];
+
+interface AdminPaymentMethodResponse {
+  code: string;
+  name: string;
+  description: string | null;
+  iconUrl: string | null;
+  enabled: boolean;
+  sortOrder: number;
+  banks: AdminPaymentBankResponse[];
+}
+
+interface AdminPaymentBankResponse {
+  code: string;
+  name: string;
+  iconUrl: string | null;
+  enabled: boolean;
+  sortOrder: number;
+}
+```
+
+### PUT /api/v1/admin/payment-methods/{code}
+
+Update parsial konfigurasi metode. Body (semua opsional, null = tidak diubah): `{ "displayName"?: string, "iconUrl"?: string | null, "enabled"?: boolean, "sortOrder"?: number }`. `code` tidak dapat diubah (identitas).
+
+#### RESPONSE PAYLOAD
+
+- 200: `AdminPaymentMethodResponse` (ter-update)
+- 404: `{ message: "Metode pembayaran '{code}' tidak ditemukan." }`
+- 400: `"Nama metode pembayaran tidak boleh kosong."` / `"URL ikon tidak valid — wajib URL http(s) publik (mis. hasil upload Cloudflare R2)."` / `"Urutan tidak boleh negatif."`
+
+### PUT /api/v1/admin/payment-methods/{code}/banks/{bankCode}
+
+Update parsial bank di bawah metode. Body sama dengan method (nama "Nama bank tidak boleh kosong.").
+
+#### RESPONSE PAYLOAD
+
+- 200: `AdminPaymentBankResponse`
+- 404: `{ message: "Bank '{bankCode}' tidak ditemukan di bawah metode '{code}'." }`
+- 400: aturan validasi yang sama
+
+### POST /api/v1/admin/payment-methods/{code}/upload-icon
+
+Upload ikon metode — multipart/form-data `file` (JPG/JPEG/PNG/WebP/SVG, maks 2 MB, magic-byte divalidasi; SVG tambah disanitasi: script/event-handler/foreignObject ditolak). File disimpan di Cloudflare R2 folder `payment-icons`; ikon lama otomatis dihapus dari R2; URL publik disimpan ke `iconUrl`.
+
+### POST /api/v1/admin/payment-methods/{code}/banks/{bankCode}/upload-icon
+
+Upload ikon bank — semantik sama dengan upload ikon metode.
+
+#### RESPONSE PAYLOAD (kedua upload)
+
+```typescript
+// 200 OK
+interface UploadImageResponse {
+  message: string; // "Ikon metode pembayaran berhasil diperbarui!" | "Ikon bank berhasil diperbarui!"
+  imageUrl: string; // URL publik R2
+}
+// 400: file kosong / > 2 MB / format tidak valid (signature byte)
+// 404: code / bankCode tidak dikenal
+```
 
 ---
 
@@ -3253,9 +3448,13 @@ interface PublicInvoiceResponse {
 | `order_id` | `string` | Required | Maps to `orderNo` |
 | `status_code` | `string` | Required | HTTP-like status code |
 | `gross_amount` | `string` | Required | Amount as string |
-| `transaction_status` | `string` | Required | `"settlement"` \| `"capture"` \| `"expire"` \| `"cancel"` \| `"deny"` |
-| `fraud_status` | `string` | Required | Fraud check result |
+| `transaction_status` | `string` | Required | `"settlement"` \| `"capture"` \| `"expire"` \| `"cancel"` \| `"deny"` \| `"pending"` (others ignored) |
+| `fraud_status` | `string \| null` | Optional | Fraud check result. **Not always sent by Midtrans** (cstore settlement/pending notifications verified without it — sandbox E2E 2026-09-08). Missing ≠ rejected: the fraud decision falls to the settlement re-check (status API always carries `fraud_status`). If present and != `"accept"`, PAID is skipped |
 | `signature_key` | `string` | Required | `SHA512(order_id + status_code + gross_amount + ServerKey).ToLower()` |
+| `payment_type` | `string \| null` | Optional | Actual payment method (e.g. `"qris"`, `"gopay"`, `"bank_transfer"`) — recorded on the order if not already set (backfills pre-migration orders) |
+| `transaction_id` | `string \| null` | Optional | Midtrans transaction id — recorded on the order if not already set (charge-time value wins) |
+| `transaction_time` | `string \| null` | Optional | Accepted, not persisted |
+| `settlement_time` | `string \| null` | Optional | Accepted, not persisted |
 
 #### RESPONSE PAYLOAD
 
@@ -3275,6 +3474,10 @@ interface MidtransWebhookResponse {
 - Unknown `order_id` → 200 with no state change
 - Duplicate/late notifications for non-PENDING orders → 200, ignored
 - Amount guard: `gross_amount` must equal the integer part of the order's `totalPaid`, otherwise the notification is logged and ignored (status unchanged)
+- **Status routing**: `expire` → EXPIRED; `cancel`/`deny` → FAILED; `settlement`/`capture` + `fraud_status == "accept"` (or `fraud_status` absent — see field note) → PAID (then fulfillment); `pending` and any other status → no-op. All non-settlement terminal transitions release reserved voucher quota
+- **Enrichment**: on the first notification that transitions a PENDING order, `payment_type`/`transaction_id` are recorded on the order if not already set by the charge (Core API orders keep their charge-time values)
+- **Settlement re-check (defense-in-depth)**: before committing PAID, the backend re-queries Midtrans `GET /v2/{order_id}/status`. If the status API is unreadable (error/404), the signed notification remains authoritative and the payment proceeds (**fail-open**). If the status API definitively contradicts the notification (terminal negative status `expire`/`cancel`/`deny`, `fraud_status == "deny"`, or a different `gross_amount`), the PAID transition is skipped and the contradiction is logged as critical — the order stays PENDING for reconciliation. A `pending` snapshot does not block (the notification event can be newer than the snapshot)
+- PAID is committed in a short DB transaction (concurrency-token guarded); fulfillment (Digiflazz) runs outside it — fulfillment failure never rolls back PAID (→ NEEDS_ACTION)
 
 ---
 

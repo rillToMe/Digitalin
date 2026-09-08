@@ -14,5 +14,6 @@ public record GameMetadataResponse(
     // Instruksi supplier Digiflazz (read-only, informatif untuk admin).
     string? SupplierNote,
     // Slug kategori storefront; kosong = belum dikategorikan.
-    IReadOnlyList<string> Categories
+    IReadOnlyList<string> Categories,
+    int? UsernameCheckProductId
 );

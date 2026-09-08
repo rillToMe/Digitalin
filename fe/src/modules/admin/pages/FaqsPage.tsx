@@ -182,7 +182,7 @@ export default function FaqsPage() {
 
       {/* Counter unggulan — konteks aturan maks 6 */}
       <p className="mb-3" style={{ color: "var(--color-brand-secondary)", fontSize: "0.8rem" }}>
-        FAQ unggulan: {featuredCount}/6 (maksimal 6 — tampil di homepage)
+        FAQ unggulan: {featuredCount}/6 (maksimal 6 - tampil di homepage)
       </p>
 
       {/* Table */}

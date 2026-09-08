@@ -26,6 +26,7 @@ import type {
   BrandsResponse,
   BrandsQueryParams,
   BrandDetailResponse,
+  UsernameCheckResponse,
   GameCategoriesResponse,
   CreateOrderPayload,
   CreateOrderResponse,
@@ -53,6 +54,10 @@ import type {
   AdminProductsQueryParams,
   MidtransExpiryResponse,
   UpdateMidtransExpiryPayload,
+  PaymentMethodInfo,
+  AdminPaymentMethodInfo,
+  UpdatePaymentMethodPayload,
+  UpdatePaymentBankPayload,
   SyncResponse,
   FaqItem,
   CreateFaqPayload,
@@ -197,12 +202,20 @@ export const brandService = {
     api.get<BrandsResponse>("/games/brands/popular").then((r) => r.data),
   getBySlug: (slug: string) =>
     api.get<BrandDetailResponse>(`/games/${slug}`).then((r) => r.data),
+  checkUsername: (slug: string, targetValues: Record<string, string>) =>
+    api.post<UsernameCheckResponse>(`/games/${slug}/check-username`, targetValues).then((r) => r.data),
 };
 
 // Game Categories
 export const categoryService = {
   getAll: () =>
     api.get<GameCategoriesResponse>("/games/categories").then((r) => r.data),
+};
+
+// Payment methods (publik — kartu metode/bank checkout, SSOT backend)
+export const paymentMethodService = {
+  getEnabled: () =>
+    api.get<PaymentMethodInfo[]>("/payment-methods").then((r) => r.data),
 };
 
 // Orders
@@ -319,6 +332,34 @@ export const adminService = {
     api.post<UploadImageResponse>("/admin/upload", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     }).then((r) => r.data),
+
+  // Payment methods (ikon/urutan/aktif — upload ikon masuk Cloudflare R2)
+  getAllPaymentMethods: () =>
+    api.get<AdminPaymentMethodInfo[]>("/admin/payment-methods").then((r) => r.data),
+  updatePaymentMethod: (code: string, payload: UpdatePaymentMethodPayload) =>
+    api.put<AdminPaymentMethodInfo>(`/admin/payment-methods/${code}`, payload).then((r) => r.data),
+  updatePaymentBank: (
+    code: string,
+    bankCode: string,
+    payload: UpdatePaymentBankPayload,
+  ) =>
+    api
+      .put<AdminPaymentMethodInfo>(`/admin/payment-methods/${code}/banks/${bankCode}`, payload)
+      .then((r) => r.data),
+  uploadPaymentMethodIcon: (code: string, formData: FormData) =>
+    api
+      .post<UploadImageResponse>(`/admin/payment-methods/${code}/upload-icon`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+      .then((r) => r.data),
+  uploadPaymentBankIcon: (code: string, bankCode: string, formData: FormData) =>
+    api
+      .post<UploadImageResponse>(
+        `/admin/payment-methods/${code}/banks/${bankCode}/upload-icon`,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } },
+      )
+      .then((r) => r.data),
 
   // Vouchers
   getVouchers: (params: AdminVouchersQueryParams) =>

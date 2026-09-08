@@ -19,6 +19,8 @@ public class DigitalinDbContext : DbContext, IApplicationDbContext
     public DbSet<Voucher> Vouchers { get; set; }
     public DbSet<CustomerOtp> CustomerOtps { get; set; }
     public DbSet<Admin> Admins { get; set; }
+    public DbSet<PaymentMethod> PaymentMethods { get; set; }
+    public DbSet<PaymentBank> PaymentBanks { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -161,6 +163,8 @@ public class DigitalinDbContext : DbContext, IApplicationDbContext
                 .IsRequired()
                 .HasMaxLength(500);
 
+            entity.Property(m => m.UsernameCheckProductId);
+
             // CSV slug kategori (multi-kategori per game) — lebih lega dari
             // satu slug, tapi tetap satu kolom.
             entity.Property(m => m.Categories)
@@ -185,6 +189,59 @@ public class DigitalinDbContext : DbContext, IApplicationDbContext
                 .HasPrecision(18, 2);
             entity.Property(o => o.ProfitAmount)
                 .HasPrecision(18, 2);
+
+            // Core API: panjang eksplisit (bukan longtext) — payment_type
+            // pendek dan transaction_id berformat UUID; keduanya berpotensi
+            // dipakai filter lookup di masa depan.
+            entity.Property(o => o.PaymentType)
+                .HasMaxLength(50);
+            entity.Property(o => o.MidtransTransactionId)
+                .HasMaxLength(255);
+        });
+
+        // PAYMENT METHOD / PAYMENT BANK — konfigurasi checkout (ikon, urutan,
+        // aktif). Seed idempotent via HasData (migration INSERT).
+        modelBuilder.Entity<PaymentMethod>(entity =>
+        {
+            // Code = alternate key (unique via principal key relasi bank),
+            // sekaligus kunci lookup konfigurasi checkout.
+            entity.Property(m => m.Code)
+                .IsRequired()
+                .HasMaxLength(50);
+
+            entity.Property(m => m.DisplayName)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            entity.Property(m => m.Description)
+                .HasMaxLength(255);
+
+            entity.HasData(SeedPaymentMethods);
+        });
+
+        modelBuilder.Entity<PaymentBank>(entity =>
+        {
+            entity.HasIndex(b => b.Code)
+                .IsUnique();
+
+            entity.Property(b => b.Code)
+                .IsRequired()
+                .HasMaxLength(50);
+
+            entity.Property(b => b.DisplayName)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            // Lookup bank per metode saat checkout + validasi order.
+            entity.HasIndex(b => new { b.PaymentMethodCode, b.Code });
+
+            entity.HasOne(b => b.PaymentMethod)
+                .WithMany(m => m.Banks)
+                .HasForeignKey(b => b.PaymentMethodCode)
+                .HasPrincipalKey(m => m.Code)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasData(SeedPaymentBanks);
         });
 
         // CUSTOMER OTP
@@ -237,6 +294,53 @@ public class DigitalinDbContext : DbContext, IApplicationDbContext
                 .IsUnique();
         });
     }
+
+    /// <summary>
+    /// Seed konfigurasi metode pembayaran — paritas kemampuan provider
+    /// (AppConstants.MidtransPaymentMethods). Ikon sengaja NULL: admin
+    /// mengisinya lewat upload UI (Cloudflare R2) di halaman Pembayaran.
+    /// E-wallet non-Midtrans-ready di-seed NONAKTIF — aktifkan setelah kanal
+    /// aktif di akun Midtrans (lihat komentar whitelist provider).
+    /// Id stabil: baris existing tidak boleh bergeser Id (diff HasData
+    /// menghasilkan delete+insert, dan delete PaymentMethods cascade ke
+    /// PaymentBanks lewat FK Code — kolom Id 1-3 dipertahankan, metode baru
+    /// menyusul di ekor; urutan tampil diatur SortOrder, bukan Id).
+    /// </summary>
+    private static readonly PaymentMethod[] SeedPaymentMethods =
+    [
+        new() { Id = 1, Code = "qris", DisplayName = "QRIS", Description = "Scan dari semua e-wallet & m-banking", IconUrl = null, Enabled = true, SortOrder = 1 },
+        new() { Id = 2, Code = "gopay", DisplayName = "GoPay", Description = "Langsung buka aplikasi Gojek", IconUrl = null, Enabled = true, SortOrder = 2 },
+        new() { Id = 3, Code = "bank_transfer", DisplayName = "Transfer Bank", Description = "Virtual Account otomatis", IconUrl = null, Enabled = true, SortOrder = 4 },
+        new() { Id = 4, Code = "shopeepay", DisplayName = "ShopeePay", Description = "Langsung buka aplikasi Shopee", IconUrl = null, Enabled = true, SortOrder = 3 },
+        new() { Id = 5, Code = "dana", DisplayName = "DANA", Description = "Langsung buka aplikasi DANA", IconUrl = null, Enabled = false, SortOrder = 5 },
+        new() { Id = 6, Code = "linkaja", DisplayName = "LinkAja", Description = "Langsung buka aplikasi LinkAja", IconUrl = null, Enabled = false, SortOrder = 6 },
+        new() { Id = 7, Code = "ovo", DisplayName = "OVO", Description = "Langsung buka aplikasi OVO", IconUrl = null, Enabled = false, SortOrder = 7 },
+        new() { Id = 8, Code = "cstore", DisplayName = "Toko Retail", Description = "Bayar di kasir Indomaret / Alfamart", IconUrl = null, Enabled = true, SortOrder = 8 },
+    ];
+
+    /// <summary>
+    /// Seed bank VA di bawah bank_transfer. bca/bni/bri/cimb/permata aktif
+    /// (paritas whitelist provider). Mandiri aktif via kanal echannel
+    /// (Mandiri Bill Payment) — provider memetakan pilihan "mandiri" ke
+    /// payment_type echannel; lihat komentar VaBanks.
+    /// </summary>
+    private static readonly PaymentBank[] SeedPaymentBanks =
+    [
+        new() { Id = 1, Code = "bca", DisplayName = "BCA", IconUrl = null, Enabled = true, SortOrder = 1, PaymentMethodCode = "bank_transfer" },
+        new() { Id = 2, Code = "bni", DisplayName = "BNI", IconUrl = null, Enabled = true, SortOrder = 2, PaymentMethodCode = "bank_transfer" },
+        new() { Id = 3, Code = "bri", DisplayName = "BRI", IconUrl = null, Enabled = true, SortOrder = 3, PaymentMethodCode = "bank_transfer" },
+        new() { Id = 4, Code = "cimb", DisplayName = "CIMB Niaga", IconUrl = null, Enabled = true, SortOrder = 4, PaymentMethodCode = "bank_transfer" },
+        new() { Id = 5, Code = "permata", DisplayName = "Permata", IconUrl = null, Enabled = true, SortOrder = 5, PaymentMethodCode = "bank_transfer" },
+        new() { Id = 6, Code = "mandiri", DisplayName = "Mandiri", IconUrl = null, Enabled = true, SortOrder = 6, PaymentMethodCode = "bank_transfer" },
+        // BSI: VA asli via bank_transfer (verifikasi sandbox); hanya bisa
+        // dibayar lewat aplikasi BYOND by BSI — tidak interbank. Nonaktif
+        // default: aktifkan via admin bila demand terbukti.
+        new() { Id = 7, Code = "bsi", DisplayName = "BSI", IconUrl = null, Enabled = false, SortOrder = 7, PaymentMethodCode = "bank_transfer" },
+        // Sub-kanal cstore (toko) — reuse PaymentBanks: struktur pilihan
+        // sub-kanal identik (code/nama/ikon/aktif/urutan).
+        new() { Id = 8, Code = "indomaret", DisplayName = "Indomaret", IconUrl = null, Enabled = true, SortOrder = 1, PaymentMethodCode = "cstore" },
+        new() { Id = 9, Code = "alfamart", DisplayName = "Alfamart", IconUrl = null, Enabled = true, SortOrder = 2, PaymentMethodCode = "cstore" },
+    ];
 
     /// <summary>
     /// Seed FAQ — 17 record yang sebelumnya hardcode di FE (src/data/faqs.ts),

@@ -107,38 +107,39 @@ export function ProductMarginList({ products, brand, marginMutation, loading, er
           {editingId === product.id ? (
             <div className="flex items-center gap-2">
               <div
-  className="flex items-center w-32 rounded-lg overflow-hidden"
-  style={{
-    border: "1.5px solid var(--color-brand-tertiary,#2C5EF5)",
-    backgroundColor: "var(--color-surface,#fff)",
-  }}
->
-  <span
-    className="pl-3"
-    style={{
-      color: "var(--color-brand-secondary,#4A5568)",
-      fontSize: "0.85rem",
-    }}
-  >
-    Rp
-  </span>
-
-  <input
-    value={formatNumberInput(marginValue)}
-    onChange={(e) =>
-      setMarginValue(e.target.value.replace(/\D/g, ""))
-    }
-    inputMode="numeric"
-    placeholder="0"
-    className="w-full px-2 py-1.5 outline-none text-right"
-    style={{
-      backgroundColor: "transparent",
-      fontSize: "0.85rem",
-      color: "var(--color-brand-primary,#0F1419)",
-    }}
-    autoFocus
-  />
-</div>
+                className="flex w-40 shrink-0 items-center rounded-lg overflow-hidden"
+                style={{
+                  border: "1.5px solid var(--color-brand-tertiary,#2C5EF5)",
+                  backgroundColor: "var(--color-surface,#fff)",
+                }}
+              >
+                <span
+                  className="shrink-0 pl-3"
+                  style={{
+                    color: "var(--color-brand-secondary,#4A5568)",
+                    fontSize: "0.85rem",
+                  }}
+                >
+                  Rp
+                </span>
+                <input
+                  value={formatNumberInput(marginValue)}
+                  onChange={(e) => setMarginValue(e.target.value.replace(/\D/g, ""))}
+                  inputMode="numeric"
+                  placeholder="0"
+                  className="min-w-0 flex-1 px-2 py-1.5 outline-none text-right"
+                  style={{
+                    backgroundColor: "transparent",
+                    border: 0,
+                    borderRadius: 0,
+                    boxShadow: "none",
+                    fontSize: "0.85rem",
+                    color: "var(--color-brand-primary,#0F1419)",
+                    outline: "none",
+                  }}
+                  autoFocus
+                />
+              </div>
               <button onClick={() => saveMargin(product.id)} disabled={marginMutation.isPending} className="px-3 py-1.5 rounded-lg" style={{ backgroundColor: "var(--color-brand-tertiary,#2C5EF5)", color: "#fff", fontSize: "0.8rem", fontWeight: 600 }}>
                 {marginMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
               </button>

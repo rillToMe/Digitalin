@@ -1,25 +1,26 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router";
 import {
   Check,
   Loader2,
   Clock,
   Gamepad2,
-  CreditCard,
   CheckCircle2,
   XCircle,
   TimerOff,
   PackageX,
   Home,
   History,
+  Copy,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { invoiceService } from "../../../services/api";
-import { paySnap, preloadSnap, SnapError } from "../../../services/midtransSnap";
-import type { PublicInvoiceResponse, OrderStatus } from "../../../api/index";
+import type { PublicInvoiceResponse, OrderStatus, OrderPaymentInstructions } from "../../../api/index";
 import { ImageWithFallback } from "../../../utils/ImageWithFallback";
 import BackButton from "../../../components/common/BackButton";
+import { usePaymentMethods } from "../../../hooks/usePaymentMethods";
 
 /* ─── Pemetaan status → tahap timeline ───
    Backend punya 8 status internal; halaman ini hanya memvisualkan 4 tahap
@@ -76,6 +77,27 @@ function formatDateTime(iso: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function useCountdown(expiresAt: string | null) {
+  const getRemaining = () =>
+    expiresAt ? Math.max(0, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1_000)) : null;
+  const [remaining, setRemaining] = useState(getRemaining);
+
+  useEffect(() => {
+    setRemaining(getRemaining());
+    if (!expiresAt) return;
+
+    const timer = window.setInterval(() => setRemaining(getRemaining()), 1_000);
+    return () => window.clearInterval(timer);
+  }, [expiresAt]);
+
+  return remaining;
+}
+
+function formatCountdown(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  return `${String(minutes).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
 /* ─── Timeline ─── */
@@ -208,6 +230,161 @@ function TerminalPanel({ status }: { status: OrderStatus }) {
   );
 }
 
+/* ─── Panel instruksi pembayaran Core API (data-driven: VA / deeplink / QR) ─── */
+
+/**
+ * Render instruksi bayar dari GET /invoices/{orderNo} — hanya muncul untuk
+ * order PENDING Core API. VA: nomor + salin; GoPay: tombol deeplink; QRIS/
+ * GoPay: QR image dari action "generate-qr-code" Midtrans (tanpa library QR).
+ */
+function PaymentInstructionsPanel({
+  instructions,
+  bankIconUrl,
+}: {
+  instructions: OrderPaymentInstructions;
+  bankIconUrl: string | null;
+}) {
+  const qrUrl = instructions.actions.find((a) => a.name === "generate-qr-code")?.url;
+  const deeplinkUrl = instructions.actions.find((a) => a.name === "deeplink-redirect")?.url;
+
+  const copy = async (label: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(`${label} disalin`);
+    } catch {
+      toast.error(`Gagal menyalin ${label.toLowerCase()} — salin manual ya.`);
+    }
+  };
+
+  const CopyRow = ({ label, value }: { label: string; value: string }) => (
+    <div>
+      <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.75rem" }}>{label}</p>
+      <div className="mt-1 flex items-center gap-2">
+        <p
+          className="flex-1 min-w-0 break-all"
+          style={{
+            color: "var(--color-brand-primary)",
+            fontWeight: 700,
+            fontFamily: "monospace",
+            fontSize: "0.95rem",
+          }}
+        >
+          {value}
+        </p>
+        <button
+          type="button"
+          onClick={() => copy(label, value)}
+          aria-label={`Salin ${label}`}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg flex-shrink-0"
+          style={{
+            border: "1px solid var(--color-border-default)",
+            color: "var(--color-brand-primary)",
+            fontSize: "0.75rem",
+            fontWeight: 600,
+          }}
+        >
+          <Copy size={13} aria-hidden="true" />
+          Salin
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div
+      className="mt-4 space-y-3 rounded-xl p-4"
+      style={{ backgroundColor: "var(--color-surface-raised)" }}
+    >
+      {instructions.vaNumber && (
+        <div>
+          <div className="mb-3 flex items-center gap-2">
+            {bankIconUrl ? (
+              <ImageWithFallback
+                src={bankIconUrl}
+                alt={`Logo ${(instructions.vaBank ?? "").toUpperCase()}`}
+                className="h-7 w-12 object-contain object-left"
+              />
+            ) : (
+              <span
+                className="flex h-7 min-w-10 items-center justify-center rounded-md px-2 label-mono"
+                style={{ backgroundColor: "var(--color-surface)", color: "var(--color-brand-secondary)", fontSize: "0.65rem" }}
+              >
+                {(instructions.vaBank ?? "VA").toUpperCase()}
+              </span>
+            )}
+            <span style={{ color: "var(--color-brand-secondary)", fontSize: "0.75rem", fontWeight: 600 }}>
+              Virtual Account
+            </span>
+          </div>
+          <CopyRow label={`Virtual Account ${(instructions.vaBank ?? "").toUpperCase()}`} value={instructions.vaNumber} />
+          <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.72rem", marginTop: 4 }}>
+            Transfer tepat sesuai nominal agar pesanan diproses otomatis.
+          </p>
+        </div>
+      )}
+
+      {/* Mandiri Bill (echannel): bayar via ATM/m-banking Mandiri dengan
+          kode perusahaan + kode pembayaran. */}
+      {instructions.billKey && (
+        <div className="space-y-2">
+          <CopyRow label="Kode Perusahaan (Mandiri)" value={instructions.billerCode ?? ""} />
+          <CopyRow label="Kode Pembayaran" value={instructions.billKey} />
+          <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.72rem", marginTop: 4 }}>
+            Bayar lewat ATM / Livin' by Mandiri (Menu Bayar → Multipayment), lalu ikuti kode di atas.
+          </p>
+        </div>
+      )}
+
+      {/* cstore (Indomaret/Alfamart): tunjukkan kode bayar ke kasir. */}
+      {instructions.paymentCode && (
+        <div className="space-y-2">
+          <CopyRow
+            label={`Kode Bayar ${(instructions.store ?? "").toUpperCase()}`}
+            value={instructions.paymentCode}
+          />
+          {instructions.merchantId && (
+            <CopyRow label="Merchant ID" value={instructions.merchantId} />
+          )}
+          <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.72rem", marginTop: 4 }}>
+            Datangi kasir {instructions.store?.toLowerCase() === "alfamart" ? "Alfamart/Alfamidi/DAN+DAN terdekat" : "Indomaret terdekat"}, sebutkan kode bayar dan nominal — tunjukkan Merchant ID bila diminta. Kode berlaku 24 jam.
+          </p>
+        </div>
+      )}
+
+      {deeplinkUrl && (
+        <button
+          type="button"
+          onClick={() => window.open(deeplinkUrl, "_blank", "noopener")}
+          className="w-full py-2.5 rounded-xl flex items-center justify-center gap-2"
+          style={{
+            backgroundColor: "var(--color-brand-tertiary)",
+            color: "var(--color-on-primary)",
+            fontWeight: 600,
+            fontSize: "0.85rem",
+          }}
+        >
+          <ExternalLink size={14} aria-hidden="true" />
+          Buka Aplikasi GoPay
+        </button>
+      )}
+
+      {qrUrl && (
+        <div className="flex flex-col items-center gap-2 pt-1">
+          <img
+            src={qrUrl}
+            alt="QR code pembayaran"
+            className="w-44 h-44 object-contain rounded-lg"
+            style={{ backgroundColor: "var(--color-surface)" }}
+          />
+          <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.72rem", textAlign: "center" }}>
+            Scan QR code dengan aplikasi e-wallet atau mobile banking kamu.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Halaman ─── */
 
 /**
@@ -220,6 +397,7 @@ export default function OrderStatusPage() {
   const { orderNo } = useParams<{ orderNo: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { data: paymentMethods } = usePaymentMethods();
 
   const { data: invoice, isLoading, isError, error } = useQuery({
     queryKey: ["invoice", orderNo],
@@ -242,38 +420,24 @@ export default function OrderStatusPage() {
   const isCompleted = invoice?.status === "COMPLETED";
   const isPending = invoice?.status === "PENDING";
   const isNeedsAction = invoice?.status === "NEEDS_ACTION";
+  const remainingSeconds = useCountdown(invoice?.expiresAt ?? null);
+  const expiredLocally = isPending && remainingSeconds === 0;
+  const expiryRefetched = useRef(false);
 
-  /* snap.js hanya ditarik saat benar-benar akan dipakai (ada pesanan PENDING
-     yang bisa dibayar) — pola yang sama dengan Riwayat Order. */
-  const canPay = isPending && !!invoice?.snapToken;
   useEffect(() => {
-    if (canPay) preloadSnap();
-  }, [canPay]);
+    if (!expiredLocally || expiryRefetched.current) return;
+    expiryRefetched.current = true;
+    void queryClient.invalidateQueries({ queryKey: ["invoice", orderNo] });
+  }, [expiredLocally, orderNo, queryClient]);
 
-  const handlePay = () => {
-    if (!invoice?.snapToken) return;
-    void paySnap(invoice.snapToken, {
-      onSuccess: () => {
-        toast.success("Pembayaran Berhasil!");
-        queryClient.invalidateQueries({ queryKey: ["invoice", orderNo] });
-      },
-      onPending: () => {
-        toast.info("Pembayaran Sedang Diproses.");
-        queryClient.invalidateQueries({ queryKey: ["invoice", orderNo] });
-      },
-      onError: () => {
-        toast.error("Pembayaran Gagal. Silakan coba lagi.");
-      },
-      onClose: () => {
-        // Popup ditutup — status akan ter-refresh polling berikutnya.
-        queryClient.invalidateQueries({ queryKey: ["invoice", orderNo] });
-      },
-    }).catch((err: unknown) => {
-      toast.error(
-        err instanceof SnapError ? err.message : "Sistem pembayaran belum siap. Silakan coba lagi.",
-      );
-    });
-  };
+  useEffect(() => {
+    expiryRefetched.current = false;
+  }, [invoice?.expiresAt]);
+
+  const bankIconUrl = paymentMethods
+    ?.flatMap((method) => method.banks)
+    .find((bank) => bank.code.toLowerCase() === invoice?.paymentInstructions?.vaBank?.toLowerCase())
+    ?.iconUrl ?? null;
 
   const notFound =
     isError && (error as { response?: { status?: number } })?.response?.status === 404;
@@ -324,8 +488,8 @@ export default function OrderStatusPage() {
       ) : invoice ? (
         <div className="space-y-5">
           {/* ── Timeline / status utama ── */}
-          {isTerminal ? (
-            <TerminalPanel status={invoice.status} />
+          {isTerminal || expiredLocally ? (
+            <TerminalPanel status={expiredLocally ? "EXPIRED" : invoice.status} />
           ) : (
             <div
               className="rounded-2xl p-6"
@@ -347,27 +511,19 @@ export default function OrderStatusPage() {
                       </span>{" "}
                       agar pesanan diproses.
                     </p>
-                    {invoice.expiresAt && (
-                      <p className="flex items-center gap-1.5" style={{ color: "var(--color-warning)", fontSize: "0.78rem" }}>
-                        <Clock size={12} />
-                        Batas pembayaran: {formatDateTime(invoice.expiresAt)}
-                      </p>
+                    {invoice.expiresAt && remainingSeconds !== null && (
+                      <div className="flex items-center justify-between gap-3" style={{ color: "var(--color-warning)" }}>
+                        <p className="flex items-center gap-1.5" style={{ fontSize: "0.78rem" }}>
+                          <Clock size={12} />
+                          Batas pembayaran: {formatDateTime(invoice.expiresAt)}
+                        </p>
+                        <span className="tabular-price" style={{ fontSize: "0.9rem", fontWeight: 700 }}>
+                          {formatCountdown(remainingSeconds)}
+                        </span>
+                      </div>
                     )}
-                    {canPay && (
-                      <button
-                        type="button"
-                        onClick={handlePay}
-                        className="w-full mt-2 py-3 rounded-xl flex items-center justify-center gap-2"
-                        style={{
-                          backgroundColor: "var(--color-brand-tertiary)",
-                          color: "var(--color-on-primary)",
-                          fontWeight: 600,
-                          fontSize: "0.9rem",
-                        }}
-                      >
-                        <CreditCard size={15} />
-                        Bayar Sekarang
-                      </button>
+                    {invoice.paymentInstructions && (
+                      <PaymentInstructionsPanel instructions={invoice.paymentInstructions} bankIconUrl={bankIconUrl} />
                     )}
                   </div>
                 ) : (

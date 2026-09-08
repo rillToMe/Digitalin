@@ -1,10 +1,10 @@
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router";
 import { Suspense, lazy, useEffect, useRef } from "react";
-import { Toaster } from "sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 
 import ScrollToTop from "./components/common/ScrollToTop";
+import CustomToaster from "./components/common/CustomToaster";
 import { CustomerLayout } from "./layouts/CustomerLayout";
 import { useAuthStore } from "./store/authStore";
 import { useThemeStore } from "./store/themeStore";
@@ -50,6 +50,7 @@ const AdminVouchersPage = lazy(() => import("./modules/admin/pages/VouchersPage"
 const FaqsPage = lazy(() => import("./modules/admin/pages/FaqsPage"));
 const SettingsPage = lazy(() => import("./modules/admin/pages/SettingsPage"));
 const AdminManagementPage = lazy(() => import("./modules/admin/pages/AdminManagementPage"));
+const PaymentMethodsPage = lazy(() => import("./modules/admin/pages/PaymentMethodsPage"));
 
 function CustomerRoute({ children }: { children: React.ReactNode }) {
   return <CustomerLayout>{children}</CustomerLayout>;
@@ -179,11 +180,7 @@ export default function App() {
       <ScrollToTop />
       <ThemeRouteSync />
 
-      <Toaster
-        position="top-right"
-        richColors
-        closeButton
-      />
+      <CustomToaster />
 
       <Suspense fallback={<PageLoader />}>
         <Routes>
@@ -379,6 +376,15 @@ export default function App() {
             element={
               <ProtectedAdminRoute>
                 <SettingsPage />
+              </ProtectedAdminRoute>
+            }
+          />
+
+          <Route
+            path="/admin/payment-methods"
+            element={
+              <ProtectedAdminRoute>
+                <PaymentMethodsPage />
               </ProtectedAdminRoute>
             }
           />

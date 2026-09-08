@@ -27,6 +27,7 @@ using be_digitalin.Services.Content;
 using be_digitalin.Services.Customer;
 using be_digitalin.Services.Games;
 using be_digitalin.Services.Orders;
+using be_digitalin.Services.Payments;
 using be_digitalin.Services.Security;
 using be_digitalin.Services.Settings;
 
@@ -85,7 +86,7 @@ builder.Services.AddScoped<IAdminAuthService, AdminAuthService>();
 // Digiflazz 60s (price-list besar; topup tetap di-cap 30s oleh CTS caller).
 builder.Services.AddHttpClient<IDigiflazzProvider, DigiflazzProvider>(client =>
     client.Timeout = TimeSpan.FromSeconds(60));
-// Midtrans 20s (Snap creation sinkron di checkout path).
+// Midtrans 20s (charge creation sinkron di checkout path).
 builder.Services.AddHttpClient<IMidtransProvider, MidtransProvider>(client =>
     client.Timeout = TimeSpan.FromSeconds(20));
 // Telegram auxiliary: cepat gagal, tidak boleh menahan request.
@@ -113,6 +114,7 @@ builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<ISearchService, SearchService>();
 builder.Services.AddScoped<IVoucherService, VoucherService>();
 builder.Services.AddScoped<ICheckoutService, CheckoutService>();
+builder.Services.AddScoped<IPaymentMethodService, PaymentMethodService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
 builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();

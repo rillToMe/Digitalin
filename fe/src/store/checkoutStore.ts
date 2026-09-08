@@ -3,26 +3,27 @@ import type {
   ProductItem,
   BrandDetailResponse,
   TargetValues,
+  PaymentMethodInfo,
 } from "../api/index";
 
-interface PaymentMethod {
-  id: string;
-  name: string;
-  logo: string;
-  fee: number;
-}
-
+/**
+ * State checkout. Katalog metode pembayaran TIDAK ada di sini — SSOT-nya
+ * backend (GET /payment-methods, ikon + urutan + aktif); halaman checkout
+ * mengambilnya lewat usePaymentMethods dan memilihnya ke sini.
+ */
 interface CheckoutState {
   brand: BrandDetailResponse | null;
   selectedProduct: ProductItem | null;
   targetValues: TargetValues;
-  selectedPayment: PaymentMethod | null;
+  selectedPayment: PaymentMethodInfo | null;
+  selectedChannel: string | null;
   voucherCode: string | null;
 
   setBrand: (brand: BrandDetailResponse) => void;
   setSelectedProduct: (product: ProductItem | null) => void;
   setTargetValue: (key: string, value: string) => void;
-  setSelectedPayment: (method: PaymentMethod | null) => void;
+  setSelectedPayment: (method: PaymentMethodInfo | null) => void;
+  setSelectedChannel: (channel: string | null) => void;
   setVoucherCode: (code: string | null) => void;
   reset: () => void;
 }
@@ -32,6 +33,7 @@ const initialCheckoutState = {
   selectedProduct: null,
   targetValues: {},
   selectedPayment: null,
+  selectedChannel: null,
   voucherCode: null,
 };
 
@@ -54,6 +56,8 @@ export const useCheckoutStore = create<CheckoutState>((set) => ({
   setSelectedPayment: (method) =>
     set({ selectedPayment: method }),
 
+  setSelectedChannel: (channel) => set({ selectedChannel: channel }),
+
   setVoucherCode: (code) =>
     set({ voucherCode: code }),
 
@@ -63,5 +67,3 @@ export const useCheckoutStore = create<CheckoutState>((set) => ({
       targetValues: {},
     }),
 }));
-
-export type { PaymentMethod };

@@ -222,6 +222,34 @@ export function GameEditModal({
                 setForm={setForm}
               />
 
+              <div>
+                <label
+                  htmlFor="username-check-product"
+                  style={{ color: "var(--color-brand-primary)", fontSize: "0.85rem", fontWeight: 500, display: "block", marginBottom: 8 }}
+                >
+                  Produk Cek Nama Akun
+                </label>
+                <select
+                  id="username-check-product"
+                  value={form.usernameCheckProductId ?? ""}
+                  onChange={(event) => setForm({
+                    ...form,
+                    usernameCheckProductId: event.target.value ? Number(event.target.value) : null,
+                  })}
+                  disabled={productsLoading}
+                  className="w-full rounded-xl px-3 py-2.5"
+                  style={{ backgroundColor: "var(--color-surface-raised)", border: "1px solid var(--color-border-input)", color: "var(--color-brand-primary)" }}
+                >
+                  <option value="">Tidak aktif</option>
+                  {products.map((product) => (
+                    <option key={product.id} value={product.id}>{product.name}</option>
+                  ))}
+                </select>
+                <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.75rem", marginTop: 6 }}>
+                  Produk terpilih disembunyikan dari nominal pembelian dan dipakai tombol cek nama akun.
+                </p>
+              </div>
+
             </div>
           ) : (
             <ProductMarginList

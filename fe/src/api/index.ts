@@ -131,8 +131,10 @@ export interface PublicInvoiceResponse {
   expiresAt: string | null;
   /** True bila invoice ini milik akun yang sedang login (optional-auth). */
   belongsToAccount: boolean;
-  /** Token pembayaran Snap Midtrans — hanya saat PENDING; null selainnya. */
-  snapToken: string | null;
+  /** payment_type Core API ("qris"|"gopay"|"bank_transfer") — hanya saat PENDING; null selainnya. */
+  paymentType: string | null;
+  /** Instruksi bayar Core API — hanya saat PENDING; null selainnya. */
+  paymentInstructions: OrderPaymentInstructions | null;
 }
 
 export interface CreateFaqPayload {
@@ -233,7 +235,14 @@ export interface BrandDetailResponse {
   gameCode: string;
   inputFields: GameInputField[];
   imageUrl: string | null;
+  canCheckUsername: boolean;
   products: ProductItem[];
+}
+
+export interface UsernameCheckResponse {
+  isValid: boolean;
+  username: string | null;
+  message: string;
 }
 
 // Admin Products
@@ -274,10 +283,98 @@ export interface SetMarginPayload {
 
 // Orders
 
+/**
+ * Metode pembayaran Midtrans Core API yang bisa di-charge (whitelist provider).
+ * DANA/LinkAja/OVO bukan kanal Midtrans — pembayaran dari aplikasi tersebut
+ * lewat QRIS.
+ */
+export type PaymentMethodId = "qris" | "gopay" | "shopeepay" | "bank_transfer" | "cstore";
+
+/** Sub-kanal di bawah metode (bank VA untuk bank_transfer, toko untuk cstore). */
+export type PaymentChannelId = string;
+
+// Payment methods (checkout) — SSOT tampilan dari backend (ikon, urutan, aktif)
+
+export interface PaymentBankInfo {
+  code: string;
+  name: string;
+  iconUrl: string | null;
+}
+
+export interface PaymentMethodInfo {
+  code: PaymentMethodId;
+  name: string;
+  description: string | null;
+  iconUrl: string | null;
+  banks: PaymentBankInfo[];
+}
+
+// Payment methods (admin) — semua state termasuk nonaktif
+
+export interface AdminPaymentBankInfo {
+  code: string;
+  name: string;
+  iconUrl: string | null;
+  enabled: boolean;
+  sortOrder: number;
+}
+
+export interface AdminPaymentMethodInfo {
+  code: string;
+  name: string;
+  description: string | null;
+  iconUrl: string | null;
+  enabled: boolean;
+  sortOrder: number;
+  banks: AdminPaymentBankInfo[];
+}
+
+export interface UpdatePaymentMethodPayload {
+  displayName?: string | null;
+  iconUrl?: string | null;
+  enabled?: boolean | null;
+  sortOrder?: number | null;
+}
+
+export interface UpdatePaymentBankPayload {
+  displayName?: string | null;
+  iconUrl?: string | null;
+  enabled?: boolean | null;
+  sortOrder?: number | null;
+}
+
+export interface OrderPaymentAction {
+  name: string; // mis. "generate-qr-code", "deeplink-redirect"
+  url: string;
+}
+
+export interface OrderPaymentInstructions {
+  qrString: string | null;
+  actions: OrderPaymentAction[];
+  vaBank: string | null;
+  vaNumber: string | null;
+  /** Mandiri Bill (echannel): kode perusahaan (mis. 70012). */
+  billerCode: string | null;
+  /** Mandiri Bill (echannel): kode pembayaran. */
+  billKey: string | null;
+  /** cstore: toko tujuan ("indomaret" | "alfamart"). */
+  store: string | null;
+  /** cstore: kode bayar di kasir. */
+  paymentCode: string | null;
+  /** cstore: merchant id Midtrans — diminta simulator sandbox Indomaret & sebagian alur kasir. */
+  merchantId: string | null;
+}
+
 export interface CreateOrderPayload {
   productId: number;
   targetValues: TargetValues;
   voucherCode: string | null;
+  /** Metode pembayaran Midtrans Core API — wajib. */
+  paymentMethod: PaymentMethodId;
+  /** Wajib bila paymentMethod = "bank_transfer" (bca/bni/bri/cimb/permata/mandiri). */
+  paymentBank?: string | null;
+  /** Wajib bila paymentMethod = "cstore" (indomaret/alfamart). */
+  paymentStore?: string | null;
 }
 
 export interface OrderResponse {
@@ -287,13 +384,15 @@ export interface OrderResponse {
   status: OrderStatus;
   productName: string;
   price: number;
-  snapToken: string | null;
-  redirectUrl: string | null;
   orderDate: string;
   sn: string | null;
   imageUrl: string | null;
   discountAmount: number;
   finalPrice: number;
+  /** payment_type Midtrans Core API. */
+  paymentType: string | null;
+  /** Instruksi bayar Core API (QR/VA/deeplink). */
+  paymentInstructions: OrderPaymentInstructions | null;
 }
 
 export interface CreateOrderResponse extends OrderResponse { }
@@ -402,6 +501,7 @@ export interface GameMetadataItem {
   supplierNote: string | null;
   /** Slug kategori storefront (kebab-case), boleh lebih dari satu; kosong = belum dikategorikan */
   categories: string[];
+  usernameCheckProductId: number | null;
 }
 
 export type MetadataListResponse = GameMetadataItem[];
@@ -411,6 +511,7 @@ export interface UpdateMetadataPayload {
   targetTemplate: string;
   /** Kategori storefront (boleh beberapa); dinormalisasi BE ke kebab-case, kosong → tanpa kategori */
   categories?: string[];
+  usernameCheckProductId: number | null;
 }
 
 // Built-in input schema presets (SSOT: backend GameTemplateFactory)

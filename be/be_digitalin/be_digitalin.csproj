@@ -21,13 +21,11 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
             <PrivateAssets>all</PrivateAssets>
         </PackageReference>
+        
         <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.0" />
         <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
-
         <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />
-
         <PackageReference Include="Scalar.AspNetCore" Version="2.17.1" />
-
         <PackageReference Include="StackExchange.Redis" Version="3.1.31" />
     </ItemGroup>
 

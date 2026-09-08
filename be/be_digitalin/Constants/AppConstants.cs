@@ -31,7 +31,7 @@ public static class AppConstants
     {
         public const string MidtransExpiry = "MIDRANS_EXPIRY";
 
-        /// <summary>Default durasi expiry Snap Midtrans (menit) — dipakai bila
+        /// <summary>Default durasi expiry charge Midtrans (menit) — dipakai bila
         /// setting belum di-set admin atau nilainya tidak terbaca.</summary>
         public const int MidtransExpiryDefaultMinutes = 30;
 
@@ -75,6 +75,7 @@ public static class AppConstants
     {
         public const string Settlement = "settlement";
         public const string Capture = "capture";
+        public const string Pending = "pending";
         public const string Expire = "expire";
         public const string Cancel = "cancel";
         public const string Deny = "deny";
@@ -85,12 +86,79 @@ public static class AppConstants
     {
         public const string Accept = "accept";
     }
+
+    // Metode pembayaran Midtrans Core API yang didukung checkout DIGITALIN.
+    // Whitelist = payment_type yang BENAR-BENAR bisa di-charge via Core API.
+    // Midtrans tidak menyediakan kanal DANA/LinkAja/OVO — aplikasi tersebut
+    // bayar via QRIS (interoperabel). Baris katalog non-whitelist (lihat seed
+    // PaymentMethods) ditolak validasi awal "Metode pembayaran tidak didukung".
+    public static class MidtransPaymentMethods
+    {
+        public const string Qris = "qris";
+        public const string GoPay = "gopay";
+        public const string ShopeePay = "shopeepay";
+        public const string BankTransfer = "bank_transfer";
+        public const string Cstore = "cstore";
+
+        /// <summary>Toko convenience store yang sah untuk cstore (verifikasi sandbox).</summary>
+        public static readonly IReadOnlySet<string> CstoreStores =
+            new HashSet<string>(StringComparer.Ordinal)
+                { "indomaret", "alfamart" };
+
+        /// <summary>
+        /// Midtrans MENGABAIKAN expiry custom untuk cstore — selalu 24 jam
+        /// (verifikasi sandbox). Dipakai OrderExpiryPolicy supaya sweep dan
+        /// invoice tidak mematikan order yang kode bayarnya masih hidup.
+        /// </summary>
+        public const int CstoreExpiryMinutes = 24 * 60;
+
+        /// <summary>
+        /// Bank yang sah untuk payment_type bank_transfer. "mandiri" adalah
+        /// kasus khusus: provider memetakannya ke echannel (Mandiri Bill
+        /// Payment) — bukan bank_transfer.bank, yang diam-diam menghasilkan
+        /// VA Permata di sisi Midtrans. Bank di luar daftar ini juga
+        /// mengalami Permata-fallback diam-diam (danamon/seabank/saqu
+        /// terverifikasi) — hanya tambahkan setelah probe membuktikan VA
+        /// bank tersebut asli (bsi terverifikasi).
+        /// </summary>
+        public static readonly IReadOnlySet<string> VaBanks =
+            new HashSet<string>(StringComparer.Ordinal)
+                { "bca", "bni", "bri", "cimb", "permata", "mandiri", "bsi" };
+    }
     
-    //JWT JSON dari Respons Midtrans
+    // JSON dari Respons Midtrans
     public static class MidtransResponseKeys
     {
-        public const string Token = "token";
-        public const string RedirectUrl = "redirect_url";
+        // Core API — envelope transaksi
+        public const string StatusCode = "status_code";
+        public const string StatusMessage = "status_message";
+        public const string TransactionId = "transaction_id";
+        public const string OrderId = "order_id";
+        public const string PaymentType = "payment_type";
+        public const string TransactionStatus = "transaction_status";
+        public const string FraudStatus = "fraud_status";
+        public const string GrossAmount = "gross_amount";
+        public const string SettlementTime = "settlement_time";
+
+        // Core API — instruksi pembayaran
+        public const string Actions = "actions";
+        public const string ActionName = "name";
+        public const string ActionUrl = "url";
+        public const string QrString = "qr_string";
+        public const string VaNumbers = "va_numbers";
+        public const string Bank = "bank";
+        public const string VaNumber = "va_number";
+        public const string PermataVaNumber = "permata_va_number";
+        public const string BillKey = "bill_key";
+        public const string BillerCode = "biller_code";
+
+        // Core API — cstore (Indomaret/Alfamart)
+        public const string PaymentCode = "payment_code";
+        public const string Store = "store";
+        public const string Message = "message";
+
+        // Core API — envelope
+        public const string MerchantId = "merchant_id";
     }
 
     // Skema Otentikasi HTTP (Header)
@@ -235,7 +303,8 @@ public static class AppConstants
     {
         public const string GameCovers = "icons-cover";
         public const string ItemIcons = "-icons-item";
-        public const string Banners = "banners"; 
+        public const string Banners = "banners";
+        public const string PaymentIcons = "payment-icons";
     }
 
     // Batas ukuran file upload (2 MB)

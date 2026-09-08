@@ -21,6 +21,7 @@ export default function MetadataPage() {
     inputFields: [],
     targetTemplate: "",
     categories: [],
+    usernameCheckProductId: null,
   });
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
@@ -46,7 +47,7 @@ export default function MetadataPage() {
         page: 1,
         limit: 100,
       }),
-    enabled: !!editTarget && activeTab === "products",
+    enabled: !!editTarget,
   });
 
   const products = productsData?.data ?? [];
@@ -117,6 +118,7 @@ export default function MetadataPage() {
       })),
       targetTemplate: item.targetTemplate,
       categories: [...item.categories],
+      usernameCheckProductId: item.usernameCheckProductId,
     });
 
     setActiveTab("info");

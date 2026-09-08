@@ -62,8 +62,6 @@ public class InvoiceLookupServiceTests
             OrderDate = orderDate ?? new DateTime(2026, 9, 6, 8, 0, 0, DateTimeKind.Utc),
             CustomerId = customerId,
             GameProductId = 1,
-            SnapToken = "snap-secret-token",
-            RedirectUrl = "https://midtrans/secret",
             ProductName = "5280 CP",
             BuyerSkuCode = "sku",
             BrandName = "CALL OF DUTY MOBILE",
@@ -161,6 +159,8 @@ public class InvoiceLookupServiceTests
 
         Assert.NotNull(result);
         Assert.Equal(order.OrderDate.AddMinutes(45), result!.ExpiresAt);
+        Assert.Equal(DateTimeKind.Utc, result.CreatedAt.Kind);
+        Assert.Equal(DateTimeKind.Utc, result.ExpiresAt!.Value.Kind);
     }
 
     [Theory]
@@ -178,34 +178,83 @@ public class InvoiceLookupServiceTests
         Assert.Null(result!.ExpiresAt);
     }
 
+    // ── Instruksi pembayaran Core API (PENDING saja) ──
+
+    private const string QrisInstructionsJson =
+        """{"qrString":"00020101QRIS","actions":[{"name":"generate-qr-code","url":"https://api.midtrans.com/v2/qris/x/qr-code"}],"vaBank":null,"vaNumber":null}""";
+
     [Fact]
-    public async Task GetPublicInvoiceAsync_Pending_ExposesSnapTokenForPayment()
+    public async Task GetPublicInvoiceAsync_Pending_ExposesPaymentTypeAndInstructions()
     {
         await using var db = CreateDb();
+        var order = NewOrder(status: AppConstants.OrderStatus.Pending);
+        order.PaymentType = "qris";
+        order.PaymentInstructionsJson = QrisInstructionsJson;
+        db.TopupOrders.Add(order);
+        await db.SaveChangesAsync();
+
+        var result = await CreateService(db).GetPublicInvoiceAsync("INV-20260906-ABCDEF1234");
+
+        Assert.Equal("qris", result!.PaymentType);
+        Assert.NotNull(result.PaymentInstructions);
+        Assert.Equal("00020101QRIS", result.PaymentInstructions!.QrString);
+        var action = Assert.Single(result.PaymentInstructions.Actions);
+        Assert.Equal("generate-qr-code", action.Name);
+        Assert.Null(result.PaymentInstructions.VaBank);
+        Assert.Null(result.PaymentInstructions.VaNumber);
+    }
+
+    [Fact]
+    public async Task GetPublicInvoiceAsync_NotPendingCoreApiOrder_NoPaymentTypeOrInstructions()
+    {
+        await using var db = CreateDb();
+        var order = NewOrder(status: AppConstants.OrderStatus.Paid);
+        order.PaymentType = "qris";
+        order.PaymentInstructionsJson = QrisInstructionsJson;
+        db.TopupOrders.Add(order);
+        await db.SaveChangesAsync();
+
+        var result = await CreateService(db).GetPublicInvoiceAsync("INV-20260906-ABCDEF1234");
+
+        Assert.Null(result!.PaymentType);
+        Assert.Null(result.PaymentInstructions);
+    }
+
+    [Fact]
+    public async Task GetPublicInvoiceAsync_PendingWithoutCoreFields_NoPaymentTypeOrInstructions()
+    {
+        await using var db = CreateDb();
+        // Order pra-migrasi tanpa kolom Core API — tidak ada yang bocor.
         db.TopupOrders.Add(NewOrder(status: AppConstants.OrderStatus.Pending));
         await db.SaveChangesAsync();
 
         var result = await CreateService(db).GetPublicInvoiceAsync("INV-20260906-ABCDEF1234");
 
-        // Token pembayaran (bukan kredensial) hanya untuk PENDING — agar
-        // halaman status bisa melanjutkan pembayaran (level kepercayaan
-        // sama dengan POST /orders yang guest juga menerima snap token).
-        Assert.Equal("snap-secret-token", result!.SnapToken);
+        Assert.Null(result!.PaymentType);
+        Assert.Null(result.PaymentInstructions);
     }
 
-    [Theory]
-    [InlineData(AppConstants.OrderStatus.Paid)]
-    [InlineData(AppConstants.OrderStatus.Completed)]
-    [InlineData(AppConstants.OrderStatus.Expired)]
-    public async Task GetPublicInvoiceAsync_NotPending_NoSnapToken(string status)
+    [Fact]
+    public async Task GetPublicInvoiceAsync_PendingCoreApiOrder_SerializedResponseStaysSafe()
     {
         await using var db = CreateDb();
-        db.TopupOrders.Add(NewOrder(status: status));
+        var order = NewOrder(status: AppConstants.OrderStatus.Pending);
+        order.PaymentType = "bank_transfer";
+        order.PaymentInstructionsJson =
+            """{"qrString":null,"actions":[],"vaBank":"bca","vaNumber":"91019021581"}""";
+        db.TopupOrders.Add(order);
         await db.SaveChangesAsync();
 
         var result = await CreateService(db).GetPublicInvoiceAsync("INV-20260906-ABCDEF1234");
 
-        Assert.Null(result!.SnapToken);
+        // Instruksi VA memang sengaja terekspos (aksi bayar PENDING), tapi
+        // rahasia order lain tetap tidak boleh bocor.
+        var serialized = System.Text.Json.JsonSerializer.Serialize(result);
+        Assert.Equal("bca", result!.PaymentInstructions!.VaBank);
+        Assert.Equal("91019021581", result.PaymentInstructions.VaNumber);
+        Assert.DoesNotContain("player-secret", serialized);
+        Assert.DoesNotContain("SN-RAHASIA", serialized);
+        Assert.DoesNotContain("CustomerId", serialized);
     }
 
     // ── Kepemilikan (optional-auth) ──
@@ -244,7 +293,7 @@ public class InvoiceLookupServiceTests
     public async Task GetPublicInvoiceAsync_CompletedOrder_ResponseContainsNoSensitiveFields()
     {
         await using var db = CreateDb();
-        // Status terminal: tanpa snapToken — tidak ada rahasia order yang boleh bocor.
+        // Status terminal: tanpa instruksi bayar — tidak ada rahasia order yang boleh bocor.
         db.TopupOrders.Add(NewOrder(status: AppConstants.OrderStatus.Completed, customerId: 7));
         await db.SaveChangesAsync();
 
@@ -256,32 +305,34 @@ public class InvoiceLookupServiceTests
             .OrderBy(n => n)
             .ToList();
         Assert.Equal(
-            new[] { "Amount", "BelongsToAccount", "CreatedAt", "ExpiresAt", "ImageUrl", "InvoiceNumber", "PaymentStatus", "ProductName", "SnapToken", "Status" },
+            new[] { "Amount", "BelongsToAccount", "CreatedAt", "ExpiresAt", "ImageUrl", "InvoiceNumber", "PaymentInstructions", "PaymentStatus", "PaymentType", "ProductName", "Status" },
             props);
 
         // Serialize penuh — rahasia order tidak boleh bocor.
         var serialized = System.Text.Json.JsonSerializer.Serialize(result);
         Assert.DoesNotContain("player-secret", serialized);
-        Assert.DoesNotContain("snap-secret-token", serialized);
         Assert.DoesNotContain("SN-RAHASIA", serialized);
         Assert.DoesNotContain("CustomerId", serialized);
-        Assert.DoesNotContain("RedirectUrl", serialized);
     }
 
     [Fact]
     public async Task GetPublicInvoiceAsync_Pending_StillHidesNonPaymentSecrets()
     {
         await using var db = CreateDb();
-        db.TopupOrders.Add(NewOrder(status: AppConstants.OrderStatus.Pending, customerId: 7));
+        var order = NewOrder(status: AppConstants.OrderStatus.Pending, customerId: 7);
+        order.PaymentType = "qris";
+        order.PaymentInstructionsJson = QrisInstructionsJson;
+        db.TopupOrders.Add(order);
         await db.SaveChangesAsync();
 
         var result = await CreateService(db).GetPublicInvoiceAsync("INV-20260906-ABCDEF1234", currentCustomerId: 7);
 
+        // Instruksi bayar memang sengaja terekspos (aksi PENDING) — rahasia
+        // order lain tetap tidak boleh ikut.
         var serialized = System.Text.Json.JsonSerializer.Serialize(result);
-        Assert.Equal("snap-secret-token", result!.SnapToken); // token bayar memang sengaja
+        Assert.NotNull(result!.PaymentInstructions);
         Assert.DoesNotContain("player-secret", serialized);
         Assert.DoesNotContain("SN-RAHASIA", serialized);
         Assert.DoesNotContain("CustomerId", serialized);
-        Assert.DoesNotContain("RedirectUrl", serialized);
     }
 }

@@ -44,6 +44,10 @@ public interface IApplicationDbContext
 
     DbSet<Admin> Admins { get; }
 
+    DbSet<PaymentMethod> PaymentMethods { get; }
+
+    DbSet<PaymentBank> PaymentBanks { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
     DatabaseFacade Database { get; }

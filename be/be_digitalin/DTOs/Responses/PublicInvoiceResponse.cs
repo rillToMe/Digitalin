@@ -2,8 +2,8 @@ namespace be_digitalin.DTOs;
 
 /// <summary>
 /// View model publik untuk Cek Transaksi (tanpa login). Hanya field aman —
-/// sengaja TIDAK memuat PlayerId, SnapToken, RedirectUrl, Sn, CustomerId,
-/// atau field admin. Entity EF tidak pernah terekspos langsung.
+/// sengaja TIDAK memuat PlayerId, Sn, CustomerId, atau field admin.
+/// Entity EF tidak pernah terekspos langsung.
 /// </summary>
 public record PublicInvoiceResponse(
     /// <summary>Invoice number = TopupOrder.OrderNo (id publik order).</summary>
@@ -26,10 +26,13 @@ public record PublicInvoiceResponse(
     /// (optional-auth; FE menampilkan catatan "tersimpan di riwayat akun").</summary>
     bool BelongsToAccount,
     /// <summary>
-    /// Token pembayaran Snap Midtrans — HANYA diisi saat status PENDING, agar
-    /// halaman status bisa melanjutkan pembayaran (termasuk guest). Level
-    /// kepercayaan sama dengan POST /orders (guest checkout menerima token
-    /// ini juga): terikat order+nominal spesifik, bukan kredensial akun.
-    /// Null untuk semua status lain.
+    /// payment_type Midtrans Core API ("qris"/"gopay"/"bank_transfer") —
+    /// HANYA diisi saat status PENDING (aksi lanjut bayar). Null selainnya.
     /// </summary>
-    string? SnapToken = null);
+    string? PaymentType = null,
+    /// <summary>
+    /// Instruksi bayar Core API (QR string / VA / deeplink) — HANYA saat
+    /// PENDING, terikat order+nominal spesifik (bukan kredensial akun),
+    /// level kepercayaan sama dengan POST /orders. Null selainnya.
+    /// </summary>
+    OrderPaymentInstructions? PaymentInstructions = null);

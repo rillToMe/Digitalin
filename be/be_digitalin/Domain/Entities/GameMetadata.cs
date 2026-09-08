@@ -20,6 +20,12 @@ public class GameMetadata
     public string TargetTemplate { get; set; } = "{userId}";
 
     /// <summary>
+    /// Produk Digiflazz khusus validasi nama akun. Produk ini tidak dijual dan
+    /// tidak dikirim dalam katalog publik.
+    /// </summary>
+    public int? UsernameCheckProductId { get; set; }
+
+    /// <summary>
     /// Instruksi supplier (field "desc" Digiflazz), disimpan sekali per brand —
     /// bukan per produk, karena isinya sama untuk seluruh SKU satu game.
     /// Hanya informatif untuk admin; TargetTemplate + InputSchemaJson tetap

@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using be_digitalin.Application.Validation;
 using be_digitalin.Domain.Games.GameTemplates;
+using be_digitalin.Domain.Orders;
 using be_digitalin.Services.Orders;
 using be_digitalin.Services.Settings;
 
@@ -84,6 +85,9 @@ public class ProductService : IProductService
         metadata.InputSchemaJson = GameInputSchemaSerializer.Serialize(normalizedFields);
         metadata.TargetTemplate = normalizedTargetTemplate;
         metadata.Categories = NormalizeCategories(request.Categories);
+        metadata.UsernameCheckProductId = await ValidateUsernameCheckProductAsync(
+            metadata.Brand,
+            request.UsernameCheckProductId);
 
         await _db.SaveChangesAsync();
 
@@ -741,7 +745,8 @@ public class ProductService : IProductService
             .Where(p =>
                 p.Brand == metadata.Brand &&
                 p.Category == AppConstants.Categories.Games &&
-                p.IsActive)
+                p.IsActive &&
+                p.Id != metadata.UsernameCheckProductId)
             .OrderBy(p => p.Price)
             .Select(p => new GameProductItemResponse(
                 p.Id,
@@ -760,8 +765,43 @@ public class ProductService : IProductService
             metadata.BrandSlug,
             metadata.ImageUrl,
             metadata.InputFields,
+            metadata.UsernameCheckProductId.HasValue,
             products
         );
+    }
+
+    public async Task<UsernameCheckResponse> CheckUsernameAsync(
+        string brandSlug,
+        Dictionary<string, string?> targetValues,
+        CancellationToken cancellationToken = default)
+    {
+        var slug = Slug.From(brandSlug)
+            ?? throw new InvalidOperationException("Game tidak ditemukan.");
+        var metadata = await _db.GameMetadata.AsNoTracking()
+            .FirstOrDefaultAsync(item => item.BrandSlug == slug, cancellationToken)
+            ?? throw new InvalidOperationException("Game tidak ditemukan.");
+
+        if (!metadata.UsernameCheckProductId.HasValue)
+            throw new InvalidOperationException("Cek nama akun belum tersedia untuk game ini.");
+
+        var product = await _db.GameProducts.AsNoTracking().FirstOrDefaultAsync(item =>
+            item.Id == metadata.UsernameCheckProductId &&
+            item.Brand == metadata.Brand &&
+            item.Category == AppConstants.Categories.Games &&
+            item.IsActive, cancellationToken)
+            ?? throw new InvalidOperationException("Produk cek nama akun tidak tersedia.");
+
+        var fields = GameInputSchemaSerializer.Deserialize(metadata.InputSchemaJson);
+        OrderTargetRenderer.ValidateTargetValues(fields, targetValues);
+        var customerNo = OrderTargetRenderer.RenderTargetTemplate(
+            metadata.TargetTemplate, fields, targetValues);
+        var result = await _digiflazzProvider.CheckUsernameAsync(
+            product.BuyerSkuCode,
+            customerNo,
+            $"CHECK-{Guid.NewGuid():N}",
+            cancellationToken);
+
+        return new UsernameCheckResponse(result.IsValid, result.Username, result.Message);
     }
 
     public async Task<PagedResult<GameProduct>> GetPagedProductsAsync(
@@ -1005,8 +1045,26 @@ public class ProductService : IProductService
             GameInputSchemaSerializer.Deserialize(metadata.InputSchemaJson),
             metadata.TargetTemplate,
             metadata.SupplierNote,
-            GameMetadata.ParseCategories(metadata.Categories)
+            GameMetadata.ParseCategories(metadata.Categories),
+            metadata.UsernameCheckProductId
         );
+    }
+
+    private async Task<int?> ValidateUsernameCheckProductAsync(string brand, int? productId)
+    {
+        if (!productId.HasValue)
+            return null;
+
+        var exists = await _db.GameProducts.AnyAsync(product =>
+            product.Id == productId &&
+            product.Brand == brand &&
+            product.Category == AppConstants.Categories.Games &&
+            product.IsActive);
+
+        if (!exists)
+            throw new InvalidOperationException("Produk cek nama harus produk game aktif dari brand ini.");
+
+        return productId;
     }
 
     private static List<GameInputField> NormalizeAndValidateInputFields(

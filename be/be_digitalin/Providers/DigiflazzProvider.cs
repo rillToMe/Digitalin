@@ -87,6 +87,44 @@ public class DigiflazzProvider : IDigiflazzProvider
         return null;
     }
 
+    public async Task<(bool IsValid, string? Username, string Message)> CheckUsernameAsync(
+        string buyerSkuCode,
+        string customerNo,
+        string refId,
+        CancellationToken cancellationToken = default)
+    {
+        var payload = new
+        {
+            username = _settings.Username,
+            buyer_sku_code = buyerSkuCode,
+            customer_no = customerNo,
+            ref_id = refId,
+            sign = GenerateSignature(refId)
+        };
+
+        var response = await _httpClient.PostAsync(
+            EndpointTransaction,
+            new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json"),
+            cancellationToken);
+        var responseString = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        using var document = JsonDocument.Parse(responseString);
+        if (!document.RootElement.TryGetProperty("data", out var data))
+            throw new InvalidOperationException("Gagal membaca balasan Digiflazz.");
+
+        var status = data.TryGetProperty("status", out var statusProperty)
+            ? statusProperty.GetString()
+            : null;
+        var message = data.TryGetProperty("message", out var messageProperty)
+            ? messageProperty.GetString() ?? "Nama akun tidak ditemukan."
+            : "Nama akun tidak ditemukan.";
+        var username = data.TryGetProperty("customer_name", out var usernameProperty)
+            ? usernameProperty.GetString()
+            : null;
+
+        return (status == "Sukses" && !string.IsNullOrWhiteSpace(username), username, message);
+    }
+
     public async Task<List<DigiflazzPriceItem>> GetPriceListAsync(CancellationToken cancellationToken = default)
     {
         var payload = new {

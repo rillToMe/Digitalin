@@ -7,5 +7,6 @@ public record UpdateGameMetadataRequest(
     string TargetTemplate,
     // Kategori storefront game, boleh lebih dari satu. Tiap nama/slug
     // dinormalisasi BE; null/kosong = belum dikategorikan.
-    IReadOnlyList<string>? Categories
+    IReadOnlyList<string>? Categories,
+    int? UsernameCheckProductId
 );

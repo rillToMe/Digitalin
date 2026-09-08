@@ -10,6 +10,7 @@ import {
   CircleHelp,
   ShieldCheck,
   Settings,
+  CreditCard,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
@@ -52,6 +53,7 @@ const NAV_GROUPS: AdminNavGroup[] = [
     label: "Sistem",
     items: [
       { label: "Kelola Admin", path: "/admin/admins", icon: ShieldCheck, superAdminOnly: true },
+      { label: "Pembayaran", path: "/admin/payment-methods", icon: CreditCard },
       { label: "Settings", path: "/admin/settings", icon: Settings },
     ],
   },

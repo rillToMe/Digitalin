@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Pencil, Key, Trash2, X, Loader2, ShieldCheck, Shield, Eye, EyeOff } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Loader2, ShieldCheck, Shield, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "../../../layouts/AdminLayout";
@@ -210,17 +210,21 @@ function CreateAdminModal({ onClose }: CreateAdminModalProps) {
   );
 }
 
-// ── Edit Role Modal ────────────────────────────────────────────────────────────
+// ── Kelola Admin Modal ─────────────────────────────────────────────────────────
 
-interface EditRoleModalProps {
+interface ManageAdminModalProps {
   admin: AdminListItem;
   onClose: () => void;
 }
-function EditRoleModal({ admin, onClose }: EditRoleModalProps) {
+function ManageAdminModal({ admin, onClose }: ManageAdminModalProps) {
   const queryClient = useQueryClient();
   const [role, setRole] = useState<AdminRole>(admin.role);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
-  const mutation = useMutation({
+  const roleMutation = useMutation({
     mutationFn: (r: AdminRole) => adminManagementService.updateRole(admin.id, { role: r }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-management-list"] });
@@ -232,71 +236,10 @@ function EditRoleModal({ admin, onClose }: EditRoleModalProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    mutation.mutate(role);
+    roleMutation.mutate(role);
   };
 
-  return (
-    <ModalShell title={`Ubah Role — ${admin.username}`} onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <Field label="Role *">
-          <div className="flex gap-2">
-            {(["ADMIN", "SUPER_ADMIN"] as AdminRole[]).map((r) => {
-              const active = role === r;
-              return (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setRole(r)}
-                  className="flex-1 py-2.5 rounded-xl transition-all"
-                  style={{
-                    backgroundColor: active ? "var(--color-brand-tertiary)" : "var(--color-surface)",
-                    color: active ? "#fff" : "var(--color-brand-primary)",
-                    border: active ? "none" : "1.5px solid var(--color-border-input, rgba(0,0,0,0.15))",
-                    fontWeight: 500,
-                    fontSize: "0.85rem",
-                  }}
-                >
-                  {r}
-                </button>
-              );
-            })}
-          </div>
-        </Field>
-
-        <button
-          type="submit"
-          disabled={mutation.isPending}
-          className="w-full py-3 rounded-xl flex items-center justify-center gap-2 mt-2"
-          style={{
-            backgroundColor: "var(--color-brand-tertiary)",
-            color: "#fff",
-            fontWeight: 600,
-            fontSize: "0.9rem",
-            opacity: mutation.isPending ? 0.7 : 1,
-          }}
-        >
-          {mutation.isPending && <Loader2 size={15} className="animate-spin" />}
-          {mutation.isPending ? "Menyimpan..." : "Simpan Role"}
-        </button>
-      </form>
-    </ModalShell>
-  );
-}
-
-// ── Reset Password Modal ───────────────────────────────────────────────────────
-
-interface ResetPasswordModalProps {
-  admin: AdminListItem;
-  onClose: () => void;
-}
-function ResetPasswordModal({ admin, onClose }: ResetPasswordModalProps) {
-  const queryClient = useQueryClient();
-  const [newPassword, setNewPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [showNew, setShowNew] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-
-  const mutation = useMutation({
+  const passwordMutation = useMutation({
     mutationFn: (pwd: string) =>
       adminManagementService.resetPassword(admin.id, { newPassword: pwd }),
     onSuccess: () => {
@@ -307,75 +250,60 @@ function ResetPasswordModal({ admin, onClose }: ResetPasswordModalProps) {
     onError: (err: ApiError) => toast.error(errMsg(err, "Gagal mereset password.")),
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newPassword.trim()) { toast.error("Password baru wajib diisi."); return; }
-    if (newPassword !== confirm) { toast.error("Konfirmasi password tidak cocok."); return; }
-    mutation.mutate(newPassword);
-  };
-
   return (
-    <ModalShell title={`Reset Password — ${admin.username}`} onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <ModalShell title={`Kelola Admin - ${admin.username}`} onClose={onClose}>
+      <div className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Field label="Role *">
+            <div className="flex gap-2">
+              {(["ADMIN", "SUPER_ADMIN"] as AdminRole[]).map((r) => {
+                const active = role === r;
+                return (
+                  <button key={r} type="button" onClick={() => setRole(r)} className="flex-1 py-2.5 rounded-xl transition-all" style={{ backgroundColor: active ? "var(--color-brand-tertiary)" : "var(--color-surface)", color: active ? "#fff" : "var(--color-brand-primary)", border: active ? "none" : "1.5px solid var(--color-border-input, rgba(0,0,0,0.15))", fontWeight: 500, fontSize: "0.85rem" }}>
+                    {r}
+                  </button>
+                );
+              })}
+            </div>
+          </Field>
+          <button type="submit" disabled={roleMutation.isPending} className="w-full py-3 rounded-xl flex items-center justify-center gap-2" style={{ backgroundColor: "var(--color-brand-tertiary)", color: "#fff", fontWeight: 600, fontSize: "0.9rem", opacity: roleMutation.isPending ? 0.7 : 1 }}>
+            {roleMutation.isPending && <Loader2 size={15} className="animate-spin" />}
+            {roleMutation.isPending ? "Menyimpan..." : "Simpan Role"}
+          </button>
+        </form>
+
+      <div style={{ borderTop: "1px solid var(--color-border-light, rgba(0,0,0,0.06))" }} />
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!newPassword.trim()) { toast.error("Password baru wajib diisi."); return; }
+          if (newPassword !== confirm) { toast.error("Konfirmasi password tidak cocok."); return; }
+          passwordMutation.mutate(newPassword);
+        }}
+        className="space-y-4"
+      >
         <Field label="Password Baru *">
           <div className="relative">
-            <input
-              type={showNew ? "text" : "password"}
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full px-4 py-2.5 pr-11 rounded-xl outline-none"
-              style={inputStyle}
-              autoFocus
-            />
-            <button
-              type="button"
-              onClick={() => setShowNew((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2"
-              style={{ color: "var(--color-brand-secondary)" }}
-            >
+            <input type={showNew ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" className="w-full px-4 py-2.5 pr-11 rounded-xl outline-none" style={inputStyle} />
+            <button type="button" onClick={() => setShowNew((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-brand-secondary)" }}>
               {showNew ? <EyeOff size={17} /> : <Eye size={17} />}
             </button>
           </div>
         </Field>
-
         <Field label="Konfirmasi Password *">
           <div className="relative">
-            <input
-              type={showConfirm ? "text" : "password"}
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              placeholder="••••••••"
-              className="w-full px-4 py-2.5 pr-11 rounded-xl outline-none"
-              style={inputStyle}
-            />
-            <button
-              type="button"
-              onClick={() => setShowConfirm((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2"
-              style={{ color: "var(--color-brand-secondary)" }}
-            >
+            <input type={showConfirm ? "text" : "password"} value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" className="w-full px-4 py-2.5 pr-11 rounded-xl outline-none" style={inputStyle} />
+            <button type="button" onClick={() => setShowConfirm((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "var(--color-brand-secondary)" }}>
               {showConfirm ? <EyeOff size={17} /> : <Eye size={17} />}
             </button>
           </div>
         </Field>
-
-        <button
-          type="submit"
-          disabled={mutation.isPending}
-          className="w-full py-3 rounded-xl flex items-center justify-center gap-2 mt-2"
-          style={{
-            backgroundColor: "var(--color-brand-tertiary)",
-            color: "#fff",
-            fontWeight: 600,
-            fontSize: "0.9rem",
-            opacity: mutation.isPending ? 0.7 : 1,
-          }}
-        >
-          {mutation.isPending && <Loader2 size={15} className="animate-spin" />}
-          {mutation.isPending ? "Menyimpan..." : "Reset Password"}
+        <button type="submit" disabled={passwordMutation.isPending} className="w-full py-3 rounded-xl flex items-center justify-center gap-2" style={{ backgroundColor: "var(--color-brand-tertiary)", color: "#fff", fontWeight: 600, fontSize: "0.9rem", opacity: passwordMutation.isPending ? 0.7 : 1 }}>
+          {passwordMutation.isPending && <Loader2 size={15} className="animate-spin" />}
+          {passwordMutation.isPending ? "Menyimpan..." : "Reset Password"}
         </button>
       </form>
+      </div>
     </ModalShell>
   );
 }
@@ -443,8 +371,7 @@ function DeleteConfirmModal({ admin, onClose }: DeleteConfirmModalProps) {
 
 type ActiveModal =
   | { type: "create" }
-  | { type: "edit-role"; admin: AdminListItem }
-  | { type: "reset-password"; admin: AdminListItem }
+  | { type: "manage"; admin: AdminListItem }
   | { type: "delete"; admin: AdminListItem }
   | null;
 
@@ -582,9 +509,9 @@ export default function AdminManagementPage() {
                         {/* Actions */}
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-1">
-                            {/* Edit role */}
+                            {/* Kelola role dan password */}
                             <button
-                              onClick={() => setActiveModal({ type: "edit-role", admin: a })}
+                              onClick={() => setActiveModal({ type: "manage", admin: a })}
                               className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
                               style={{ color: "var(--color-brand-tertiary)" }}
                               onMouseEnter={(e) => {
@@ -593,25 +520,9 @@ export default function AdminManagementPage() {
                               onMouseLeave={(e) => {
                                 e.currentTarget.style.backgroundColor = "transparent";
                               }}
-                              title="Ubah Role"
+                              title="Kelola Admin"
                             >
                               <Pencil size={14} />
-                            </button>
-
-                            {/* Reset password */}
-                            <button
-                              onClick={() => setActiveModal({ type: "reset-password", admin: a })}
-                              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
-                              style={{ color: "var(--color-warning, #d97706)" }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = "var(--color-warning-bg, rgba(217,119,6,0.08))";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = "transparent";
-                              }}
-                              title="Reset Password"
-                            >
-                              <Key size={14} />
                             </button>
 
                             {/* Delete */}
@@ -648,12 +559,9 @@ export default function AdminManagementPage() {
 
       {/* Modals */}
       {activeModal?.type === "create" && <CreateAdminModal onClose={closeModal} />}
-      {activeModal?.type === "edit-role" && (
-        <EditRoleModal admin={activeModal.admin} onClose={closeModal} />
-      )}
-      {activeModal?.type === "reset-password" && (
-        <ResetPasswordModal admin={activeModal.admin} onClose={closeModal} />
-      )}
+       {activeModal?.type === "manage" && (
+         <ManageAdminModal admin={activeModal.admin} onClose={closeModal} />
+       )}
       {activeModal?.type === "delete" && (
         <DeleteConfirmModal admin={activeModal.admin} onClose={closeModal} />
       )}

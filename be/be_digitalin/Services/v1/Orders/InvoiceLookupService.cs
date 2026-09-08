@@ -2,6 +2,7 @@ using be_digitalin.Application.Ports;
 using be_digitalin.Constants;
 using be_digitalin.DTOs;
 using be_digitalin.Domain.Entities;
+using be_digitalin.Domain.Orders;
 using be_digitalin.Services.Settings;
 using Microsoft.EntityFrameworkCore;
 
@@ -42,12 +43,16 @@ public class InvoiceLookupService : IInvoiceLookupService
             return null;
 
         // Batas bayar hanya releven saat masih menunggu pembayaran; durasi
-        // expiry Midtrans dari AppSettings (SSOT yang sama dengan Snap & sweep).
+        // expiry dari AppSettings (SSOT yang sama dengan charge & sweep),
+        // diper metode lewat OrderExpiryPolicy (cstore 24 jam — Midtrans
+        // mengabaikan expiry custom di kanal itu).
+        var createdAt = DateTime.SpecifyKind(order.OrderDate, DateTimeKind.Utc);
         DateTime? expiresAt = null;
         if (order.Status == AppConstants.OrderStatus.Pending)
         {
             var expiryMinutes = await _appSettings.GetMidtransExpiryMinutesAsync();
-            expiresAt = order.OrderDate.AddMinutes(expiryMinutes);
+            expiresAt = createdAt.AddMinutes(
+                OrderExpiryPolicy.ExpiryMinutes(order.PaymentType, expiryMinutes));
         }
 
         return new PublicInvoiceResponse(
@@ -57,11 +62,15 @@ public class InvoiceLookupService : IInvoiceLookupService
             order.TotalPaid,
             order.Status,
             MapPaymentStatus(order.Status),
-            order.OrderDate,
+            createdAt,
             expiresAt,
             currentCustomerId is not null && order.CustomerId == currentCustomerId,
-            // Aksi bayar hanya releven saat masih menunggu pembayaran.
-            order.Status == AppConstants.OrderStatus.Pending ? order.SnapToken : null);
+            // Metode + instruksi bayar — PENDING saja (aksi lanjut bayar di
+            // halaman status, guest termasuk; terikat order+nominal spesifik).
+            order.Status == AppConstants.OrderStatus.Pending ? order.PaymentType : null,
+            order.Status == AppConstants.OrderStatus.Pending
+                ? OrderPaymentInstructionsCodec.Deserialize(order.PaymentInstructionsJson)
+                : null);
     }
 
     /// <summary>

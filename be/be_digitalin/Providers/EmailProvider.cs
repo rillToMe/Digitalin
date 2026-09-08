@@ -160,7 +160,7 @@ public class EmailProvider : IEmailProvider
 
               <p style=""margin:0 0 24px;"">{closingNote}</p>
 
-              <p style=""margin:0;"">Salam hangat,<br><strong>Tim Dukungan Digitalin</strong></p>
+              <p style=""margin:0;"">Salam hangat,<br><strong>Suppport Team Digitalin</strong></p>
             </td>
           </tr>
 

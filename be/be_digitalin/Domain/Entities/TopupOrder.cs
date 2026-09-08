@@ -11,12 +11,17 @@ public class TopupOrder
     public string PlayerId { get; set; } = string.Empty;
     public string Status { get; set; } = AppConstants.OrderStatus.Pending;
     public DateTime OrderDate { get; set; } = DateTime.UtcNow;
-    
-    // token dari midtrans
-    public string? SnapToken { get; set; }
-    
-    // direct kalau berhasil membayar
-    public string? RedirectUrl { get; set; }
+
+    // ── Midtrans Core API ──
+
+    // payment_type Midtrans ("qris" / "gopay" / "bank_transfer")
+    public string? PaymentType { get; set; }
+
+    // transaction_id Midtrans — kunci rekonsiliasi selain OrderNo
+    public string? MidtransTransactionId { get; set; }
+
+    // JSON OrderPaymentInstructions (camelCase) — instruksi bayar QRIS/VA/e-wallet
+    public string? PaymentInstructionsJson { get; set; }
     
     public int GameProductId { get; set; }
     public GameProduct? GameProduct { get; set; }

@@ -73,4 +73,22 @@ public class CatalogController : ControllerBase
             ? NotFound(new MessageResponse("Game tidak ditemukan"))
             : Ok(game);
     }
+
+    // POST /api/v1/games/{brandSlug}/check-username
+    [HttpPost("{brandSlug}/check-username")]
+    public async Task<ActionResult<UsernameCheckResponse>> CheckUsername(
+        string brandSlug,
+        [FromBody] Dictionary<string, string?> targetValues,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await _productService.CheckUsernameAsync(
+                brandSlug, targetValues, cancellationToken));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new MessageResponse(ex.Message));
+        }
+    }
 }

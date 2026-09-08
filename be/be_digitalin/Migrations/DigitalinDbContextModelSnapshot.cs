@@ -412,6 +412,9 @@ namespace be_digitalin.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("varchar(500)");
 
+                    b.Property<int?>("UsernameCheckProductId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Brand")
@@ -478,6 +481,240 @@ namespace be_digitalin.Migrations
                     b.ToTable("GameProducts");
                 });
 
+            modelBuilder.Entity("be_digitalin.Domain.Entities.PaymentBank", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("IconUrl")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("PaymentMethodCode")
+                        .IsRequired()
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("PaymentMethodCode", "Code");
+
+                    b.ToTable("PaymentBanks");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Code = "bca",
+                            DisplayName = "BCA",
+                            Enabled = true,
+                            PaymentMethodCode = "bank_transfer",
+                            SortOrder = 1
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Code = "bni",
+                            DisplayName = "BNI",
+                            Enabled = true,
+                            PaymentMethodCode = "bank_transfer",
+                            SortOrder = 2
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Code = "bri",
+                            DisplayName = "BRI",
+                            Enabled = true,
+                            PaymentMethodCode = "bank_transfer",
+                            SortOrder = 3
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Code = "cimb",
+                            DisplayName = "CIMB Niaga",
+                            Enabled = true,
+                            PaymentMethodCode = "bank_transfer",
+                            SortOrder = 4
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Code = "permata",
+                            DisplayName = "Permata",
+                            Enabled = true,
+                            PaymentMethodCode = "bank_transfer",
+                            SortOrder = 5
+                        },
+                        new
+                        {
+                            Id = 6,
+                            Code = "mandiri",
+                            DisplayName = "Mandiri",
+                            Enabled = true,
+                            PaymentMethodCode = "bank_transfer",
+                            SortOrder = 6
+                        },
+                        new
+                        {
+                            Id = 7,
+                            Code = "bsi",
+                            DisplayName = "BSI",
+                            Enabled = false,
+                            PaymentMethodCode = "bank_transfer",
+                            SortOrder = 7
+                        },
+                        new
+                        {
+                            Id = 8,
+                            Code = "indomaret",
+                            DisplayName = "Indomaret",
+                            Enabled = true,
+                            PaymentMethodCode = "cstore",
+                            SortOrder = 1
+                        },
+                        new
+                        {
+                            Id = 9,
+                            Code = "alfamart",
+                            DisplayName = "Alfamart",
+                            Enabled = true,
+                            PaymentMethodCode = "cstore",
+                            SortOrder = 2
+                        });
+                });
+
+            modelBuilder.Entity("be_digitalin.Domain.Entities.PaymentMethod", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("IconUrl")
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PaymentMethods");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Code = "qris",
+                            Description = "Scan dari semua e-wallet & m-banking",
+                            DisplayName = "QRIS",
+                            Enabled = true,
+                            SortOrder = 1
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Code = "gopay",
+                            Description = "Langsung buka aplikasi Gojek",
+                            DisplayName = "GoPay",
+                            Enabled = true,
+                            SortOrder = 2
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Code = "bank_transfer",
+                            Description = "Virtual Account otomatis",
+                            DisplayName = "Transfer Bank",
+                            Enabled = true,
+                            SortOrder = 4
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Code = "shopeepay",
+                            Description = "Langsung buka aplikasi Shopee",
+                            DisplayName = "ShopeePay",
+                            Enabled = true,
+                            SortOrder = 3
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Code = "dana",
+                            Description = "Langsung buka aplikasi DANA",
+                            DisplayName = "DANA",
+                            Enabled = false,
+                            SortOrder = 5
+                        },
+                        new
+                        {
+                            Id = 6,
+                            Code = "linkaja",
+                            Description = "Langsung buka aplikasi LinkAja",
+                            DisplayName = "LinkAja",
+                            Enabled = false,
+                            SortOrder = 6
+                        },
+                        new
+                        {
+                            Id = 7,
+                            Code = "ovo",
+                            Description = "Langsung buka aplikasi OVO",
+                            DisplayName = "OVO",
+                            Enabled = false,
+                            SortOrder = 7
+                        },
+                        new
+                        {
+                            Id = 8,
+                            Code = "cstore",
+                            Description = "Bayar di kasir Indomaret / Alfamart",
+                            DisplayName = "Toko Retail",
+                            Enabled = true,
+                            SortOrder = 8
+                        });
+                });
+
             modelBuilder.Entity("be_digitalin.Domain.Entities.TopupOrder", b =>
                 {
                     b.Property<int>("Id")
@@ -515,6 +752,10 @@ namespace be_digitalin.Migrations
                     b.Property<string>("ImageUrl")
                         .HasColumnType("longtext");
 
+                    b.Property<string>("MidtransTransactionId")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
                     b.Property<DateTime>("OrderDate")
                         .HasColumnType("datetime(6)");
 
@@ -526,6 +767,13 @@ namespace be_digitalin.Migrations
                     b.Property<decimal>("OriginalPrice")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("PaymentInstructionsJson")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("PaymentType")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
 
                     b.Property<string>("PlayerId")
                         .IsRequired()
@@ -542,18 +790,12 @@ namespace be_digitalin.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<string>("RedirectUrl")
-                        .HasColumnType("longtext");
-
                     b.Property<DateTime?>("RowVersion")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("timestamp(6)");
 
                     b.Property<string>("Sn")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("SnapToken")
                         .HasColumnType("longtext");
 
                     b.Property<string>("Status")
@@ -658,6 +900,18 @@ namespace be_digitalin.Migrations
                     b.Navigation("Customer");
                 });
 
+            modelBuilder.Entity("be_digitalin.Domain.Entities.PaymentBank", b =>
+                {
+                    b.HasOne("be_digitalin.Domain.Entities.PaymentMethod", "PaymentMethod")
+                        .WithMany("Banks")
+                        .HasForeignKey("PaymentMethodCode")
+                        .HasPrincipalKey("Code")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PaymentMethod");
+                });
+
             modelBuilder.Entity("be_digitalin.Domain.Entities.TopupOrder", b =>
                 {
                     b.HasOne("be_digitalin.Domain.Entities.Customer", "Customer")
@@ -683,6 +937,11 @@ namespace be_digitalin.Migrations
             modelBuilder.Entity("be_digitalin.Domain.Entities.GameProduct", b =>
                 {
                     b.Navigation("Orders");
+                });
+
+            modelBuilder.Entity("be_digitalin.Domain.Entities.PaymentMethod", b =>
+                {
+                    b.Navigation("Banks");
                 });
 #pragma warning restore 612, 618
         }
