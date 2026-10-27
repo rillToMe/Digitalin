@@ -1,6 +1,9 @@
-import { useState } from "react";
-import { Pencil, X, Loader2, Save, DollarSign } from "lucide-react";
+import { useRef, useState, type ChangeEvent } from "react";
+import { Pencil, X, Loader2, Save, DollarSign, Image, Upload } from "lucide-react";
+import { toast } from "sonner";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { AdminProductResponse } from "../../../api/index";
+import { adminService } from "../../../services/api";
 import { formatNumberInput, formatRp } from "./utils";
 
 interface ProductMarginListProps {
@@ -21,8 +24,66 @@ interface ProductMarginListProps {
 }
 
 export function ProductMarginList({ products, brand, marginMutation, loading, error, totalCount }: ProductMarginListProps) {
+  const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<number | null>(null);
   const [marginValue, setMarginValue] = useState("");
+
+  // Ikon per item nominal — upload ke R2 via endpoint upload-item-image.
+  const iconInputRef = useRef<HTMLInputElement>(null);
+  const [iconTargetId, setIconTargetId] = useState<number | null>(null);
+  const [iconFile, setIconFile] = useState<File | null>(null);
+  const [iconPreview, setIconPreview] = useState<string | null>(null);
+
+  const clearIcon = () => {
+    setIconTargetId(null);
+    setIconFile(null);
+    setIconPreview(null);
+  };
+
+  const iconMutation = useMutation({
+    mutationFn: ({ id, formData }: { id: number; formData: FormData }) => adminService.uploadItemImage(id, formData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["admin-products", brand],
+      });
+      toast.success("Ikon item berhasil diperbarui!");
+      clearIcon();
+    },
+    onError: (err: { response?: { data?: { message?: string } } }) => {
+      toast.error(err?.response?.data?.message ?? "Gagal mengupload ikon");
+    },
+  });
+
+  const startEditIcon = (productId: number) => {
+    if (iconMutation.isPending) return;
+    setIconFile(null);
+    setIconPreview(null);
+    setIconTargetId(productId);
+    iconInputRef.current?.click();
+  };
+
+  const handleIconChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || iconTargetId == null) {
+      clearIcon();
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Ukuran file maksimal 2 MB");
+      clearIcon();
+      return;
+    }
+    setIconFile(file);
+    setIconPreview(URL.createObjectURL(file));
+  };
+
+  const uploadIcon = () => {
+    if (!iconFile || iconTargetId == null) return;
+    const formData = new FormData();
+    formData.append("file", iconFile);
+    iconMutation.mutate({ id: iconTargetId, formData });
+  };
 
   if (loading) {
     return (
@@ -90,11 +151,29 @@ export function ProductMarginList({ products, brand, marginMutation, loading, er
 
   return (
     <div className="space-y-2">
+      <input ref={iconInputRef} type="file" accept="image/*" className="hidden" onChange={handleIconChange} />
       <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.8rem", marginBottom: 8 }}>
-        {products.length} produk. Atur margin keuntungan untuk setiap nominal.
+        {products.length} produk. Atur margin keuntungan & ikon untuk setiap nominal.
       </p>
-      {products.map((product) => (
+      {products.map((product) => {
+        const iconEditing = iconTargetId === product.id;
+        const iconSrc = iconEditing && iconPreview ? iconPreview : product.imageUrl;
+        return (
         <div key={product.id} className="flex items-center gap-3 px-4 py-3 rounded-xl" style={{ backgroundColor: "var(--color-neutral,#F1F3F5)" }}>
+          <button
+            type="button"
+            onClick={() => startEditIcon(product.id)}
+            title="Ubah ikon"
+            aria-label={`Ubah ikon ${product.name}`}
+            className="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center shrink-0"
+            style={{ border: "1px solid rgba(0,0,0,0.1)", backgroundColor: "var(--color-surface,#fff)" }}
+          >
+            {iconSrc ? (
+              <img src={iconSrc} alt="" className="w-full h-full object-contain" />
+            ) : (
+              <Image size={16} style={{ color: "var(--color-brand-secondary,#4A5568)" }} />
+            )}
+          </button>
           <div className="flex-1 min-w-0">
             <p style={{ color: "var(--color-brand-primary,#0F1419)", fontWeight: 600, fontSize: "0.85rem" }} className="truncate">{product.name}</p>
             <p style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.75rem", marginTop: 2 }}>
@@ -104,7 +183,16 @@ export function ProductMarginList({ products, brand, marginMutation, loading, er
               )}
             </p>
           </div>
-          {editingId === product.id ? (
+          {iconEditing && iconFile ? (
+            <div className="flex items-center gap-2 shrink-0">
+              <button onClick={uploadIcon} disabled={iconMutation.isPending} className="px-3 py-1.5 rounded-lg" style={{ backgroundColor: "var(--color-brand-tertiary,#2C5EF5)", color: "#fff", fontSize: "0.8rem", fontWeight: 600 }}>
+                {iconMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+              </button>
+              <button onClick={clearIcon} disabled={iconMutation.isPending} className="px-2 py-1.5 rounded-lg" style={{ color: "var(--color-brand-secondary,#4A5568)", fontSize: "0.8rem" }}>
+                <X size={14} />
+              </button>
+            </div>
+          ) : editingId === product.id ? (
             <div className="flex items-center gap-2">
               <div
                 className="flex w-40 shrink-0 items-center rounded-lg overflow-hidden"
@@ -153,7 +241,8 @@ export function ProductMarginList({ products, brand, marginMutation, loading, er
             </button>
           )}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

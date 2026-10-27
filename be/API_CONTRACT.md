@@ -821,6 +821,45 @@ type BrandsResponse = BrandItem[];
 
 ---
 
+### GET /api/v1/games/brands/recent
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `GET` |
+| Path | `/api/v1/games/brands/recent` |
+| Description | Game brands the buyer actually purchased, most recent first — the "Terakhir Dibeli" section on the homepage |
+| Auth | None (Public) — **optional-auth**: a valid customer JWT switches the source to the account's purchase history in the DB |
+
+#### REQUEST PAYLOAD
+
+```typescript
+// Query parameters — guest only; ignored when a valid JWT is present
+interface RecentBrandsQueryParams {
+  slugs?: string; // comma-separated brand slugs from the guest FE cookie (e.g. "free-fire,mobile-legends"); max 12 entries
+}
+```
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK — same shape as GET /api/v1/games/brands, ordered most-recent-purchase-first
+type BrandsResponse = BrandItem[];
+```
+
+#### BUSINESS RULES & EDGE CASES
+
+- **Authenticated caller (SSOT)**: brands come from the caller's own orders in the DB — `CustomerId` is read from the JWT claim (never from client input), and only orders whose money actually arrived count (`AppConstants.OrderStatus.PaidStatuses` = PAID / PROCESSING / COMPLETED / NEEDS_ACTION; PENDING / EXPIRED / FAILED / REFUNDED do not). Ordered by most recent purchase; a brand bought several times appears once (position = its newest order). The `slugs` parameter is ignored entirely
+- **Guest caller**: `slugs` is only an ordering hint of public catalog identifiers — each entry is sanitized (`Domain.Slug.From`: lowercase, non-alphanumerics to hyphens) and re-validated against the active catalog; unknown, tampered, or duplicate entries are dropped/normalized silently. It is never treated as proof of purchase or authorization, and it cannot surface any private order data
+- Returns `[]` when the caller has no history (guest cookie missing/invalid/expired, or a logged-in user without purchases) — the frontend hides the section entirely
+- Only brands with a `GameMetadata` row and at least one active `Games` product are returned (same activeness rule as the other catalog sections), so a deactivated brand disappears from this list while the cookie/history itself is untouched
+- Capped at **12** brands on both paths (`RecentBrandLimit`); the controller also caps `slugs` input at 12 entries
+- A brand shown here still appears in its own categories' sections — this section is additive and does not change category ordering
+- `"recently"` is a reserved storefront category slug (`PUT /api/v1/admin/system/game-categories` rejects it), same as `"populer"` / `"all"` / `"lainnya"`
+
+---
+
 ### GET /api/v1/games/categories
 
 #### ENDPOINT SUMMARY
@@ -1284,6 +1323,7 @@ interface CreateOrderResponse {
   finalPrice: number; // price - discountAmount
   paymentType: string | null; // Midtrans payment_type ("qris"|"gopay"|"bank_transfer")
   paymentInstructions: OrderPaymentInstructions | null; // payment instructions for the chosen method
+  publicHash: string | null; // HMAC-SHA256(SecretKey, orderNo) — lowercase hex, 64 chars; null only on pre-backfill rows
 }
 
 // Core API payment instructions
@@ -1325,6 +1365,7 @@ interface OrderPaymentAction {
 - Error 429: `"Terlalu banyak permintaan. Coba lagi nanti."` — rate limit exceeded (10 per 5 min per IP)
 - Error 500: unexpected server/provider failure — generic message, no internal details leaked (business-rule rejections remain 400 `{message}`)
 - OrderNo format: `"INV-{yyyyMMdd}-{10 random uppercase hex chars}"` (e.g. `"INV-20260614-A3F91B7C2D"`) — uniqueness enforced by a DB unique index
+- **PublicHash generation**: computed atomically with OrderNo at creation (`HMAC-SHA256(OrderPublicHash:SecretKey, orderNo)` → lowercase hex 64, unique DB index) — new orders always return `publicHash` in the response; FE navigates to `/order/status/{publicHash}`
 - **Payment method validation** (runs BEFORE any DB access, order preserved):
   1. `paymentMethod` missing/empty → `"Metode pembayaran wajib dipilih: qris, gopay, atau bank_transfer."`
   2. `paymentMethod` not one of `qris`/`gopay`/`shopeepay`/`bank_transfer`/`cstore` (case-insensitive) → `"Metode pembayaran tidak didukung. Gunakan: qris, gopay, atau bank_transfer."`
@@ -1358,6 +1399,7 @@ interface OrderPaymentAction {
 |------------|-----------|-------------------|---------------------------|
 | `page` | `integer` | Optional | Default = 1, values < 1 are clamped to 1 |
 | `limit` | `integer` | Optional | Items per page, default = 20, clamped to 1..100 |
+| `status` | `string` | Optional | Filter by order status: `PENDING`, `PAID`, `PROCESSING`, `COMPLETED`, `NEEDS_ACTION`, `FAILED`, `EXPIRED`, or `REFUNDED` |
 
 #### RESPONSE PAYLOAD
 
@@ -1384,6 +1426,7 @@ interface OrderResponse {
   finalPrice: number;
   paymentType: string | null; // Midtrans payment_type ("qris"|"gopay"|"bank_transfer"); null on pre-migration orders
   paymentInstructions: OrderPaymentInstructions | null; // payment instructions; null on pre-migration orders
+  publicHash: string | null; // HMAC-SHA256(SecretKey, orderNo), lowercase hex 64 chars — FE status URL uses this (/order/status/{publicHash}); null on pre-backfill rows
 }
 ```
 
@@ -1429,6 +1472,7 @@ interface AdminOrdersResponse {
 #### BUSINESS RULES & EDGE CASES
 
 - Returns ALL orders regardless of customer
+- When `status` is set, returns only orders with that status; pagination and totals apply after filtering
 - Same `OrderResponse` shape as customer endpoint
 
 ---
@@ -3248,17 +3292,52 @@ interface LeaderboardEntry {
 
 ## 12. Cek Transaksi (Public Invoice Lookup)
 
-> Halaman "Cek Transaksi" — pengguna memasukkan nomor invoice dan melihat status transaksi TANPA login. Boundary akses order: endpoint ini (publik, satu invoice by nomor) vs `GET /orders/my-history` (privat, `[Authorize]`, khusus pemilik) vs `/admin/orders` (policy AdminOnly).
+> Halaman "Cek Transaksi" — pengguna memasukkan nomor invoice TANPA login, backend meresolusikannya ke PublicHash, lalu status dilihat di halaman status publik. Boundary akses order: `POST /invoices/resolve` (publik, OrderNo → PublicHash saja) + `GET /invoices/{publicHash}` (publik, view model aman — PublicHash satu-satunya identifier publik) vs `GET /orders/my-history` (privat, `[Authorize]`, khusus pemilik) vs `/admin/orders` (policy AdminOnly).
 
-### GET /api/v1/invoices/{orderNo}
+### POST /api/v1/invoices/resolve
+
+#### ENDPOINT SUMMARY
+
+| Property | Value |
+|----------|-------|
+| Method | `POST` |
+| Path | `/api/v1/invoices/resolve` |
+| Description | Cek Transaksi: resolusi nomor invoice (`INV-yyyyMMdd-XXXXXXXXXX`) → `PublicHash` untuk URL status. Tidak memerlukan login. Body (bukan query) supaya nomor invoice tidak tercatat di access log. |
+| Auth | None (Public) |
+| Rate limit | `InvoiceLookupPolicy` (100 / 5 menit / IP) — endpoint ini jalur enumerasi OrderNo, limit per-IP wajib melekat |
+
+#### REQUEST PAYLOAD
+
+| Body | Type | Required/Optional | Description & Constraints |
+|------|------|-------------------|---------------------------|
+| `orderNo` | `string` | Required | Nomor invoice lengkap; di-trim; kosong/whitespace → 400 |
+
+#### RESPONSE PAYLOAD
+
+```typescript
+// 200 OK — MINIMAL: hanya PublicHash, tanpa data transaksi apa pun
+interface InvoiceResolveResponse {
+  publicHash: string; // HMAC-SHA256(SecretKey, orderNo) — untuk /order/status/{publicHash}
+}
+```
+
+#### BUSINESS RULES & EDGE CASES
+
+- Baris pra-backfill (PublicHash NULL) → tidak bisa diresolve (404) sampai startup backfill mengisi kolomnya (idempotent, batched).
+- Error 400: `orderNo` kosong → `{ message: "Masukkan nomor invoice." }`
+- Error 404: order tidak ditemukan → `{ message: "Invoice tidak ditemukan." }` (pesan sama dengan GET — tidak membocorkan keberadaan order)
+- Error 429: rate limit (pesan standar)
+- FE: setelah resolve sukses, redirect ke `/order/status/{publicHash}`.
+
+### GET /api/v1/invoices/{publicHash}
 
 #### ENDPOINT SUMMARY
 
 | Property | Value |
 |----------|-------|
 | Method | `GET` |
-| Path | `/api/v1/invoices/{orderNo}` |
-| Description | Lookup satu transaksi berdasarkan nomor invoice (`INV-yyyyMMdd-XXXXXXXXXX`) untuk tampilan publik. Tidak memerlukan login. |
+| Path | `/api/v1/invoices/{publicHash}` |
+| Description | Lookup satu transaksi untuk tampilan publik. **`{publicHash}` adalah identifier publik SATU-SATUNYA yang diterima** — 64 hex (case-insensitive, dinormalisasi huruf kecil). OrderNo (`INV-...`), URL lama `/order/status/{OrderNo}`, dan format lain → 404 seragam. Tidak memerlukan login. |
 | Auth | None (Public) — **optional-auth**: JWT customer yang valid (bila ada) mengisi flag `belongsToAccount` |
 | Rate limit | `InvoiceLookupPolicy` (100 / 5 menit / IP) — cukup untuk polling halaman status (~12 req/menit) |
 
@@ -3266,7 +3345,7 @@ interface LeaderboardEntry {
 
 | Path Param | Type | Required/Optional | Description & Constraints |
 |------------|------|-------------------|---------------------------|
-| `orderNo` | `string` | Required | Nomor invoice lengkap; di-trim; kosong/whitespace → 400 |
+| `publicHash` | `string` | Required | 64 karakter hex lowercase (case-insensitive); di-trim; kosong/whitespace → 400; format lain → 404 |
 
 #### RESPONSE PAYLOAD
 
@@ -3276,6 +3355,7 @@ interface PublicInvoiceResponse {
   invoiceNumber: string;      // "INV-20260906-67310E54B0"
   productName: string;        // snapshot nama produk
   imageUrl: string | null;    // snapshot gambar produk
+  brandSlug: string | null;   // snapshot slug katalog brand (URL /game/{slug}) — identifier PUBLIK, dipakai FE untuk cookie "Terakhir Dibeli" guest; null untuk order pra-kolom
   amount: number;             // decimal — TotalPaid (final setelah diskon)
   status: string;             // status order: PENDING|PAID|PROCESSING|COMPLETED|NEEDS_ACTION|FAILED|EXPIRED|REFUNDED
   paymentStatus: string;      // ringkasan pembayaran: UNPAID|PAID|FAILED|REFUNDED
@@ -3292,12 +3372,15 @@ interface PublicInvoiceResponse {
 - **paymentStatus mapping**: PENDING → UNPAID; PAID/PROCESSING/COMPLETED/NEEDS_ACTION → PAID; EXPIRED/FAILED → FAILED; REFUNDED → REFUNDED.
 - **expiresAt**: `OrderDate + MidtransExpiryMinutes` (AppSettings — SSOT yang sama dengan charge & sweep); null untuk status non-PENDING.
 - **paymentType / paymentInstructions**: hanya untuk PENDING dan hanya untuk order Core API (order pra-migrasi tanpa kolom Core API mendapat null). Level kepercayaan sama dengan `POST /orders` — instruksi bayar terikat order+nominal spesifik (QR string / nomor VA / deeplink), bukan kredensial akun. Null untuk semua status lain.
-- **Identitas publik**: nomor invoice = `OrderNo` — id publik order yang sudah ada (juga order_id Midtrans): 10 karakter hex dari CSPRNG (`Guid.NewGuid()`), non-sekuensial, bukan Id DB. Rate limit per IP menutup enumerasi. **Id DB internal tidak bisa dipakai** mencari order.
+- **Identitas publik (SSOT bisnis = OrderNo)**: OrderNo (`INV-{yyyyMMdd}-{10 hex CSPRNG}`) tetap identifier bisnis — order_id Midtrans, ref_id Digiflazz, webhook, admin retry/refund, my-history. Tidak pernah valid sebagai URL/identifier status publik.
+- **PublicHash** = `HMAC-SHA256(OrderPublicHash:SecretKey, OrderNo)` — hex kecil 64 char, disimpan di kolom `TopupOrders.PublicHash` (unique index, nullable untuk baris pra-backfill yang diisi idempotent saat startup). **Identifier publik SATU-SATUNYA** yang diterima endpoint status. Keyed HMAC (bukan SHA256 polos) — hash tidak bisa direkonstruksi tanpa secret; OrderNo hanya bisa dipetakan ke PublicHash lewat endpoint resolve (publik, rate-limited). Secret: environment variable `OrderPublicHash__SecretKey` (≥ 32 byte acak), fail-fast saat startup bila kosong; tidak pernah di-log.
+- **Order baru**: PublicHash dihitung atomik bersama OrderNo saat `POST /orders` — respons selalu memuat `publicHash`; FE navigasi ke `/order/status/{publicHash}`.
+- URL lama `/order/status/{OrderNo}` (bookmark) → 404 seragam. Pengguna dengan nomor invoice tetap bisa masuk lewat Cek Transaksi (`POST /invoices/resolve`).
 - **Privasi**: hanya field di atas — tidak ada PlayerId, Sn (serial number produk), CustomerId, atau field admin. Entity EF tidak pernah diserialisasi langsung. (paymentInstructions PENDING = instruksi bayar, lihat aturan di atas.)
 - `belongsToAccount`: guest (tanpa JWT) → selalu false; pemilik → true; customer lain → false. Flag ini tidak membatasi akses dan tidak membocorkan identitas pemilik.
 - Guest order (`CustomerId` null) tetap bisa dicek publik — alur guest checkout tidak berubah.
-- Error 400: `orderNo` kosong → `{ message: "Masukkan nomor invoice." }`
-- Error 404: invoice tidak ditemukan → `{ message: "Invoice tidak ditemukan." }` (pesan sama untuk tidak-ada — tidak membocorkan keberadaan order).
+- Error 400: `publicHash` kosong → `{ message: "Masukkan nomor invoice." }`
+- Error 404: hash tidak ditemukan / format salah (termasuk OrderNo) → `{ message: "Invoice tidak ditemukan." }` (pesan sama untuk tidak-ada/format-salah — tidak membocorkan keberadaan order).
 - Error 429: rate limit (pesan standar OrderPolicy).
 
 ---

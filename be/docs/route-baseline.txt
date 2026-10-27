@@ -1,4 +1,4 @@
-# Route baseline Fase 0 � dihasilkan dari /openapi/v1.json (63 operasi, trailing-slash dinormalisasi)
+# Route baseline Fase 0 � dihasilkan dari /openapi/v1.json (77 operasi, trailing-slash dinormalisasi)
 #======================================================================
 GET    /api/v1/admin/admins
 POST   /api/v1/admin/admins
@@ -57,7 +57,8 @@ POST   /api/v1/auth/local/request-password-reset
 POST   /api/v1/auth/local/reset-password
 GET    /api/v1/auth/profile
 PUT    /api/v1/auth/profile
-GET    /api/v1/invoices/{orderNo}
+POST   /api/v1/invoices/resolve
+GET    /api/v1/invoices/{publicHash}
 GET    /api/v1/leaderboard
 GET    /api/v1/banners
 GET    /api/v1/faqs
@@ -65,6 +66,7 @@ GET    /api/v1/faqs/categories
 GET    /api/v1/faqs/featured
 GET    /api/v1/games/brands
 GET    /api/v1/games/brands/popular
+GET    /api/v1/games/brands/recent
 GET    /api/v1/games/categories
 GET    /api/v1/games/{brandSlug}
 POST   /api/v1/orders

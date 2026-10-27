@@ -123,6 +123,11 @@ export interface PublicInvoiceResponse {
   invoiceNumber: string;
   productName: string;
   imageUrl: string | null;
+  /**
+   * Slug katalog brand snapshot (identifier publik URL /game/{slug}) — untuk
+   * cookie "Terakhir Dibeli" guest. Null untuk order pra-kolom.
+   */
+  brandSlug: string | null;
   amount: number;
   status: OrderStatus;
   paymentStatus: InvoicePaymentStatus;
@@ -135,6 +140,11 @@ export interface PublicInvoiceResponse {
   paymentType: string | null;
   /** Instruksi bayar Core API — hanya saat PENDING; null selainnya. */
   paymentInstructions: OrderPaymentInstructions | null;
+}
+
+/** Respons POST /invoices/resolve — Cek Transaksi: OrderNo → PublicHash saja. */
+export interface InvoiceResolveResponse {
+  publicHash: string;
 }
 
 export interface CreateFaqPayload {
@@ -181,6 +191,14 @@ export interface BrandsQueryParams {
   offset?: number;
   /** Ukuran batch; BE membatasi maksimal 60 */
   limit?: number;
+}
+
+/**
+ * Query param GET /games/brands/recent. Login → tanpa param (riwayat DB);
+ * guest → slug cookie "Terakhir Dibeli" (comma-separated, divalidasi BE).
+ */
+export interface RecentBrandsQueryParams {
+  slugs?: string;
 }
 
 // Game Categories (Storefront)
@@ -393,6 +411,8 @@ export interface OrderResponse {
   paymentType: string | null;
   /** Instruksi bayar Core API (QR/VA/deeplink). */
   paymentInstructions: OrderPaymentInstructions | null;
+  /** HMAC-SHA256(OrderNo) hex 64 — URL status publik (/order/status/{publicHash}); null pra-backfill. */
+  publicHash: string | null;
 }
 
 export interface CreateOrderResponse extends OrderResponse { }
@@ -577,6 +597,10 @@ export interface ApiError {
 export interface PaginationParams {
   page?: number;
   limit?: number;
+}
+
+export interface AdminOrdersQueryParams extends PaginationParams {
+  status?: OrderStatus;
 }
 
 export interface AdminProductsQueryParams extends PaginationParams {

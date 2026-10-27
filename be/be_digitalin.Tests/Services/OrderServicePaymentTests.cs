@@ -1,10 +1,12 @@
 using be_digitalin.Application.Ports;
+using be_digitalin.Config;
 using be_digitalin.Constants;
 using be_digitalin.Data;
 using be_digitalin.Domain.Entities;
 using be_digitalin.DTOs;
 using be_digitalin.Services.Orders;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace be_digitalin.Tests.Services;
@@ -19,7 +21,11 @@ namespace be_digitalin.Tests.Services;
 public class OrderServicePaymentMethodValidationTests
 {
     private static OrderService CreateService(DigitalinDbContext db) =>
-        new(db, null!, null!, null!, null!, null!, null!);
+        new(db, null!, null!, null!, null!, null!, null!,
+            Options.Create(new OrderPublicHashSettings
+            {
+                SecretKey = "unit-test-hmac-secret-0123456789abcdef"
+            }));
 
     private static DigitalinDbContext CreateDb()
     {

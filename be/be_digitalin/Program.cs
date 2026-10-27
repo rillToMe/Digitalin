@@ -19,6 +19,7 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using be_digitalin.Services.Admin;
 using be_digitalin.Services.Auth;
@@ -59,6 +60,14 @@ builder.Services.AddOptions<DigiflazzSettings>()
 
 builder.Services.AddOptions<MidtransSettings>()
     .BindConfiguration("Midtrans")
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+// Kunci HMAC PublicHash (URL status publik order) — sumber WAJIB
+// environment/konfigurasi OrderPublicHash__SecretKey, minimal 32 char.
+// Kosong = fail-fast saat startup (pola yang sama dengan Jwt/Midtrans).
+builder.Services.AddOptions<OrderPublicHashSettings>()
+    .BindConfiguration("OrderPublicHash")
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
@@ -407,6 +416,31 @@ await using (var seedScope = app.Services.CreateAsyncScope())
         {
             await appSettings.SetAsync(key, value);
         }
+    }
+
+    // ── Backfill PublicHash order lama (idempotent, batched) ──
+    // PublicHash = HMAC-SHA256(OrderNo) lewat helper SSOT OrderPublicHash —
+    // sama dengan yang dipakai PlaceOrderAsync untuk order baru. Batch 500
+    // supaya startup tidak menahan set besar di memori. Kolom unique index;
+    // NULL di MariaDB tidak bertabrakan, jadi jendela migrasi aman.
+    var publicHashSettings = seedScope.ServiceProvider
+        .GetRequiredService<IOptions<OrderPublicHashSettings>>().Value;
+    while (true)
+    {
+        var batch = await db.TopupOrders
+            .Where(o => o.PublicHash == null)
+            .OrderBy(o => o.Id)
+            .Take(500)
+            .ToListAsync();
+
+        if (batch.Count == 0) break;
+
+        foreach (var order in batch)
+        {
+            order.PublicHash = OrderPublicHash.Compute(
+                order.OrderNo, publicHashSettings.SecretKey);
+        }
+        await db.SaveChangesAsync();
     }
 
     // Seed default SUPER_ADMIN (idempotent — only inserts if no admins exist) 

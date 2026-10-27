@@ -29,6 +29,17 @@ public interface IProductService
     /// </summary>
     Task<IEnumerable<CategoryInfo>> GetPopularGameBrandsAsync();
 
+    /// <summary>
+    /// SSOT game "Terakhir Dibeli": brand dari order yang uangnya benar-benar
+    /// masuk, terbaru dulu, tanpa duplikat. CustomerId (dari klaim auth, bukan
+    /// input klien) = sumber kebenaran; guestSlugs (cookie FE) hanya hint
+    /// urutan untuk guest — divalidasi ulang terhadap katalog aktif, bukan
+    /// bukti pembelian.
+    /// </summary>
+    Task<IEnumerable<CategoryInfo>> GetRecentGameBrandsAsync(
+        int? customerId,
+        IReadOnlyList<string>? guestSlugs = null);
+
     Task<IEnumerable<GameMetadataResponse>> GetPopularGameOptionsAsync();
 
     Task<IEnumerable<CategoryInfo>> UpdatePopularGameBrandsAsync(

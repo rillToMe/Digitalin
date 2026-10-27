@@ -11,6 +11,8 @@ using System.Globalization;
 using System.Transactions;
 using be_digitalin.Services.Commerce;
 using be_digitalin.Services.Settings;
+using be_digitalin.Config;
+using Microsoft.Extensions.Options;
 
 namespace be_digitalin.Services.Orders;
 
@@ -23,6 +25,7 @@ public class OrderService : IOrderService
     private readonly IVoucherService _voucherService;
     private readonly IAppSettingsService _appSettings;
     private readonly ILogger<OrderService> _logger;
+    private readonly OrderPublicHashSettings _publicHashSettings;
 
     public OrderService(
         IApplicationDbContext db,
@@ -31,7 +34,8 @@ public class OrderService : IOrderService
         ITelegramProvider telegramProvider,
         IVoucherService voucherService,
         IAppSettingsService appSettings,
-        ILogger<OrderService> logger)
+        ILogger<OrderService> logger,
+        IOptions<OrderPublicHashSettings> publicHashSettings)
     {
         _db = db;
         _midtransProvider = midtransProvider;
@@ -40,6 +44,7 @@ public class OrderService : IOrderService
         _voucherService = voucherService;
         _appSettings = appSettings;
         _logger = logger;
+        _publicHashSettings = publicHashSettings.Value;
     }
 
     public async Task<OrderResponse> PlaceOrderAsync(
@@ -212,9 +217,15 @@ public class OrderService : IOrderService
         // salah sambung ke pembayaran order lain).
         string generatedOrderNo = $"INV-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..10].ToUpper()}";
 
+        // PublicHash dihitung atomik bersama OrderNo — order baru langsung
+        // punya URL status hash; kolom unique index menutup tabrakan.
+        string publicHash = OrderPublicHash.Compute(
+            generatedOrderNo, _publicHashSettings.SecretKey);
+
         var order = new TopupOrder
         {
             OrderNo = generatedOrderNo,
+            PublicHash = publicHash,
             PlayerId = fullPlayerId,
             GameProductId = request.ProductId,
             Status = AppConstants.OrderStatus.Pending,
@@ -227,6 +238,7 @@ public class OrderService : IOrderService
             ProductName = product.Name,
             BuyerSkuCode = product.BuyerSkuCode,
             BrandName = product.Brand,
+            BrandSlug = metadata.BrandSlug,
             CategoryName = product.Category,
             ImageUrl = product.ImageUrl,
             OriginalPrice = product.Price,
@@ -293,7 +305,8 @@ public class OrderService : IOrderService
             order.ProductName, order.OriginalPrice,
             order.OrderDate, order.Sn, order.ImageUrl,
             order.DiscountAmount, order.TotalPaid,
-            order.PaymentType, paymentInstructions
+            order.PaymentType, paymentInstructions,
+            order.PublicHash
         );
     }
 
@@ -327,7 +340,7 @@ public class OrderService : IOrderService
             .Take(limit)
             .Select(o => new
             {
-                o.Id, o.OrderNo, o.PlayerId, o.Status, o.ProductName,
+                o.Id, o.OrderNo, o.PublicHash, o.PlayerId, o.Status, o.ProductName,
                 o.OriginalPrice, o.OrderDate, o.Sn,
                 o.ImageUrl, o.DiscountAmount, o.TotalPaid,
                 o.PaymentType, o.PaymentInstructionsJson
@@ -339,7 +352,9 @@ public class OrderService : IOrderService
                 o.Id, o.OrderNo ?? "-", o.PlayerId, o.Status, o.ProductName,
                 o.OriginalPrice, o.OrderDate, o.Sn,
                 o.ImageUrl, o.DiscountAmount, o.TotalPaid,
-                o.PaymentType, OrderPaymentInstructionsCodec.Deserialize(o.PaymentInstructionsJson)))
+                o.PaymentType, OrderPaymentInstructionsCodec.Deserialize(o.PaymentInstructionsJson),
+                o.PublicHash
+            ))
             .ToList();
 
         return new PagedResult<OrderResponse>(data, totalItems, totalPages, page);

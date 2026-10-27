@@ -620,6 +620,18 @@ h1, h2, h3, h4 {
   transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease;
 }
 
+/* "Pengaturan Cookie" — <button> yang tampil seperti link footer biasa
+   (bukan route, membuka ulang banner persetujuan). */
+.site-footer-links button.site-footer-cookie-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font: inherit;
+  color: rgba(255, 255, 255, 0.8);
+  transition: color 140ms ease;
+}
+
 /* (hover: hover) — di layar sentuh :hover nempel setelah tap */
 @media (hover: hover) {
   .site-footer a:hover {
@@ -627,6 +639,11 @@ h1, h2, h3, h4 {
   }
 
   .site-footer-links a:hover {
+    transform: translateX(3px);
+  }
+
+  .site-footer-links button.site-footer-cookie-link:hover {
+    color: var(--color-footer-link-hover);
     transform: translateX(3px);
   }
 }

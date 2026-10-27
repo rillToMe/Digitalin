@@ -13,6 +13,8 @@ using be_digitalin.Services.Settings;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using be_digitalin.Config;
 using Xunit;
 using VoucherEntity = be_digitalin.Domain.Entities.Voucher;
 
@@ -261,7 +263,11 @@ public class OrderServiceNotificationTests
             new StubTelegramProvider(),
             voucher ?? new StubVoucherService(),
             new StubAppSettingsService(),
-            NullLogger<OrderService>.Instance);
+            NullLogger<OrderService>.Instance,
+            Options.Create(new OrderPublicHashSettings
+            {
+                SecretKey = "unit-test-hmac-secret-0123456789abcdef"
+            }));
 
     private static async Task<TopupOrder> ReloadAsync(DigitalinDbContext db)
     {

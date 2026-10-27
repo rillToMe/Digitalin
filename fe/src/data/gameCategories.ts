@@ -8,6 +8,7 @@ import {
   Signal,
   Gamepad2,
   Flame,
+  History,
   MoreHorizontal,
 } from "lucide-react";
 
@@ -37,6 +38,13 @@ export const UNCATEGORIZED_CATEGORY_SLUG = "lainnya";
 export const POPULAR_CATEGORY_SLUG = "populer";
 
 /**
+ * Slug section virtual "Terakhir Dibeli" — isinya dari GET /games/brands/recent
+ * (riwayat pembelian user login / cookie guest), bukan dari registry kategori.
+ * Slug ini reserved di BE supaya admin tidak bisa membuat kategori dengan slug sama.
+ */
+export const RECENT_CATEGORY_SLUG = "recently";
+
+/**
  * Definisi kategori yang dikenali storefront — dipakai sebagai fallback saat
  * GET /games/categories belum termuat, dan sebagai opsi di editor metadata admin.
  */
@@ -52,6 +60,7 @@ export const CATEGORY_DEFINITIONS: { slug: string; name: string }[] = [
 export const CATEGORY_NAMES: Record<string, string> = {
   [ALL_CATEGORY_SLUG]: "Semua",
   [POPULAR_CATEGORY_SLUG]: "Populer",
+  [RECENT_CATEGORY_SLUG]: "Terakhir Dibeli",
   [UNCATEGORIZED_CATEGORY_SLUG]: "Lainnya",
   ...Object.fromEntries(CATEGORY_DEFINITIONS.map((c) => [c.slug, c.name])),
 };
@@ -60,6 +69,7 @@ export const CATEGORY_NAMES: Record<string, string> = {
 export const CATEGORY_ICONS: Record<string, LucideIcon> = {
   [ALL_CATEGORY_SLUG]: LayoutGrid,
   [POPULAR_CATEGORY_SLUG]: Flame,
+  [RECENT_CATEGORY_SLUG]: History,
   mobile: Smartphone,
   pc: Monitor,
   voucher: Ticket,

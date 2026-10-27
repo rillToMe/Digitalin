@@ -9,11 +9,13 @@ namespace be_digitalin.Controllers;
 
 /// <summary>
 /// Cek Transaksi publik — TANPA auth (guest boleh). Boundary akses order:
-///   - endpoint ini (publik): satu invoice by nomor, view model aman
+///   - POST /invoices/resolve (publik): OrderNo → PublicHash saja
+///   - GET /invoices/{publicHash} (publik): view model aman — PublicHash
+///     adalah identifier publik SATU-SATUNYA (OrderNo → 404)
 ///   - GET /orders/my-history: riwayat privat pemiliknya ([Authorize])
 ///   - /admin/orders: manajemen penuh (policy AdminOnly)
-/// Optional-auth: kalau JWT valid ada, flag BelongsToAccount diisi supaya FE
-/// bisa menandai "tersimpan di riwayat akun".
+/// Optional-auth di GET: kalau JWT valid ada, flag BelongsToAccount diisi
+/// supaya FE bisa menandai "tersimpan di riwayat akun".
 /// </summary>
 [ApiController]
 [Route(AppConstants.Api.Prefix + "/invoices")]
@@ -27,15 +29,45 @@ public class PublicInvoiceController : ControllerBase
         _invoiceLookupService = invoiceLookupService;
     }
 
-    // GET /api/v1/invoices/{orderNo} — publik, rate-limited per IP
-    // (InvoiceLookupPolicy: read-only, budget cukup untuk polling FE).
-    [HttpGet("{orderNo}")]
+    // POST /api/v1/invoices/resolve — Cek Transaksi: OrderNo → PublicHash.
+    // Publik + rate-limited (InvoiceLookupPolicy) — endpoint ini JALUR
+    // enumerasi OrderNo, jadi limit per-IP wajib melekat di sini juga.
+    // Body (bukan query) supaya nomor invoice tidak tercatat di access log.
+    // Respons minimal: hanya PublicHash — data transaksi tetap lewat GET.
+    [HttpPost("resolve")]
     [EnableRateLimiting("InvoiceLookupPolicy")]
-    public async Task<ActionResult<PublicInvoiceResponse>> GetInvoice(
-        string orderNo,
+    public async Task<ActionResult<InvoiceResolveResponse>> Resolve(
+        [FromBody] ResolveInvoiceRequest req,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(orderNo))
+        if (string.IsNullOrWhiteSpace(req.OrderNo))
+        {
+            return BadRequest(new MessageResponse("Masukkan nomor invoice."));
+        }
+
+        var publicHash = await _invoiceLookupService.ResolvePublicHashAsync(
+            req.OrderNo, cancellationToken);
+
+        if (publicHash is null)
+        {
+            // Pesan sama dengan GET — tidak membocorkan keberadaan order.
+            return NotFound(new MessageResponse("Invoice tidak ditemukan."));
+        }
+
+        return Ok(new InvoiceResolveResponse(publicHash));
+    }
+
+    // GET /api/v1/invoices/{publicHash} — publik, rate-limited per IP
+    // (InvoiceLookupPolicy: read-only, budget cukup untuk polling FE).
+    // PublicHash (64 hex) satu-satunya format yang diterima; OrderNo /
+    // bookmark URL lama /order/status/{OrderNo} → 404 seragam.
+    [HttpGet("{publicHash}")]
+    [EnableRateLimiting("InvoiceLookupPolicy")]
+    public async Task<ActionResult<PublicInvoiceResponse>> GetInvoice(
+        string publicHash,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(publicHash))
         {
             return BadRequest(new MessageResponse("Masukkan nomor invoice."));
         }
@@ -49,12 +81,12 @@ public class PublicInvoiceController : ControllerBase
         }
 
         var invoice = await _invoiceLookupService.GetPublicInvoiceAsync(
-            orderNo, customerId, cancellationToken);
+            publicHash, customerId, cancellationToken);
 
         if (invoice is null)
         {
-            // Pesan sama untuk "tidak ada" dan "bukan milik siapa pun" —
-            // tidak membocorkan keberadaan order.
+            // Pesan sama untuk "tidak ada" dan "format salah" — tidak
+            // membocorkan keberadaan order.
             return NotFound(new MessageResponse("Invoice tidak ditemukan."));
         }
 

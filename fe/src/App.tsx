@@ -5,6 +5,7 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 
 import ScrollToTop from "./components/common/ScrollToTop";
 import CustomToaster from "./components/common/CustomToaster";
+import CookieConsentBanner from "./components/common/CookieConsentBanner";
 import { CustomerLayout } from "./layouts/CustomerLayout";
 import { useAuthStore } from "./store/authStore";
 import { useThemeStore } from "./store/themeStore";
@@ -182,6 +183,10 @@ export default function App() {
 
       <CustomToaster />
 
+      {/* Persetujuan cookie — global (termasuk halaman tanpa CustomerLayout
+          seperti login); area /admin dilewati di dalam komponennya. */}
+      <CookieConsentBanner />
+
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Customer — semua dibungkus MaintenanceGate (guard global):
@@ -244,9 +249,11 @@ export default function App() {
               }
             />
 
-            {/* Status pesanan — publik (token = nomor invoice), polling otomatis. */}
+            {/* Status pesanan — publik (param = PublicHash dari order baru,
+                URL lama /order/status/{OrderNo} tetap valid — BE dual-accept),
+                polling otomatis. */}
             <Route
-              path="/order/status/:orderNo"
+              path="/order/status/:publicHash"
               element={
                 <CustomerRoute>
                   <OrderStatusPage />

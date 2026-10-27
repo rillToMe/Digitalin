@@ -25,6 +25,7 @@ import type {
   ProfileResponse,
   BrandsResponse,
   BrandsQueryParams,
+  RecentBrandsQueryParams,
   BrandDetailResponse,
   UsernameCheckResponse,
   GameCategoriesResponse,
@@ -52,6 +53,7 @@ import type {
   MessageResponse,
   UploadImageResponse,
   AdminProductsQueryParams,
+  AdminOrdersQueryParams,
   MidtransExpiryResponse,
   UpdateMidtransExpiryPayload,
   PaymentMethodInfo,
@@ -75,6 +77,7 @@ import type {
   VoucherUsageResponse,
   AdminVouchersQueryParams,
   PaginationParams,
+  InvoiceResolveResponse,
   RetryOrderResponse,
   RefundOrderResponse,
   RequestPasswordResetPayload,
@@ -200,6 +203,9 @@ export const brandService = {
   /** Section "Populer" homepage — kurasi admin, urutan dari BE. */
   getPopular: () =>
     api.get<BrandsResponse>("/games/brands/popular").then((r) => r.data),
+  /** Section "Terakhir Dibeli" — login: riwayat DB (JWT optional-auth); guest: slug cookie divalidasi BE. */
+  getRecent: (params?: RecentBrandsQueryParams) =>
+    api.get<BrandsResponse>("/games/brands/recent", { params }).then((r) => r.data),
   getBySlug: (slug: string) =>
     api.get<BrandDetailResponse>(`/games/${slug}`).then((r) => r.data),
   checkUsername: (slug: string, targetValues: Record<string, string>) =>
@@ -253,11 +259,17 @@ export const leaderboardService = {
 };
 
 /* Cek Transaksi publik — tanpa login. Interceptor tetap melampirkan JWT
-   bila ada (optional-auth) supaya backend bisa menandai invoice milik akun. */
+   bila ada (optional-auth) supaya backend bisa menandai invoice milik akun.
+   resolve: OrderNo → PublicHash (link status). get: status by PublicHash —
+   identifier publik satu-satunya (OrderNo ditolak backend → 404). */
 export const invoiceService = {
-  get: (invoiceNumber: string) =>
+  resolve: (orderNo: string) =>
     api
-      .get<PublicInvoiceResponse>(`/invoices/${encodeURIComponent(invoiceNumber.trim())}`)
+      .post<InvoiceResolveResponse>("/invoices/resolve", { orderNo: orderNo.trim() })
+      .then((r) => r.data),
+  get: (publicHash: string) =>
+    api
+      .get<PublicInvoiceResponse>(`/invoices/${encodeURIComponent(publicHash.trim())}`)
       .then((r) => r.data),
 };
 
@@ -287,6 +299,10 @@ export const adminService = {
     api.delete<MessageResponse>(`/admin/products/${id}`).then((r) => r.data),
   setMargin: (id: number, payload: SetMarginPayload) =>
     api.put<MessageResponse>(`/admin/products/${id}/margin`, payload).then((r) => r.data),
+  uploadItemImage: (id: number, formData: FormData) =>
+    api.post<UploadImageResponse>(`/admin/products/${id}/upload-item-image`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }).then((r) => r.data),
 
   // Banners
   getBanners: () =>
@@ -378,7 +394,7 @@ export const adminService = {
     api.get<VoucherUsageResponse>(`/admin/vouchers/${id}/usage`, { params }).then((r) => r.data),
 
   // Orders
-  getOrders: (params: PaginationParams) =>
+  getOrders: (params: AdminOrdersQueryParams) =>
     api.get<PaginatedOrdersResponse>("/admin/orders", { params }).then((r) => r.data),
   retryOrder: (orderNo: string) =>
     api.post<RetryOrderResponse>(`/admin/orders/${orderNo}/retry`).then((r) => r.data),

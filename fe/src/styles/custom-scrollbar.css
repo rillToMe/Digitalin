@@ -1,0 +1,103 @@
+.custom-scrollbar {
+  scrollbar-color: var(--color-brand-secondary) transparent;
+  scrollbar-width: thin;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+  background-color: var(--color-brand-secondary);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-brand-primary);
+}
+
+.custom-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.admin-shell * {
+  scrollbar-color: var(--color-brand-secondary) transparent;
+  scrollbar-width: thin;
+}
+
+.admin-shell *::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.admin-shell *::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-shell *::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+  background-color: var(--color-brand-secondary);
+}
+
+.admin-shell *::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-brand-primary);
+}
+
+html:has(.customer-shell) {
+  scrollbar-color: var(--color-brand-secondary) transparent;
+  scrollbar-width: thin;
+}
+
+html:has(.customer-shell)::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+html:has(.customer-shell)::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html:has(.customer-shell)::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+  background-color: var(--color-brand-secondary);
+}
+
+html:has(.customer-shell)::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-brand-primary);
+}
+
+.customer-shell * {
+  scrollbar-color: var(--color-brand-secondary) transparent;
+  scrollbar-width: thin;
+}
+
+.customer-shell *::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.customer-shell *::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.customer-shell *::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+  background-color: var(--color-brand-secondary);
+}
+
+.customer-shell *::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-brand-primary);
+}

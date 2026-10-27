@@ -1,11 +1,13 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import type { GameCategoryItem } from "../../api/index";
 import { useGameCategories } from "../../hooks/useGameCategories";
+import { useRecentGames } from "../../hooks/useRecentGames";
 import {
   ALL_CATEGORY_SLUG,
   CATEGORY_NAMES,
   MORE_FETCH_LIMIT,
   POPULAR_CATEGORY_SLUG,
+  RECENT_CATEGORY_SLUG,
   UNCATEGORIZED_CATEGORY_SLUG,
   categoryIcon,
   initialFetchLimit,
@@ -154,17 +156,23 @@ export default function CategorySection() {
     staleTime: CATALOG_STALE_TIME,
   });
 
-  /* "Semua"  → "Populer" lalu satu section per kategori; daftar rata ratusan
-                game tidak bisa di-scan sementara katalognya sudah terkategori.
+  /* "Terakhir Dibeli": riwayat pembelian (login) / cookie guest. Kosong =
+     disembunyikan — sama seperti "Populer", bukan judul tanpa kartu. */
+  const { recentBrands } = useRecentGames();
+
+  /* "Semua"  → "Terakhir Dibeli" + "Populer" lalu satu section per kategori;
+                daftar rata ratusan game tidak bisa di-scan sementara katalognya
+                sudah terkategori.
      kategori → satu section saja. */
   const sections =
     activeCategory === ALL_CATEGORY_SLUG
       ? categories.filter((category) => category.slug !== ALL_CATEGORY_SLUG)
       : categories.filter((category) => category.slug === activeCategory);
 
-  /* "Populer" hanya di mode "Semua": di dalam tab kategori, section ini akan
-     menampilkan game dari kategori lain. Kosong = disembunyikan (toko baru
-     belum punya penjualan; judul tanpa kartu). */
+  /* Section virtual hanya di mode "Semua": di dalam tab kategori, section ini
+     akan menampilkan game dari kategori lain. */
+  const showRecent =
+    activeCategory === ALL_CATEGORY_SLUG && recentBrands.length > 0;
   const showPopular =
     activeCategory === ALL_CATEGORY_SLUG && popularBrands.length > 0;
 
@@ -184,12 +192,27 @@ export default function CategorySection() {
         </SectionShell>
       ) : (
         <>
+          {showRecent && (
+            <SectionShell
+              slug={RECENT_CATEGORY_SLUG}
+              name={CATEGORY_NAMES[RECENT_CATEGORY_SLUG]}
+              total={recentBrands.length}
+              isFirst
+            >
+              <CategoryGameGrid
+                brands={recentBrands}
+                isLoading={false}
+                variant="rail"
+              />
+            </SectionShell>
+          )}
+
           {showPopular && (
             <SectionShell
               slug={POPULAR_CATEGORY_SLUG}
               name={CATEGORY_NAMES[POPULAR_CATEGORY_SLUG]}
               total={popularBrands.length}
-              isFirst
+              isFirst={!showRecent}
             >
               <CategoryGameGrid
                 brands={popularBrands}
@@ -206,7 +229,7 @@ export default function CategorySection() {
             <PagedCategorySection
               key={`${activeCategory}-${category.slug}`}
               category={category}
-              isFirst={!showPopular && index === 0}
+              isFirst={!showPopular && !showRecent && index === 0}
             />
           ))}
         </>

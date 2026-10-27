@@ -5,20 +5,25 @@ import { AdminLayout } from "../../../layouts/AdminLayout";
 import { adminService } from "../../../services/api";
 import type { ChartRange } from "../../../api/index";
 
-/* Chart.js hanya dibutuhkan saat ada data untuk digambar, jadi dipisah dari
-   chunk DashboardPage — stat card sudah tampil sebelum chart-nya sampai. */
+/* Chart hanya dimuat saat data tersedia, jadi stat card tampil sebelum
+   library grafik ikut diunduh. */
 const RevenueChart = lazy(() => import("../../../components/admin/RevenueChart"));
 
 function formatRp(n: number) {
   return "Rp " + n.toLocaleString("id-ID");
 }
 
-const RANGE_OPTIONS: { value: ChartRange; label: string }[] = [
+const RANGE_OPTIONS: { value: Exclude<ChartRange, "custom">; label: string }[] = [
   { value: "today", label: "Hari Ini" },
   { value: "yesterday", label: "Kemarin" },
   { value: "7days", label: "7 Hari" },
   { value: "30days", label: "30 Hari" },
 ];
+
+function isoDate(date: Date) {
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+}
 
 function StatCard({
   icon,
@@ -89,6 +94,9 @@ function SupplierBalanceCard() {
 
 export default function DashboardPage() {
   const [chartRange, setChartRange] = useState<ChartRange>("7days");
+  const [customStartDate, setCustomStartDate] = useState(() => isoDate(new Date(Date.now() - 29 * 86_400_000)));
+  const [customEndDate, setCustomEndDate] = useState(() => isoDate(new Date()));
+  const customDatesValid = customStartDate <= customEndDate;
 
   const { data: stats, isLoading: statsLoading, isError: statsError, error: statsErr, refetch: refetchStats } = useQuery({
     queryKey: ["dashboard-stats"],
@@ -97,8 +105,13 @@ export default function DashboardPage() {
   });
 
   const { data: chart = [], isLoading: chartLoading, isError: chartError, error: chartErr, refetch: refetchChart } = useQuery({
-    queryKey: ["dashboard-chart", chartRange],
-    queryFn: () => adminService.getChart({ range: chartRange }),
+    queryKey: ["dashboard-chart", chartRange, customStartDate, customEndDate],
+    queryFn: () => adminService.getChart(
+      chartRange === "custom"
+        ? { range: chartRange, startDate: customStartDate, endDate: customEndDate }
+        : { range: chartRange },
+    ),
+    enabled: chartRange !== "custom" || customDatesValid,
     retry: 1,
   });
 
@@ -176,8 +189,42 @@ export default function DashboardPage() {
                     {opt.label}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => setChartRange("custom")}
+                  className={`admin-segment${chartRange === "custom" ? " admin-segment--active" : ""}`}
+                  aria-pressed={chartRange === "custom"}
+                >
+                  Pilih Tanggal
+                </button>
               </div>
             </div>
+            {chartRange === "custom" && (
+              <div className="flex flex-wrap items-end gap-3 mb-4" role="group" aria-label="Rentang tanggal kustom">
+                <label className="flex flex-col gap-1 text-sm font-medium text-[var(--color-brand-primary)]">
+                  Dari
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    max={customEndDate}
+                    onChange={(event) => setCustomStartDate(event.target.value)}
+                    className="admin-input h-10"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm font-medium text-[var(--color-brand-primary)]">
+                  Sampai
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    min={customStartDate}
+                    max={isoDate(new Date())}
+                    onChange={(event) => setCustomEndDate(event.target.value)}
+                    className="admin-input h-10"
+                  />
+                </label>
+                {!customDatesValid && <p className="admin-empty-meta mb-2" role="alert">Tanggal mulai tidak boleh setelah tanggal selesai.</p>}
+              </div>
+            )}
             {chart.length === 0 ? (
               <div className="admin-empty">
                 <p className="admin-empty-title">Belum ada transaksi</p>

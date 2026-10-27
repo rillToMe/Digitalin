@@ -173,7 +173,9 @@ export default function GameDetailPage() {
       // Charge Core API sukses: instruksi bayar (QR/VA/deeplink) dirender
       // di halaman status — di sana juga ada polling dan countdown batas bayar.
       queryClient.invalidateQueries({ queryKey: ["orders"] });
-      navigate(`/order/status/${res.orderNo}`);
+      // URL status SELALU PublicHash (identifier publik satu-satunya);
+      // order baru selalu punya hash (dibuat atomik bersama OrderNo).
+      navigate(`/order/status/${res.publicHash ?? ""}`);
     },
     onError: (err: { response?: { data?: { message?: string } } }) => {
       const msg = err?.response?.data?.message ?? "Gagal membuat pesanan. Silakan coba lagi.";
@@ -493,7 +495,12 @@ export default function GameDetailPage() {
                         <Check size={11} style={{ color: "var(--color-on-primary)" }} aria-hidden="true" />
                       </div>
                     )}
-                    <p className="pr-6" style={{ color: "var(--color-brand-primary)", fontWeight: 600, fontSize: "0.85rem" }}>{product.name}</p>
+                    <div className="flex items-center gap-2 pr-6">
+                      {product.imageUrl && (
+                        <img src={product.imageUrl} alt="" aria-hidden="true" className="h6 w-10 shrink-0 object-contain" />
+                      )}
+                      <p style={{ color: "var(--color-brand-primary)", fontWeight: 600, fontSize: "0.85rem" }}>{product.name}</p>
+                    </div>
                     {/* Kobalt hanya untuk nominal yang dipilih — kalau semua harga
                         biru, aksennya berhenti berarti (design.md: satu aksi). */}
                     <p
@@ -780,4 +787,3 @@ export default function GameDetailPage() {
     </div>
   );
 }
-

@@ -8,7 +8,7 @@ interface CustomerLayoutProps {
 export function CustomerLayout({ children }: CustomerLayoutProps) {
   return (
     <div
-      className="flex flex-col"
+      className="customer-shell flex flex-col"
       style={{ fontFamily: "Inter, sans-serif", backgroundColor: "var(--color-neutral)", minHeight: "100vh" }}
     >
       <Navbar />

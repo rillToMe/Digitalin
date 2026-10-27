@@ -8,6 +8,12 @@ public class TopupOrder
     public int Id { get; set; }
     
     public string OrderNo { get; set; } = string.Empty;
+
+    // HMAC-SHA256(SecretKey, OrderNo) — hex kecil 64 char. Hanya representasi
+    // URL publik (/order/status/{publicHash}); OrderNo tetap identifier bisnis
+    // (Midtrans order_id, Digiflazz ref_id). Unique index di DbContext.
+    public string? PublicHash { get; set; }
+
     public string PlayerId { get; set; } = string.Empty;
     public string Status { get; set; } = AppConstants.OrderStatus.Pending;
     public DateTime OrderDate { get; set; } = DateTime.UtcNow;
@@ -46,6 +52,12 @@ public class TopupOrder
     public string BrandName { get; set; } = string.Empty;
     public string CategoryName { get; set; } = string.Empty;
     public string? ImageUrl { get; set; }
+
+    // Slug katalog brand saat order dibuat (dari GameMetadata.BrandSlug) —
+    // identifier PUBLIK (dipakai di URL /game/{slug}), aman diekspos ke
+    // respons invoice publik untuk fitur "Terakhir Dibeli" guest. Null untuk
+    // order lama pra-kolom ini.
+    public string? BrandSlug { get; set; }
 
     // Snapshot Harga
     public decimal OriginalPrice { get; set; }

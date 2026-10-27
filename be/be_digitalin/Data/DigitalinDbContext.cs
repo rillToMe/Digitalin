@@ -46,6 +46,18 @@ public class DigitalinDbContext : DbContext, IApplicationDbContext
             .Property(o => o.OrderNo)
             .HasMaxLength(255);
 
+        // PublicHash = HMAC-SHA256(OrderNo) — hex 64 char, representasi URL
+        // status publik. Unique: satu OrderNo satu hash (dan tabrakan hash
+        // antar order tidak boleh terjadi). Nullable: baris lama sebelum
+        // backfill startup; MariaDB memperlakukan NULL unik-semua.
+        modelBuilder.Entity<TopupOrder>()
+            .Property(o => o.PublicHash)
+            .HasMaxLength(64);
+
+        modelBuilder.Entity<TopupOrder>()
+            .HasIndex(o => o.PublicHash)
+            .IsUnique();
+
         modelBuilder.Entity<TopupOrder>()
             .Property(o => o.Status)
             .HasMaxLength(255);

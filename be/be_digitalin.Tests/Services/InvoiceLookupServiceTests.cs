@@ -48,15 +48,20 @@ public class InvoiceLookupServiceTests
         return new DigitalinDbContext(options);
     }
 
+    /// <summary>Kunci HMAC test — bukan rahasia produksi, hanya untuk derivasi deterministik di unit test.</summary>
+    private const string TestHashSecret = "unit-test-hmac-secret-0123456789abcdef";
+
     private static TopupOrder NewOrder(
         string orderNo = "INV-20260906-ABCDEF1234",
         string status = AppConstants.OrderStatus.Pending,
         int? customerId = null,
         decimal totalPaid = 50000,
-        DateTime? orderDate = null) =>
+        DateTime? orderDate = null,
+        string? publicHash = null) =>
         new()
         {
             OrderNo = orderNo,
+            PublicHash = publicHash ?? OrderPublicHash.Compute(orderNo, TestHashSecret),
             PlayerId = "player-secret",
             Status = status,
             OrderDate = orderDate ?? new DateTime(2026, 9, 6, 8, 0, 0, DateTimeKind.Utc),
@@ -65,6 +70,7 @@ public class InvoiceLookupServiceTests
             ProductName = "5280 CP",
             BuyerSkuCode = "sku",
             BrandName = "CALL OF DUTY MOBILE",
+            BrandSlug = "call-of-duty-mobile",
             CategoryName = "Game",
             ImageUrl = "https://x.test/cover.png",
             Sn = "SN-RAHASIA",
@@ -78,16 +84,17 @@ public class InvoiceLookupServiceTests
     private static InvoiceLookupService CreateService(DigitalinDbContext db, int expiryMinutes = DefaultExpiryMinutes) =>
         new(db, new StubAppSettingsService { ExpiryMinutes = expiryMinutes });
 
-    // ── Lookup dasar ──
+    // ── Lookup dasar (PublicHash = identifier publik satu-satunya) ──
 
     [Fact]
     public async Task GetPublicInvoiceAsync_Found_ReturnsSafeViewModel()
     {
         await using var db = CreateDb();
-        db.TopupOrders.Add(NewOrder());
+        var order = NewOrder();
+        db.TopupOrders.Add(order);
         await db.SaveChangesAsync();
 
-        var result = await CreateService(db).GetPublicInvoiceAsync("INV-20260906-ABCDEF1234");
+        var result = await CreateService(db).GetPublicInvoiceAsync(order.PublicHash!);
 
         Assert.NotNull(result);
         Assert.Equal("INV-20260906-ABCDEF1234", result!.InvoiceNumber);
@@ -105,7 +112,26 @@ public class InvoiceLookupServiceTests
     {
         await using var db = CreateDb();
 
-        var result = await CreateService(db).GetPublicInvoiceAsync("INV-TIDAK-ADA");
+        // Hash valid-format milik order lain → null → 404 seragam.
+        var otherHash = OrderPublicHash.Compute("INV-20260906-ZZZZZZ9999", TestHashSecret);
+
+        var result = await CreateService(db).GetPublicInvoiceAsync(otherHash);
+
+        Assert.Null(result);
+    }
+
+    /// <summary>
+    /// Kunci kontrak baru: OrderNo (URL status lama /order/status/{OrderNo})
+    /// TIDAK diterima endpoint status publik — harus resolve dulu.
+    /// </summary>
+    [Fact]
+    public async Task GetPublicInvoiceAsync_OrderNo_Rejected_ReturnsNull()
+    {
+        await using var db = CreateDb();
+        db.TopupOrders.Add(NewOrder());
+        await db.SaveChangesAsync();
+
+        var result = await CreateService(db).GetPublicInvoiceAsync("INV-20260906-ABCDEF1234");
 
         Assert.Null(result);
     }
@@ -114,12 +140,112 @@ public class InvoiceLookupServiceTests
     public async Task GetPublicInvoiceAsync_TrimsInput()
     {
         await using var db = CreateDb();
+        var order = NewOrder();
+        db.TopupOrders.Add(order);
+        await db.SaveChangesAsync();
+
+        var result = await CreateService(db).GetPublicInvoiceAsync($"  {order.PublicHash}  ");
+
+        Assert.NotNull(result);
+    }
+
+    [Fact]
+    public async Task GetPublicInvoiceAsync_UppercaseHash_NormalizedToLookup()
+    {
+        await using var db = CreateDb();
+        var order = NewOrder();
+        db.TopupOrders.Add(order);
+        await db.SaveChangesAsync();
+
+        var result = await CreateService(db).GetPublicInvoiceAsync(order.PublicHash!.ToUpperInvariant());
+
+        Assert.NotNull(result);
+        Assert.Equal(order.OrderNo, result!.InvoiceNumber);
+    }
+
+    [Theory]
+    [InlineData("bukan-format-hash")]
+    [InlineData("INV-20260906-ABCDEF1234")] // OrderNo (URL lama) → ditolak
+    [InlineData("ABC")] // hash pendek
+    [InlineData("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz")] // 64 char non-hex
+    [InlineData("")] // kosong
+    public async Task GetPublicInvoiceAsync_InvalidReference_ReturnsNull(string reference)
+    {
+        await using var db = CreateDb();
         db.TopupOrders.Add(NewOrder());
         await db.SaveChangesAsync();
 
-        var result = await CreateService(db).GetPublicInvoiceAsync("  INV-20260906-ABCDEF1234  ");
+        var result = await CreateService(db).GetPublicInvoiceAsync(reference);
 
-        Assert.NotNull(result);
+        Assert.Null(result);
+    }
+
+    // ── Resolve (Cek Transaksi: OrderNo → PublicHash) ──
+
+    [Fact]
+    public async Task ResolvePublicHashAsync_Found_ReturnsHashOnly()
+    {
+        await using var db = CreateDb();
+        var order = NewOrder();
+        db.TopupOrders.Add(order);
+        await db.SaveChangesAsync();
+
+        var hash = await CreateService(db).ResolvePublicHashAsync("INV-20260906-ABCDEF1234");
+
+        Assert.Equal(order.PublicHash, hash);
+    }
+
+    [Fact]
+    public async Task ResolvePublicHashAsync_Guest_AnonymousLookup()
+    {
+        await using var db = CreateDb();
+        db.TopupOrders.Add(NewOrder(customerId: null));
+        await db.SaveChangesAsync();
+
+        // Tanpa auth apa pun — Cek Transaksi tetap publik.
+        var hash = await CreateService(db).ResolvePublicHashAsync("INV-20260906-ABCDEF1234");
+
+        Assert.NotNull(hash);
+    }
+
+    [Fact]
+    public async Task ResolvePublicHashAsync_TrimsInput()
+    {
+        await using var db = CreateDb();
+        db.TopupOrders.Add(NewOrder());
+        await db.SaveChangesAsync();
+
+        var hash = await CreateService(db).ResolvePublicHashAsync("  INV-20260906-ABCDEF1234  ");
+
+        Assert.NotNull(hash);
+    }
+
+    [Fact]
+    public async Task ResolvePublicHashAsync_NotFound_ReturnsNull()
+    {
+        await using var db = CreateDb();
+        db.TopupOrders.Add(NewOrder());
+        await db.SaveChangesAsync();
+
+        var hash = await CreateService(db).ResolvePublicHashAsync("INV-20260906-TIDAKADA");
+
+        Assert.Null(hash);
+    }
+
+    [Fact]
+    public async Task ResolvePublicHashAsync_RowWithNullPublicHash_ReturnsNull()
+    {
+        await using var db = CreateDb();
+        // Baris pra-backfill (PublicHash NULL) — tidak bisa diresolve sampai
+        // startup backfill mengisinya; diperlakukan tidak-ditemukan.
+        var order = NewOrder();
+        order.PublicHash = null;
+        db.TopupOrders.Add(order);
+        await db.SaveChangesAsync();
+
+        var hash = await CreateService(db).ResolvePublicHashAsync("INV-20260906-ABCDEF1234");
+
+        Assert.Null(hash);
     }
 
     // ── Mapping status pembayaran ──
@@ -136,10 +262,11 @@ public class InvoiceLookupServiceTests
     public async Task GetPublicInvoiceAsync_PaymentStatusMapping(string orderStatus, string expectedPaymentStatus)
     {
         await using var db = CreateDb();
-        db.TopupOrders.Add(NewOrder(status: orderStatus));
+        var order = NewOrder(status: orderStatus);
+        db.TopupOrders.Add(order);
         await db.SaveChangesAsync();
 
-        var result = await CreateService(db).GetPublicInvoiceAsync("INV-20260906-ABCDEF1234");
+        var result = await CreateService(db).GetPublicInvoiceAsync(order.PublicHash!);
 
         Assert.Equal(expectedPaymentStatus, result!.PaymentStatus);
         Assert.Equal(orderStatus, result.Status);
@@ -155,7 +282,7 @@ public class InvoiceLookupServiceTests
         db.TopupOrders.Add(order);
         await db.SaveChangesAsync();
 
-        var result = await CreateService(db, expiryMinutes: 45).GetPublicInvoiceAsync(order.OrderNo);
+        var result = await CreateService(db, expiryMinutes: 45).GetPublicInvoiceAsync(order.PublicHash!);
 
         Assert.NotNull(result);
         Assert.Equal(order.OrderDate.AddMinutes(45), result!.ExpiresAt);
@@ -170,10 +297,11 @@ public class InvoiceLookupServiceTests
     public async Task GetPublicInvoiceAsync_NotPending_NoExpiry(string status)
     {
         await using var db = CreateDb();
-        db.TopupOrders.Add(NewOrder(status: status));
+        var order = NewOrder(status: status);
+        db.TopupOrders.Add(order);
         await db.SaveChangesAsync();
 
-        var result = await CreateService(db).GetPublicInvoiceAsync("INV-20260906-ABCDEF1234");
+        var result = await CreateService(db).GetPublicInvoiceAsync(order.PublicHash!);
 
         Assert.Null(result!.ExpiresAt);
     }
@@ -193,7 +321,7 @@ public class InvoiceLookupServiceTests
         db.TopupOrders.Add(order);
         await db.SaveChangesAsync();
 
-        var result = await CreateService(db).GetPublicInvoiceAsync("INV-20260906-ABCDEF1234");
+        var result = await CreateService(db).GetPublicInvoiceAsync(order.PublicHash!);
 
         Assert.Equal("qris", result!.PaymentType);
         Assert.NotNull(result.PaymentInstructions);
@@ -214,7 +342,7 @@ public class InvoiceLookupServiceTests
         db.TopupOrders.Add(order);
         await db.SaveChangesAsync();
 
-        var result = await CreateService(db).GetPublicInvoiceAsync("INV-20260906-ABCDEF1234");
+        var result = await CreateService(db).GetPublicInvoiceAsync(order.PublicHash!);
 
         Assert.Null(result!.PaymentType);
         Assert.Null(result.PaymentInstructions);
@@ -225,10 +353,11 @@ public class InvoiceLookupServiceTests
     {
         await using var db = CreateDb();
         // Order pra-migrasi tanpa kolom Core API — tidak ada yang bocor.
-        db.TopupOrders.Add(NewOrder(status: AppConstants.OrderStatus.Pending));
+        var order = NewOrder(status: AppConstants.OrderStatus.Pending);
+        db.TopupOrders.Add(order);
         await db.SaveChangesAsync();
 
-        var result = await CreateService(db).GetPublicInvoiceAsync("INV-20260906-ABCDEF1234");
+        var result = await CreateService(db).GetPublicInvoiceAsync(order.PublicHash!);
 
         Assert.Null(result!.PaymentType);
         Assert.Null(result.PaymentInstructions);
@@ -245,7 +374,7 @@ public class InvoiceLookupServiceTests
         db.TopupOrders.Add(order);
         await db.SaveChangesAsync();
 
-        var result = await CreateService(db).GetPublicInvoiceAsync("INV-20260906-ABCDEF1234");
+        var result = await CreateService(db).GetPublicInvoiceAsync(order.PublicHash!);
 
         // Instruksi VA memang sengaja terekspos (aksi bayar PENDING), tapi
         // rahasia order lain tetap tidak boleh bocor.
@@ -263,11 +392,12 @@ public class InvoiceLookupServiceTests
     public async Task GetPublicInvoiceAsync_OwnerSeesBelongsToAccount()
     {
         await using var db = CreateDb();
-        db.TopupOrders.Add(NewOrder(customerId: 7));
+        var order = NewOrder(customerId: 7);
+        db.TopupOrders.Add(order);
         await db.SaveChangesAsync();
 
-        var own = await CreateService(db).GetPublicInvoiceAsync("INV-20260906-ABCDEF1234", currentCustomerId: 7);
-        var other = await CreateService(db).GetPublicInvoiceAsync("INV-20260906-ABCDEF1234", currentCustomerId: 99);
+        var own = await CreateService(db).GetPublicInvoiceAsync(order.PublicHash!, currentCustomerId: 7);
+        var other = await CreateService(db).GetPublicInvoiceAsync(order.PublicHash!, currentCustomerId: 99);
 
         Assert.True(own!.BelongsToAccount);
         Assert.False(other!.BelongsToAccount);
@@ -277,11 +407,12 @@ public class InvoiceLookupServiceTests
     public async Task GetPublicInvoiceAsync_GuestOrder_AnonymousLookup()
     {
         await using var db = CreateDb();
-        db.TopupOrders.Add(NewOrder(customerId: null));
+        var order = NewOrder(customerId: null);
+        db.TopupOrders.Add(order);
         await db.SaveChangesAsync();
 
         // Guest (tanpa JWT) tetap bisa cek invoice milik guest/other.
-        var result = await CreateService(db).GetPublicInvoiceAsync("INV-20260906-ABCDEF1234");
+        var result = await CreateService(db).GetPublicInvoiceAsync(order.PublicHash!);
 
         Assert.NotNull(result);
         Assert.False(result!.BelongsToAccount);
@@ -297,7 +428,8 @@ public class InvoiceLookupServiceTests
         db.TopupOrders.Add(NewOrder(status: AppConstants.OrderStatus.Completed, customerId: 7));
         await db.SaveChangesAsync();
 
-        var result = await CreateService(db).GetPublicInvoiceAsync("INV-20260906-ABCDEF1234", currentCustomerId: 7);
+        var completed = await db.TopupOrders.AsNoTracking().SingleAsync();
+        var result = await CreateService(db).GetPublicInvoiceAsync(completed.PublicHash!, currentCustomerId: 7);
 
         // DTO hanya boleh punya field publik-aman.
         var props = typeof(PublicInvoiceResponse).GetProperties()
@@ -305,8 +437,11 @@ public class InvoiceLookupServiceTests
             .OrderBy(n => n)
             .ToList();
         Assert.Equal(
-            new[] { "Amount", "BelongsToAccount", "CreatedAt", "ExpiresAt", "ImageUrl", "InvoiceNumber", "PaymentInstructions", "PaymentStatus", "PaymentType", "ProductName", "Status" },
+            new[] { "Amount", "BelongsToAccount", "BrandSlug", "CreatedAt", "ExpiresAt", "ImageUrl", "InvoiceNumber", "PaymentInstructions", "PaymentStatus", "PaymentType", "ProductName", "Status" },
             props);
+        // BrandSlug = identifier katalog publik (URL /game/{slug}) — boleh
+        // terekspos; bukan data transaksi privat.
+        Assert.Equal("call-of-duty-mobile", result!.BrandSlug);
 
         // Serialize penuh — rahasia order tidak boleh bocor.
         var serialized = System.Text.Json.JsonSerializer.Serialize(result);
@@ -325,7 +460,7 @@ public class InvoiceLookupServiceTests
         db.TopupOrders.Add(order);
         await db.SaveChangesAsync();
 
-        var result = await CreateService(db).GetPublicInvoiceAsync("INV-20260906-ABCDEF1234", currentCustomerId: 7);
+        var result = await CreateService(db).GetPublicInvoiceAsync(order.PublicHash!, currentCustomerId: 7);
 
         // Instruksi bayar memang sengaja terekspos (aksi PENDING) — rahasia
         // order lain tetap tidak boleh ikut.

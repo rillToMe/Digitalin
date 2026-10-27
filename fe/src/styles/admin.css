@@ -108,7 +108,19 @@
   padding: 16px 12px;
 }
 
+.admin-nav > nav {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+}
+
 .admin-sidebar--collapsed .admin-nav {
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-sidebar--collapsed .admin-nav > nav {
   align-items: center;
   gap: 8px;
 }
@@ -1010,4 +1022,3 @@
     animation: none;
   }
 }
-

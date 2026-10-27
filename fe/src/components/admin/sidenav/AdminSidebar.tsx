@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { CustomScrollbar } from "../../common/CustomScrollbar";
 
 interface AdminNavItem {
   label: string;
@@ -102,37 +103,39 @@ export function AdminSidebar({
         )}
       </div>
 
-      <nav className="admin-nav">
-        {NAV_GROUPS.map((group) => {
-          const items = group.items.filter((item) => !item.superAdminOnly || isSuperAdmin);
-          if (items.length === 0) return null;
+      <CustomScrollbar className="admin-nav">
+        <nav aria-label="Menu admin">
+          {NAV_GROUPS.map((group) => {
+            const items = group.items.filter((item) => !item.superAdminOnly || isSuperAdmin);
+            if (items.length === 0) return null;
 
-          return (
-            <div key={group.label} className="admin-nav-group">
-              {!railed && <span className="admin-nav-label">{group.label}</span>}
-              {items.map((item) => {
-                const active = pathname === item.path;
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    onClick={onClose}
-                    className={`admin-nav-item${active ? " admin-nav-item--active" : ""}`}
-                    aria-current={active ? "page" : undefined}
-                    title={railed ? item.label : undefined}
-                  >
-                    <span className="admin-nav-icon">
-                      <Icon size={18} aria-hidden="true" />
-                    </span>
-                    {!railed && <span className="admin-nav-text">{item.label}</span>}
-                  </Link>
-                );
-              })}
-            </div>
-          );
-        })}
-      </nav>
+            return (
+              <div key={group.label} className="admin-nav-group">
+                {!railed && <span className="admin-nav-label">{group.label}</span>}
+                {items.map((item) => {
+                  const active = pathname === item.path;
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={onClose}
+                      className={`admin-nav-item${active ? " admin-nav-item--active" : ""}`}
+                      aria-current={active ? "page" : undefined}
+                      title={railed ? item.label : undefined}
+                    >
+                      <span className="admin-nav-icon">
+                        <Icon size={18} aria-hidden="true" />
+                      </span>
+                      {!railed && <span className="admin-nav-text">{item.label}</span>}
+                    </Link>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </nav>
+      </CustomScrollbar>
 
       <div className="admin-sidebar-footer">
         {!isDrawer && (

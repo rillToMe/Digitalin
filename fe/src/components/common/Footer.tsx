@@ -1,6 +1,7 @@
 import { ArrowUpRight, Headphones } from "lucide-react";
 import { Link } from "react-router";
 import { useAuthStore } from "../../store/authStore";
+import { reopenCookieConsent } from "./CookieConsentBanner";
 
 /* Semua tujuan di sini harus benar-benar terdaftar di App.tsx — link footer
    yang mati tidak pernah kelihatan waktu ngoding karena jarang diklik.
@@ -80,6 +81,16 @@ export default function Footer() {
                     )}
                   </li>
                 ))}
+
+                {/* Ubah pilihan cookie — bukan route: hapus consent lama lalu
+                    banner persetujuan muncul lagi (CookieConsentBanner). */}
+                {group.title === "Bantuan" && (
+                  <li>
+                    <button type="button" className="site-footer-cookie-link" onClick={reopenCookieConsent}>
+                      Pengaturan Cookie
+                    </button>
+                  </li>
+                )}
               </ul>
             </nav>
           ))}

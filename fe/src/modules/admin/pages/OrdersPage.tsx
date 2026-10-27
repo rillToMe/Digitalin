@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, Eye, RefreshCw, Undo2, X, Loader2, ChevronLeft, ChevronRight, AlertTriangle, Clock } from "lucide-react";
+import { Search, Eye, RefreshCw, Undo2, X, Loader2, ChevronLeft, ChevronRight, AlertTriangle, Clock, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "../../../layouts/AdminLayout";
@@ -57,6 +57,7 @@ export default function OrdersPage() {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<OrderStatus | "">("");
   
   // Modals state
   const [detailTarget, setDetailTarget] = useState<OrderResponse | null>(null);
@@ -70,15 +71,15 @@ export default function OrdersPage() {
 
   // Fetch orders
   const { data, isLoading: loading } = useQuery({
-    queryKey: ["admin-orders", page],
-    queryFn: () => adminService.getOrders({ page, limit: PAGE_SIZE }),
+    queryKey: ["admin-orders", page, status],
+    queryFn: () => adminService.getOrders({ page, limit: PAGE_SIZE, status: status || undefined }),
   });
 
   const allOrders = data?.data ?? [];
   const totalCount = data?.totalItems ?? 0;
   const totalPages = data?.totalPages ?? 1;
 
-  // Filter orders locally by search query if search text is typed
+  // Pencarian hanya pada halaman aktif; status difilter server agar pagination akurat.
   const orders = allOrders.filter(o => 
     o.orderNo.toLowerCase().includes(search.toLowerCase()) || 
     o.playerId.toLowerCase().includes(search.toLowerCase()) ||
@@ -179,6 +180,21 @@ export default function OrdersPage() {
             className="w-full pl-9 pr-4 py-2.5 rounded-xl outline-none"
             style={{ border: "1.5px solid var(--color-border)", fontSize: "0.9rem", backgroundColor: "var(--color-surface)", color: "var(--color-brand-primary)" }}
           />
+        </div>
+        <div className="relative sm:w-48">
+          <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--color-brand-secondary)" }} />
+          <select
+            value={status}
+            onChange={(e) => { setStatus(e.target.value as OrderStatus | ""); setPage(1); }}
+            aria-label="Filter status order"
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl outline-none appearance-none"
+            style={{ border: "1.5px solid var(--color-border)", fontSize: "0.9rem", backgroundColor: "var(--color-surface)", color: "var(--color-brand-primary)" }}
+          >
+            <option value="">Semua status</option>
+            {Object.entries(STATUS_STYLES).map(([value, config]) => (
+              <option key={value} value={value}>{config.label}</option>
+            ))}
+          </select>
         </div>
       </div>
 

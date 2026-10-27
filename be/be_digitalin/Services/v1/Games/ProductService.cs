@@ -30,6 +30,12 @@ public class ProductService : IProductService
     /// </summary>
     private const int PopularBrandLimit = 12;
 
+    /// <summary>
+    /// Jumlah game di section "Terakhir Dibeli". Sama dengan PopularBrandLimit
+    /// — satu rail penuh; cookie guest FE juga dibatasi angka ini.
+    /// </summary>
+    internal const int RecentBrandLimit = 12;
+
     // TTL dasar + jitter kecil supaya expiration banyak key tidak serentak.
     private static TimeSpan CacheTtl(int minutes) =>
         TimeSpan.FromMinutes(minutes).Add(TimeSpan.FromSeconds(Random.Shared.Next(0, 31)));
@@ -480,8 +486,108 @@ public class ProductService : IProductService
         return result;
     }
 
-    internal static List<string> ParsePopularGameSlugs(string? json)
+    // HOMEPAGE: Section "Terakhir Dibeli" — game yang BENAR-BENAR dibeli
+    // (uang masuk). Tidak lewat Redis: hasilnya per-customer / per-cookie,
+    // cache global justru membocorkan riwayat antar pengunjung.
+    public async Task<IEnumerable<CategoryInfo>> GetRecentGameBrandsAsync(
+        int? customerId,
+        IReadOnlyList<string>? guestSlugs = null)
     {
+        List<string>? orderedBrandNames = null;
+        List<string>? orderedSlugs = null;
+
+        if (customerId.HasValue)
+        {
+            // Login: DB = sumber kebenaran. CustomerId datang dari klaim auth
+            // di controller — bukan input klien. Hanya order berstatus
+            // uang-masuk (PaidStatuses) yang dihitung sebagai pembelian;
+            // terbaru dulu, brand sama hanya sekali (first-seen = terbaru).
+            var purchasedBrands = await _db.TopupOrders
+                .AsNoTracking()
+                .Where(order =>
+                    order.CustomerId == customerId.Value &&
+                    AppConstants.OrderStatus.PaidStatuses.Contains(order.Status))
+                .OrderByDescending(order => order.OrderDate)
+                .Select(order => order.BrandName)
+                .ToListAsync();
+
+            orderedBrandNames = purchasedBrands
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+
+            if (orderedBrandNames.Count == 0)
+                return [];
+        }
+        else
+        {
+            // Guest: cookie FE hanya daftar slug PUBLIK (identifier katalog di
+            // URL) — di-sanitize per entry (Slug.From) lalu divalidasi ulang
+            // terhadap katalog aktif di bawah. Bukan bukti pembelian maupun
+            // otorisasi; klien tak bisa menggunakannya untuk membaca data
+            // order privat apa pun.
+            orderedSlugs = (guestSlugs ?? [])
+                .Select(Slug.From)
+                .Where(slug => slug != null)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (orderedSlugs.Count == 0)
+                return [];
+        }
+
+        // Metadata + produk aktif — syarat yang sama dengan section lain,
+        // supaya brand yang sudah nonaktif lenyap dari "Terakhir Dibeli".
+        var available = await _db.GameMetadata
+            .AsNoTracking()
+            .Where(metadata =>
+                _db.GameProducts.Any(product =>
+                    product.Brand == metadata.Brand &&
+                    product.Category == AppConstants.Categories.Games &&
+                    product.IsActive))
+            .Select(metadata => new
+            {
+                metadata.Brand,
+                metadata.BrandSlug,
+                metadata.ImageUrl,
+                metadata.Categories
+            })
+            .ToListAsync();
+
+        if (orderedBrandNames != null)
+        {
+            var byBrand = available.ToDictionary(
+                metadata => metadata.Brand,
+                metadata => new CategoryInfo(
+                    metadata.Brand,
+                    metadata.BrandSlug,
+                    metadata.ImageUrl,
+                    AppConstants.Categories.Games,
+                    GameMetadata.ParseCategories(metadata.Categories)),
+                StringComparer.Ordinal);
+
+            return orderedBrandNames
+                .Where(byBrand.ContainsKey)
+                .Select(brand => byBrand[brand])
+                .Take(RecentBrandLimit);
+        }
+
+        var bySlug = available.ToDictionary(
+            metadata => metadata.BrandSlug,
+            metadata => new CategoryInfo(
+                metadata.Brand,
+                metadata.BrandSlug,
+                metadata.ImageUrl,
+                AppConstants.Categories.Games,
+                GameMetadata.ParseCategories(metadata.Categories)),
+            StringComparer.OrdinalIgnoreCase);
+
+        return orderedSlugs!
+            .Where(bySlug.ContainsKey)
+            .Select(slug => bySlug[slug])
+            .Take(RecentBrandLimit);
+    }
+
+    internal static List<string> ParsePopularGameSlugs(string? json)    {
         if (string.IsNullOrWhiteSpace(json))
             return [];
 

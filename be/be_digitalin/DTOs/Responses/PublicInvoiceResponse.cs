@@ -12,6 +12,12 @@ public record PublicInvoiceResponse(
     string ProductName,
     /// <summary>Snapshot gambar produk (user-facing, nullable).</summary>
     string? ImageUrl,
+    /// <summary>
+    /// Slug katalog brand snapshot (identifier publik URL /game/{slug}).
+    /// Hanya untuk fitur "Terakhir Dibeli" guest di FE — bukan bukti pembelian
+    /// (BE divalidasi ulang vs katalog aktif). Null untuk order pra-kolom.
+    /// </summary>
+    string? BrandSlug,
     /// <summary>Amount = TotalPaid (harga final setelah diskon).</summary>
     decimal Amount,
     /// <summary>Status order mentah (PENDING/PAID/PROCESSING/.../REFUNDED).</summary>

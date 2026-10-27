@@ -26,9 +26,15 @@ public class AdminOrderController : ControllerBase
 
     // GET /api/v1/admin/orders
     [HttpGet]
-    public async Task<ActionResult<PagedResult<OrderResponse>>> List()
+    public async Task<ActionResult<PagedResult<OrderResponse>>> List(
+        [FromQuery] int page = 1,
+        [FromQuery] int limit = 20,
+        [FromQuery] string? status = null)
     {
-        var result = await _orderService.GetAllOrdersAsync();
+        page = Math.Max(1, page);
+        limit = Math.Clamp(limit, 1, 100);
+
+        var result = await _orderService.GetAllOrdersAsync(page, limit, status);
         return Ok(result);
     }
 

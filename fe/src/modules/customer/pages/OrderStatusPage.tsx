@@ -12,6 +12,7 @@ import {
   Home,
   History,
   Copy,
+  Download,
   ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -19,6 +20,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { invoiceService } from "../../../services/api";
 import type { PublicInvoiceResponse, OrderStatus, OrderPaymentInstructions } from "../../../api/index";
 import { ImageWithFallback } from "../../../utils/ImageWithFallback";
+import { addRecentSlug } from "../../../utils/recentGames";
 import BackButton from "../../../components/common/BackButton";
 import { usePaymentMethods } from "../../../hooks/usePaymentMethods";
 
@@ -233,26 +235,58 @@ function TerminalPanel({ status }: { status: OrderStatus }) {
 /* ─── Panel instruksi pembayaran Core API (data-driven: VA / deeplink / QR) ─── */
 
 /**
+ * Salin ke clipboard + toast feedback — satu helper untuk CopyRow (VA/bill/
+ * kode bayar) dan tombol salin nomor invoice, supaya perilaku (pesan sukses/
+ * gagal) tidak bisa drift antar tombol.
+ */
+async function copyText(label: string, value: string) {
+  try {
+    await navigator.clipboard.writeText(value);
+    toast.success(`${label} disalin`);
+  } catch {
+    toast.error(`Gagal menyalin ${label.toLowerCase()} — salin manual ya.`);
+  }
+}
+
+/**
  * Render instruksi bayar dari GET /invoices/{orderNo} — hanya muncul untuk
  * order PENDING Core API. VA: nomor + salin; GoPay: tombol deeplink; QRIS/
  * GoPay: QR image dari action "generate-qr-code" Midtrans (tanpa library QR).
+ * QR image bisa diunduh (mobile: simpan lalu scan/upload dari app bayar).
  */
 function PaymentInstructionsPanel({
   instructions,
   bankIconUrl,
+  invoiceNumber,
 }: {
   instructions: OrderPaymentInstructions;
   bankIconUrl: string | null;
+  invoiceNumber: string | null;
 }) {
   const qrUrl = instructions.actions.find((a) => a.name === "generate-qr-code")?.url;
   const deeplinkUrl = instructions.actions.find((a) => a.name === "deeplink-redirect")?.url;
 
-  const copy = async (label: string, value: string) => {
+  // Unduh gambar QR Midtrans apa adanya (tidak meregenerate QR): fetch →
+  // blob → anchor download. Gagal fetch (mis. CORS/network) → buka tab baru
+  // supaya user tetap bisa simpan manual (long-press / save image as).
+  const downloadQr = async () => {
+    if (!qrUrl) return;
     try {
-      await navigator.clipboard.writeText(value);
-      toast.success(`${label} disalin`);
+      const response = await fetch(qrUrl);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = `QR-${invoiceNumber ?? "Pembayaran"}.png`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+      toast.success("QR code berhasil diunduh");
     } catch {
-      toast.error(`Gagal menyalin ${label.toLowerCase()} — salin manual ya.`);
+      window.open(qrUrl, "_blank", "noopener");
+      toast.info("QR dibuka di tab baru — simpan gambarnya dari sana.");
     }
   };
 
@@ -273,7 +307,7 @@ function PaymentInstructionsPanel({
         </p>
         <button
           type="button"
-          onClick={() => copy(label, value)}
+          onClick={() => copyText(label, value)}
           aria-label={`Salin ${label}`}
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg flex-shrink-0"
           style={{
@@ -376,8 +410,24 @@ function PaymentInstructionsPanel({
             className="w-44 h-44 object-contain rounded-lg"
             style={{ backgroundColor: "var(--color-surface)" }}
           />
+          {/* Touch target sama dengan tombol deeplink (py-2.5, full width). */}
+          <button
+            type="button"
+            onClick={downloadQr}
+            aria-label="Unduh QR code pembayaran"
+            className="w-full py-2.5 rounded-xl flex items-center justify-center gap-2"
+            style={{
+              border: "1px solid var(--color-border-default)",
+              color: "var(--color-brand-primary)",
+              fontWeight: 600,
+              fontSize: "0.85rem",
+            }}
+          >
+            <Download size={14} aria-hidden="true" />
+            Unduh QR Code
+          </button>
           <p style={{ color: "var(--color-brand-secondary)", fontSize: "0.72rem", textAlign: "center" }}>
-            Scan QR code dengan aplikasi e-wallet atau mobile banking kamu.
+            Scan QR code dengan aplikasi e-wallet atau mobile banking kamu. Simpan gambarnya bila ingin scan dari aplikasi lain.
           </p>
         </div>
       )}
@@ -392,16 +442,18 @@ function PaymentInstructionsPanel({
  * order aktual (backend = sumber kebenaran), polling 5 detik via TanStack
  * Query selama non-terminal, berhenti otomatis saat selesai/gagal/expired.
  * Data dari endpoint invoice publik yang sama dengan Cek Transaksi.
+ * Param URL: PublicHash (order baru) atau OrderNo (bookmark lama) — BE
+ * dual-accept keduanya; tampilan selalu memakai invoiceNumber dari respons.
  */
 export default function OrderStatusPage() {
-  const { orderNo } = useParams<{ orderNo: string }>();
+  const { publicHash } = useParams<{ publicHash: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: paymentMethods } = usePaymentMethods();
 
   const { data: invoice, isLoading, isError, error } = useQuery({
-    queryKey: ["invoice", orderNo],
-    queryFn: () => invoiceService.get(orderNo!),
+    queryKey: ["invoice", publicHash],
+    queryFn: () => invoiceService.get(publicHash!),
     // Polling hanya saat non-terminal; false = berhenti permanen.
     refetchInterval: (query) => {
       const data = query.state.data as PublicInvoiceResponse | undefined;
@@ -427,12 +479,26 @@ export default function OrderStatusPage() {
   useEffect(() => {
     if (!expiredLocally || expiryRefetched.current) return;
     expiryRefetched.current = true;
-    void queryClient.invalidateQueries({ queryKey: ["invoice", orderNo] });
-  }, [expiredLocally, orderNo, queryClient]);
+    void queryClient.invalidateQueries({ queryKey: ["invoice", publicHash] });
+  }, [expiredLocally, publicHash, queryClient]);
 
   useEffect(() => {
     expiryRefetched.current = false;
   }, [invoice?.expiresAt]);
+
+  /* "Terakhir Dibeli" guest: begitu uang masuk (paymentStatus PAID), catat
+     slug katalog game ke cookie — hanya identifier publik, bukan data
+     transaksi. Ref mencegah tulis ulang tiap polling; untuk user login
+     cookie diabaikan hook (riwayat DB sumber kebenaran), jadi tulis ini
+     hanya menjaga kesinambungan bila nanti logout. */
+  const recentRecordedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (invoice?.paymentStatus !== "PAID" || !invoice.brandSlug) return;
+    if (recentRecordedRef.current === invoice.invoiceNumber) return;
+    recentRecordedRef.current = invoice.invoiceNumber;
+    addRecentSlug(invoice.brandSlug);
+    void queryClient.invalidateQueries({ queryKey: ["recentGames"] });
+  }, [invoice?.paymentStatus, invoice?.brandSlug, invoice?.invoiceNumber, queryClient]);
 
   const bankIconUrl = paymentMethods
     ?.flatMap((method) => method.banks)
@@ -450,7 +516,9 @@ export default function OrderStatusPage() {
         Status Pesanan
       </h1>
       <p className="label-mono" style={{ color: "var(--color-brand-secondary)", fontSize: "0.72rem", marginTop: 4, marginBottom: 28 }}>
-        {orderNo}
+        {/* Nomor invoice dari respons — param URL adalah PublicHash, bukan
+            nilai yang layak ditampilkan (64 char hex). */}
+        {invoice?.invoiceNumber}
       </p>
 
       {isLoading ? (
@@ -478,7 +546,7 @@ export default function OrderStatusPage() {
           </p>
           <button
             type="button"
-            onClick={() => queryClient.invalidateQueries({ queryKey: ["invoice", orderNo] })}
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["invoice", publicHash] })}
             className="mt-4 px-5 py-2.5 rounded-xl"
             style={{ border: "1px solid var(--color-border)", color: "var(--color-brand-primary)", fontWeight: 600, fontSize: "0.85rem" }}
           >
@@ -523,7 +591,11 @@ export default function OrderStatusPage() {
                       </div>
                     )}
                     {invoice.paymentInstructions && (
-                      <PaymentInstructionsPanel instructions={invoice.paymentInstructions} bankIconUrl={bankIconUrl} />
+                      <PaymentInstructionsPanel
+                        instructions={invoice.paymentInstructions}
+                        bankIconUrl={bankIconUrl}
+                        invoiceNumber={invoice.invoiceNumber}
+                      />
                     )}
                   </div>
                 ) : (
@@ -601,9 +673,30 @@ export default function OrderStatusPage() {
             <div className="mt-4 pt-4 space-y-2" style={{ borderTop: "1px solid var(--color-border-lighter)" }}>
               <div className="flex justify-between items-center gap-3" style={{ fontSize: "0.82rem" }}>
                 <span style={{ color: "var(--color-brand-secondary)" }}>Invoice</span>
-                <span style={{ color: "var(--color-brand-primary)", fontWeight: 600, fontFamily: "monospace" }}>
-                  {invoice.invoiceNumber}
-                </span>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className="truncate"
+                    style={{ color: "var(--color-brand-primary)", fontWeight: 600, fontFamily: "monospace" }}
+                  >
+                    {invoice.invoiceNumber}
+                  </span>
+                  {/* Touch target sama dengan CopyRow (px-3 py-2). */}
+                  <button
+                    type="button"
+                    onClick={() => copyText("Nomor invoice", invoice.invoiceNumber)}
+                    aria-label="Salin nomor invoice"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg flex-shrink-0"
+                    style={{
+                      border: "1px solid var(--color-border-default)",
+                      color: "var(--color-brand-primary)",
+                      fontSize: "0.75rem",
+                      fontWeight: 600,
+                    }}
+                  >
+                    <Copy size={13} aria-hidden="true" />
+                    Salin
+                  </button>
+                </div>
               </div>
               <div className="flex justify-between items-center gap-3" style={{ fontSize: "0.82rem" }}>
                 <span style={{ color: "var(--color-brand-secondary)" }}>Waktu Transaksi</span>

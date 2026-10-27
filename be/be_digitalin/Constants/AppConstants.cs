@@ -68,6 +68,17 @@ public static class AppConstants
         public const string Failed = "FAILED";               // Gagal bayar dari Midtrans (cancel/deny)
         public const string Expired = "EXPIRED";             // Waktu bayar habis
         public const string Refunded = "REFUNDED";           // Refund uang kalau transaksi beneran gk bisa di lakukan
+
+        /// <summary>
+        /// Status yang berarti uang SUDAH diterima (pembelian benar-benar terjadi).
+        /// SSOT satu-satunya untuk "order sudah dibayar" — dipakai mapping
+        /// PaymentStatus invoice publik dan penentuan game "Terakhir Dibeli".
+        /// Diketik IReadOnlyList (bukan array/HashSet) supaya Contains di
+        /// expression tree EF bind ke Enumerable.Contains → diterjemahkan ke
+        /// IN clause (array malah bind MemoryExtensions.Contains/span → crash).
+        /// </summary>
+        public static readonly IReadOnlyList<string> PaidStatuses =
+            new[] { Paid, Processing, Completed, NeedsAction };
     }
     
     // Status Transaksi dari Midtrans
@@ -268,6 +279,9 @@ public static class AppConstants
         /// <summary>Section virtual kurasi admin (GET /games/brands/popular).</summary>
         public const string PopularSlug = "populer";
 
+        /// <summary>Section virtual "Terakhir Dibeli" (GET /games/brands/recent).</summary>
+        public const string RecentSlug = "recently";
+
         /// <summary>
         /// Slug bucket virtual di atas. Kategori dengan slug ini tidak boleh dibuat
         /// admin — akan bertabrakan dan membuat katalog tampil dobel / brand tanpa
@@ -275,7 +289,7 @@ public static class AppConstants
         /// </summary>
         public static readonly IReadOnlySet<string> ReservedSlugs =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { AllSlug, UncategorizedSlug, PopularSlug };
+            { AllSlug, UncategorizedSlug, PopularSlug, RecentSlug };
     }
 
     public static class GameInputFieldTypes

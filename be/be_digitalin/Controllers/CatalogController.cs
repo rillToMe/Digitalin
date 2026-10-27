@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using be_digitalin.Constants;
 using be_digitalin.DTOs;
 using be_digitalin.Services.Games;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace be_digitalin.Controllers;
@@ -21,6 +23,12 @@ public class CatalogController : ControllerBase
     /// sekaligus tanpa ada yang membacanya.
     /// </summary>
     private const int MaxBrandPageSize = 60;
+
+    /// <summary>
+    /// Batas jumlah slug guest di ?slugs= GET /games/brands/recent. Cermin
+    /// batas cookie FE — slug berlebih dibuang sebelum menyentuh service.
+    /// </summary>
+    private const int MaxRecentSlugs = 12;
 
     private readonly IProductService _productService;
 
@@ -52,6 +60,36 @@ public class CatalogController : ControllerBase
     public async Task<ActionResult<IEnumerable<CategoryInfo>>> GetPopularBrands()
     {
         var brands = await _productService.GetPopularGameBrandsAsync();
+        return Ok(brands);
+    }
+
+    // GET /api/v1/games/brands/recent?slugs=a,b,c
+    // Section "Terakhir Dibeli". Optional-auth (pola POST /orders): login →
+    // riwayat pembelian DB milik customer (klaim, bukan input klien); guest →
+    // slug cookie FE yang divalidasi ulang vs katalog aktif. Slug tidak pernah
+    // dijadikan bukti pembelian maupun otorisasi.
+    [HttpGet("brands/recent")]
+    [AllowAnonymous]
+    public async Task<ActionResult<IEnumerable<CategoryInfo>>> GetRecentBrands(
+        [FromQuery] string? slugs)
+    {
+        // Batas defensif panjang input — service tetap memvalidasi isi tiap
+        // slug; ini hanya mencegah querystring raksasa diproses lebih jauh.
+        var guestSlugs = string.IsNullOrWhiteSpace(slugs)
+            ? null
+            : slugs
+                .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+                .Take(MaxRecentSlugs)
+                .ToList();
+
+        int? customerId = null;
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+        if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int parsedId))
+        {
+            customerId = parsedId;
+        }
+
+        var brands = await _productService.GetRecentGameBrandsAsync(customerId, guestSlugs);
         return Ok(brands);
     }
 

@@ -109,10 +109,6 @@ public class DashboardService : IDashboardService
                 {
                     return (null, "endDate tidak boleh lebih awal dari startDate.");
                 }
-                if ((parsedEnd.Date - parsedStart.Date).TotalDays > 31)
-                {
-                    return (null, "Rentang tanggal maksimal adalah 31 hari.");
-                }
                 startUtc = TimeZoneInfo.ConvertTimeToUtc(parsedStart.Date, Wib);
                 endUtc = TimeZoneInfo.ConvertTimeToUtc(parsedEnd.Date.AddDays(1), Wib);
                 groupBy = "day";

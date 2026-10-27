@@ -262,13 +262,13 @@ export default function ProfilePage() {
           <div className="rounded-2xl p-5" style={{ backgroundColor: "var(--color-surface,#fff)", border: "1px solid rgba(0,0,0,0.07)" }}>
             <h3 style={{ color: "var(--color-primary,#0F1419)", fontWeight: 600, fontSize: "0.95rem", marginBottom: 16 }}>Statistik Akun</h3>
             {historyLoading ? (
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[1, 2, 3].map((i) => (
                   <div key={i} className="h-20 rounded-xl animate-pulse" style={{ backgroundColor: "var(--color-neutral,#F1F3F5)" }} />
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
                   { icon: <ShoppingBag size={18} />, label: "Total Order", value: String(stats.totalOrders), color: "#2C5EF5" },
                   { icon: <TrendingUp size={18} />, label: "Total Spend", value: formatFullRp(stats.totalSpend), color: "#15803d" },

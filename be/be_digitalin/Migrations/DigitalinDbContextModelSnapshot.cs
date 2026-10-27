@@ -727,6 +727,9 @@ namespace be_digitalin.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<string>("BrandSlug")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("BuyerSkuCode")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -790,6 +793,10 @@ namespace be_digitalin.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("PublicHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
                     b.Property<DateTime?>("RowVersion")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
@@ -817,6 +824,9 @@ namespace be_digitalin.Migrations
                     b.HasIndex("GameProductId");
 
                     b.HasIndex("OrderNo")
+                        .IsUnique();
+
+                    b.HasIndex("PublicHash")
                         .IsUnique();
 
                     b.HasIndex("Status", "OrderDate");

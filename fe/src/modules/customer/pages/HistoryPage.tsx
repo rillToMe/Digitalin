@@ -188,12 +188,16 @@ export default function HistoryPage() {
 
                     {/* Aksi bayar untuk order PENDING: instruksi bayar Core API
                         (QR/VA/deeplink) dirender di halaman status. */}
-                    {order.status === "PENDING" && order.paymentType && (
+                    {order.status === "PENDING" && order.paymentType && order.publicHash && (
                       <div className="pt-2">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/order/status/${order.orderNo}`);
+                            // URL status SELALU PublicHash (identifier publik
+                            // satu-satunya — OrderNo tidak valid sebagai URL
+                            // status). Baris pra-backfill tanpa hash: tombol
+                            // disembunyikan (hash diisi startup backfill).
+                            navigate(`/order/status/${order.publicHash ?? ""}`);
                           }}
                           className="w-full py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all hover:opacity-90"
                           style={{
