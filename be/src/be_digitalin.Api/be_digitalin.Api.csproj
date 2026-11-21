@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>be_digitalin</RootNamespace>
+        <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+        <UserSecretsId>d97095b7-b5a3-4a71-8738-cc03411f7329</UserSecretsId>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.7" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+        <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
+        <PackageReference Include="Scalar.AspNetCore" Version="2.17.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\be_digitalin.Application\be_digitalin.Application.csproj" />
+        <ProjectReference Include="..\be_digitalin.Infrastructure\be_digitalin.Infrastructure.csproj" />
+        <ProjectReference Include="..\be_digitalin.Domain\be_digitalin.Domain.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="be_digitalin.Tests" />
+    </ItemGroup>
+
+</Project>
