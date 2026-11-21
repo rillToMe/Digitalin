@@ -22,6 +22,14 @@ public class LeaderboardServiceTests
     private static readonly TimeZoneInfo Wib =
         TimeZoneInfo.FindSystemTimeZoneById("Asia/Jakarta");
 
+    private static readonly DateTimeOffset FixedNowUtc =
+        new(2026, 11, 22, 5, 0, 0, TimeSpan.Zero);
+
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
+    }
+
     private static DigitalinDbContext CreateDb()
     {
         var options = new DbContextOptionsBuilder<DigitalinDbContext>()
@@ -61,13 +69,14 @@ public class LeaderboardServiceTests
 
     private static (DateTime StartUtc, DateTime NowUtc) TodayWindow()
     {
-        var nowUtc = DateTime.UtcNow;
+        var nowUtc = FixedNowUtc.UtcDateTime;
         var startUtc = TimeZoneInfo.ConvertTimeToUtc(
             TimeZoneInfo.ConvertTimeFromUtc(nowUtc, Wib).Date, Wib);
         return (startUtc, nowUtc);
     }
 
-    private static LeaderboardService CreateService(DigitalinDbContext db) => new(db);
+    private static LeaderboardService CreateService(DigitalinDbContext db, DateTimeOffset? nowUtc = null) =>
+        new(db, new FixedTimeProvider(nowUtc ?? FixedNowUtc));
 
     // ── Agregasi, sort, tie-break, limit ──
 
@@ -256,11 +265,45 @@ public class LeaderboardServiceTests
         Assert.Equal(2m, entry.TotalSpent);
     }
 
+    [Theory]
+    [InlineData(0, 0, 0, false)]
+    [InlineData(0, 0, 1, true)]
+    [InlineData(0, 30, 0, true)]
+    [InlineData(12, 0, 0, true)]
+    [InlineData(23, 59, 59, true)]
+    public async Task GetLeaderboardAsync_TodayExcludesCurrentAndFutureOrders(
+        int hour, int minute, int second, bool includesPreviousOrder)
+    {
+        await using var db = CreateDb();
+        var now = new DateTimeOffset(2026, 11, 22, hour, minute, second, TimeSpan.FromHours(7));
+        var customer = NewCustomer("Budi");
+        db.Customers.Add(customer);
+        await db.SaveChangesAsync();
+
+        db.TopupOrders.AddRange(
+            PaidOrder(customer.Id, 5000m, now.UtcDateTime.AddSeconds(-1)),
+            PaidOrder(customer.Id, 10000m, now.UtcDateTime),
+            PaidOrder(customer.Id, 20000m, now.UtcDateTime.AddSeconds(1)));
+        await db.SaveChangesAsync();
+
+        var result = await CreateService(db, now.ToUniversalTime())
+            .GetLeaderboardAsync(LeaderboardPeriod.Today);
+
+        if (includesPreviousOrder)
+        {
+            Assert.Equal(5000m, Assert.Single(result).TotalSpent);
+        }
+        else
+        {
+            Assert.Empty(result);
+        }
+    }
+
     [Fact]
     public async Task GetLeaderboardAsync_WeekBoundary_MondayStart()
     {
         await using var db = CreateDb();
-        var nowUtc = DateTime.UtcNow;
+        var nowUtc = FixedNowUtc.UtcDateTime;
         var localNow = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, Wib);
         var daysFromMonday = ((int)localNow.DayOfWeek + 6) % 7;
         var mondayLocal = localNow.Date.AddDays(-daysFromMonday);
@@ -285,7 +328,7 @@ public class LeaderboardServiceTests
     public async Task GetLeaderboardAsync_MonthBoundary_FirstDayStart()
     {
         await using var db = CreateDb();
-        var nowUtc = DateTime.UtcNow;
+        var nowUtc = FixedNowUtc.UtcDateTime;
         var localNow = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, Wib);
         var firstOfThisMonthLocal = new DateTime(localNow.Year, localNow.Month, 1);
         var lastOfPrevMonthLocal = firstOfThisMonthLocal.AddDays(-1);
@@ -311,7 +354,7 @@ public class LeaderboardServiceTests
     public async Task GetLeaderboardAsync_WeekIncludesEarlierDaysOfSameWeek()
     {
         await using var db = CreateDb();
-        var nowUtc = DateTime.UtcNow;
+        var nowUtc = FixedNowUtc.UtcDateTime;
         var localNow = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, Wib);
         var daysFromMonday = ((int)localNow.DayOfWeek + 6) % 7;
         // Awal minggu ini (Senin 00:00) masuk minggu — dan juga masuk "today"

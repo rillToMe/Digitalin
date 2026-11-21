@@ -8,6 +8,7 @@ using be_digitalin.Services.Orders;
 using be_digitalin.Services.Payments;
 using be_digitalin.Services.Security;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace be_digitalin.Application;
 
@@ -15,6 +16,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
+        services.TryAddSingleton<TimeProvider>(TimeProvider.System);
+
         // Auth & Customers
         services.AddScoped<IGoogleAuthService, GoogleAuthService>();
         services.AddScoped<IFacebookAuthService, FacebookAuthService>();

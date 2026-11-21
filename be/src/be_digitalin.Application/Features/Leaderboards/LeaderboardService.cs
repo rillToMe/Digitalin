@@ -33,17 +33,19 @@ public class LeaderboardService : ILeaderboardService
     ];
 
     private readonly IApplicationDbContext _db;
+    private readonly TimeProvider _timeProvider;
 
-    public LeaderboardService(IApplicationDbContext db)
+    public LeaderboardService(IApplicationDbContext db, TimeProvider timeProvider)
     {
         _db = db;
+        _timeProvider = timeProvider;
     }
 
     public async Task<IReadOnlyList<LeaderboardEntryResponse>> GetLeaderboardAsync(
         LeaderboardPeriod period,
         CancellationToken cancellationToken = default)
     {
-        var nowUtc = DateTime.UtcNow;
+        var nowUtc = _timeProvider.GetUtcNow().UtcDateTime;
         var startUtc = GetPeriodStartUtc(period, nowUtc);
 
         // Salin ke variabel lokal: EF Core mem-parameter-kan closure dan
